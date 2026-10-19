@@ -41,6 +41,9 @@ public class TokenFilter extends OncePerRequestFilter {
             "/mcp/public",
             "/sys/config/public/",
             "/ext/v1/",
+            // 二开（T1-10，2026-10-19）：KB 的 MCP Server 端点，由 ExtApiAuthFilter 用
+            // knowledge 资源级 ext key 鉴权（ExtApiAuthFilter 先于本过滤器执行并设置主体）
+            "/mcp/kb/",
             // OPS-01：容器探活端点（application.yml 已限制只暴露 health 一个 actuator 端点）
             "/actuator/health",
     };

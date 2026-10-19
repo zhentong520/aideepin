@@ -34,6 +34,12 @@ import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 public class ExtApiAuthFilter extends OncePerRequestFilter {
 
     private static final String API_V1_PREFIX = "/ext/v1/";
+    /**
+     * 二开新增（T1-10，2026-10-19）：KB 的 MCP Server 端点。复用 knowledge 资源级 ext key
+     * 鉴权（key 绑定唯一知识库，entityUuid 即 kbUuid），路径上的 kbUuid 必须与 key 绑定一致，
+     * 由 MCP 工具层校验（无权 → 明确 JSON-RPC 错误，非静默空结果）。
+     */
+    private static final String MCP_KB_PREFIX = "/mcp/kb/";
     private static final String KEY_PREFIX = "ext-";
 
     @Value("${server.servlet.context-path:}")
@@ -58,8 +64,10 @@ public class ExtApiAuthFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         String requestUri = request.getRequestURI();
         String apiPath = contextPathPrefix() + API_V1_PREFIX;
+        // T1-10：/mcp/kb/** 与 /ext/v1/** 共用同一套 ext key 鉴权链路
+        String mcpKbPath = contextPathPrefix() + MCP_KB_PREFIX;
 
-        if (!requestUri.startsWith(apiPath)) {
+        if (!requestUri.startsWith(apiPath) && !requestUri.startsWith(mcpKbPath)) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -73,7 +81,13 @@ public class ExtApiAuthFilter extends OncePerRequestFilter {
         }
         rawKey = rawKey.trim();
 
-        String type = inferType(requestUri);
+        String type;
+        if (requestUri.startsWith(contextPathPrefix() + MCP_KB_PREFIX)) {
+            // T1-10：KB 的 MCP 端点与 /ext/v1/knowledge 共用 knowledge 资源级 key
+            type = ExtApiResourceType.KNOWLEDGE.getValue();
+        } else {
+            type = inferType(requestUri);
+        }
         if (StringUtils.isBlank(type)) {
             log.warn("ExternalAPI: unable to infer resource type from uri:{}", requestUri);
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

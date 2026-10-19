@@ -180,4 +180,27 @@ public class RedisKeyConstant {
     public static final String WORKFLOW_COMPONENT_KEY = "workflow:component";
 
     public static final String WORKFLOW_COPY_DOING = "workflow:copy:doing:{0}";
+
+    // ===== 二开新增（T1-09，2026-10-19）：External API 限流与配额 =====
+
+    /**
+     * ext key QPS 限流（1 秒固定窗口）
+     * 参数：keyHash（SHA-256 前 32 位）、epochSecond
+     * 值：窗口内请求数
+     */
+    public static final String EXT_RATE_LIMIT_QPS = "ext:rate:qps:{0}:{1}";
+
+    /**
+     * ext key 日调用次数配额
+     * 参数：keyHash、日期 yyyyMMdd
+     * 值：当日累计调用次数
+     */
+    public static final String EXT_DAILY_REQUEST_COUNT = "ext:quota:req:{0}:{1}";
+
+    /**
+     * ext key 日 token 消耗累计（prompt + completion）
+     * 参数：keyHash、日期 yyyyMMdd
+     * 值：当日累计 token 数
+     */
+    public static final String EXT_DAILY_TOKEN_COUNT = "ext:quota:token:{0}:{1}";
 }

@@ -24,6 +24,12 @@ public class ResponseWrapper implements ResponseBodyAdvice<Object> {
     public Object beforeBodyWrite(Object result, MethodParameter methodParameter,
                                   MediaType mediaType, Class aClass, ServerHttpRequest serverHttpRequest,
                                   ServerHttpResponse serverHttpResponse) {
+        // 二开（T1-10，2026-10-19）：MCP 端点返回的是 JSON-RPC 2.0 报文，协议层面不允许
+        // 包一层 {"success":true,"data":...}——官方 MCP 客户端无法解析包装后的信封。
+        // MCP endpoint responses are raw JSON-RPC envelopes and must never be wrapped.
+        if (serverHttpRequest.getURI().getPath().contains("/mcp/")) {
+            return result;
+        }
         if (result instanceof BaseResponse) {
             return result;
         } else if (result instanceof String str) {
