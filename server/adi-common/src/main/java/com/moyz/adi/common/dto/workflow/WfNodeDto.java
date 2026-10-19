@@ -25,6 +25,10 @@ public class WfNodeDto {
     private ObjectNode inputConfig;
     @NotNull
     private ObjectNode nodeConfig;
+    /**
+     * 二开新增（T2-07）：凭据库引用，必须能回读（铁律 3），否则保存一次即丢失凭据关联。
+     */
+    private String credentialUuid;
     @NotNull
     private Double positionX;
     @NotNull

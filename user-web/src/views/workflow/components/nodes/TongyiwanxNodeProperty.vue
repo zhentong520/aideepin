@@ -14,7 +14,6 @@ const props = defineProps<Props>()
 const nodeConfig = props.wfNode.nodeConfig as Workflow.NodeConfigTongyiwanx
 
 function selected(modelName: string) {
-  console.log('nodeConfig.modelName', nodeConfig.model_name, modelName)
   nodeConfig.model_name = modelName
 }
 </script>

@@ -39,7 +39,6 @@ async function handleSave(event?: KeyboardEvent) {
     }
     tmpWorkflow.value = emptyWorkflowInfo()
   } catch (error: any) {
-    console.log('Create workflow error', error)
     if (error.message) {
       ms.error(error.message, {
         duration: 2000,
@@ -64,7 +63,6 @@ async function onDelete() {
 }
 
 const viewStyle = computed(() => {
-  console.log(tmpWorkflow.value)
   if (wfStore.createOrEditWfUuid) {
     if (tmpWorkflow.value.userUuid === userStore.userInfo.uuid)
       return 'edit'
@@ -85,11 +83,9 @@ const title = computed(() => {
 })
 
 onMounted(() => {
-  console.log('CreateWorkflow mounted')
 })
 
 watch(() => wfStore.createOrEditWfUuid, (val) => {
-  console.log('CreateWorkflow watch createOrEditWfUuid', val)
   if (val) {
     tmpWorkflow.value.uuid = val
     const wf = wfStore.getWorkflowInfo(val)

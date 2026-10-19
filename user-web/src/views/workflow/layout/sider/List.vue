@@ -29,28 +29,22 @@ async function loadWfComponents() {
   if (wfStore.wfComponents.length > 0)
     return
 
-  console.log('load wf components')
   const { data: components } = await api.workflowComponents<Workflow.WorkflowComponent[]>()
   if (components && components.length > 0)
     wfStore.setWorkflowComponents(components)
-  else
-    console.log('workflow components is null')
 }
 
 async function initMyList() {
   if (wfStore.loadingMyWorkflows || wfStore.myWorkflows.length > 0)
     return
-  console.log('load my workflows')
   wfStore.setLoadingMyWorkflows(true)
   try {
     const { data } = await api.workflowSearchMine<Workflow.InfoListResp>('', currentPage.value, pageSize)
-    console.log('loaded my workflows')
     if (data.records) {
       nextTick(() => {
         wfStore.appendWorkflows(data.records, true)
         // 首次打开工作流时
         if (activeUuid.value === 'default') {
-          console.log('首次打开工作流')
           wfStore.setActiveAndGo(myWorkflows.value[0].uuid)
         }
       })
@@ -90,7 +84,6 @@ watch(
 )
 
 onMounted(() => {
-  console.log('workflow list onMounted')
   if (authStoreRef.value.token)
     initAll()
   else

@@ -32,7 +32,6 @@ for (let i = 0; i < wfStore.operators.length; i++) {
 // }
 
 function handleSelect(value: string) {
-  console.log('node selected', value)
   emit('operatorSelected', value)
 }
 </script>

@@ -43,6 +43,12 @@ public class WorkflowNode extends BaseEntity {
     @TableField(value = "node_config", jdbcType = JdbcType.JAVA_OBJECT, typeHandler = JsonNodeTypeHandler.class)
     private ObjectNode nodeConfig;
 
+    /**
+     * 二开新增（T2-07）：引用 adi_credential.uuid；空 = 仍走 node_config 旧明文机制（可回滚）。
+     */
+    @TableField("credential_uuid")
+    private String credentialUuid;
+
     @TableField("position_x")
     private Double positionX;
 

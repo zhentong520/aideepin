@@ -3,7 +3,7 @@ import { computed, h, ref, watch } from 'vue'
 import { NAlert, NButton, NDropdown, NIcon, NInput, NModal, NRadio, NRadioGroup, NTabPane, NTable, NTabs, NTooltip, useLoadingBar, useMessage } from 'naive-ui'
 import { QuestionCircle16Regular } from '@vicons/fluent'
 import MarkdownIt from 'markdown-it'
-import hljs from 'highlight.js'
+import hljs from '@/utils/highlight'
 import mdKatex from '@traptitech/markdown-it-katex'
 import mila from 'markdown-it-link-attributes'
 import McpInfoList from './McpInfoList.vue'
@@ -14,6 +14,7 @@ import { ApiKeyModal, SvgIcon } from '@/components/common'
 
 import { emptyMcp, emptyUserMcp } from '@/utils/functions'
 import { safeHtml } from '@/utils/sanitize'
+import { ensureKatexStyle, mayContainFormula } from '@/utils/lazyKatex'
 import api from '@/api'
 
 const authStore = useAuthStore()
@@ -54,6 +55,13 @@ const mdi = new MarkdownIt({
 
 mdi.use(mila, { attrs: { target: '_blank', rel: 'noopener noreferrer nofollow' } })
 mdi.use(mdKatex, { blockClass: 'katexmath-block rounded-md p-[10px]', errorColor: ' #cc0000' })
+
+// T2-05：remark 含公式时按需加载 katex 字体
+function renderRemark(remark: string) {
+  if (mayContainFormula(remark))
+    ensureKatexStyle()
+  return mdi.render(remark)
+}
 
 function highlightBlock(str: string, lang?: string) {
   return `<pre class="code-block-wrapper"><div class="code-block-header"><span class="code-block-header__lang">${lang}</span><span class="code-block-header__copy">${t('chat.copyCode')}</span></div><code class="hljs code-block-body ${lang}">${str}</code></pre>`
@@ -187,7 +195,7 @@ watch(
         <NTabPane name="introTab" :tab="t('mcp.introTab')">
           <div class="flex flex-col space-y-2 max-h-[720px] overflow-y-auto p-2">
             <div>
-              <div class="w-full markdown-body" v-html="safeHtml(mdi.render(selectedMcp.remark))" />
+              <div class="w-full markdown-body" v-html="safeHtml(renderRemark(selectedMcp.remark))" />
             </div>
             <NAlert v-if="selectedMcp.website" :show-icon="false" type="info">
               {{ t('mcp.relatedWebsite') }}{{ selectedMcp.website }}

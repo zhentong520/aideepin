@@ -105,13 +105,12 @@ function handleSelect(knowledgeBaseUuid: string) {
   emit('selected', knowledgeBaseUuid, hit?.label || '')
 }
 
-console.log('selected knowledgeBaseUuid', props.knowledgeBaseUuid)
 const handleSearch = debounce(search, 300)
 async function search(query: string) {
   try {
     await searchKbs(query)
   } catch (e) {
-    console.log(e)
+    console.error(e)
   }
 }
 
@@ -153,7 +152,7 @@ async function loadCategories() {
     for (const c of resp.data || []) map[Number(c.id)] = c.name
     categoryNames.value = map
   } catch (e) {
-    console.log('load kb categories failed', e)
+    console.error(e)
   }
 }
 

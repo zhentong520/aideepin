@@ -3,10 +3,11 @@ import { computed, ref } from 'vue'
 import MarkdownIt from 'markdown-it'
 import mdKatex from '@traptitech/markdown-it-katex'
 import mila from 'markdown-it-link-attributes'
-import hljs from 'highlight.js'
+import hljs from '@/utils/highlight'
 import { useBasicLayout } from '@/hooks/useBasicLayout'
 import { t } from '@/locales'
 import { safeHtml } from '@/utils/sanitize'
+import { ensureKatexStyle, mayContainFormula } from '@/utils/lazyKatex'
 interface Props {
   inversion?: boolean
   error?: boolean
@@ -51,8 +52,12 @@ const wrapClass = computed(() => {
 
 const text = computed(() => {
   const value = props.text ?? ''
-  if (!props.asRawText)
+  if (!props.asRawText) {
+    // T2-05：文本含公式时按需加载 katex 字体
+    if (mayContainFormula(value))
+      ensureKatexStyle()
     return safeHtml(mdi.render(value))
+  }
   return value
 })
 

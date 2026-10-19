@@ -21,6 +21,12 @@
     -->
     <dependencies>
         <dependency>
+            <groupId>com.moyz</groupId>
+            <artifactId>adi-common</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+            <!-- T2-07：真实跑 CredentialBackfillService 对容器内库回填（不起 Spring，手工装配） -->
+        </dependency>
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>

@@ -1,5 +1,5 @@
 <script setup lang='ts'>
-import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { NButton, NLayout, NLayoutContent, NLayoutSider, NModal, NTooltip, useMessage } from 'naive-ui'
 import type { Edge, Node, NodeChange } from '@vue-flow/core'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
@@ -39,7 +39,7 @@ const saveDisabledTip = computed(() => {
   return ''
 })
 
-const { onInit, fitView, onConnect, onNodeClick, onEdgeClick, onNodesChange, onEdgesChange, onNodeDragStop, addSelectedNodes, project } = useVueFlow()
+const { onInit, fitView, onConnect, onNodeClick, onEdgeClick, onNodesChange, onNodeDragStop, addSelectedNodes, project } = useVueFlow()
 
 const uw = wfStore.wfUuidToUIWorkflow.get(props.workflow.uuid) || { nodes: [] as Array<Node>, edges: [] as Array<Edge> }
 wfStore.wfUuidToUIWorkflow.set(props.workflow.uuid, uw)
@@ -49,11 +49,12 @@ function renderGraph() {
   if (uiWorkflow.nodes.length > 0)
     return
 
-  console.log('renderGraph')
   const initX = 10
   const initY = 50
   const wfNodes = props.workflow.nodes
   const wfEdges = props.workflow.edges
+  // 建 Map 索引，边循环内 O(1) 查找，避免 O(n²)
+  const nodeById = new Map<string, Workflow.WorkflowNode>(wfNodes.map((item: Workflow.WorkflowNode) => [item.uuid, item]))
   for (let i = 0; i < wfNodes.length; i++) {
     const node = wfNodes[i]
     const px = node.positionX ? node.positionX : initX + 230 * i
@@ -68,7 +69,7 @@ function renderGraph() {
   }
   for (let i = 0; i < wfEdges.length; i++) {
     const wfEdge = wfEdges[i]
-    const sourceNode = props.workflow.nodes.find((item: Workflow.WorkflowNode) => item.uuid === wfEdge.sourceNodeUuid)
+    const sourceNode = nodeById.get(wfEdge.sourceNodeUuid)
     if (!sourceNode) {
       console.error('sourceNode not found', wfEdge.sourceNodeUuid)
       continue
@@ -92,7 +93,6 @@ onNodesChange((changes: NodeChange[]) => {
     if ('selected' in change) {
       if (!change.selected && selectedWfNode.value?.uuid === change.id) {
         nodeUnSelected = true
-        console.log('node selected', change.id)
       }
     }
     // else if ('dragging' in change) {
@@ -110,18 +110,12 @@ onNodesChange((changes: NodeChange[]) => {
     hidePropertyPanel.value = true
 })
 
-onEdgesChange((changes) => {
-  // changes are arrays of type `EdgeChange`
-  console.log(changes)
-})
-
 /**
  * onConnect is called when a new connection is created.
  *
  * You can add additional properties to your new edge (like a type or label) or block the creation altogether by not calling `addEdges`
  */
 onConnect((connection) => {
-  console.log('onConnect', connection)
   createNewEdge({
     workflow: props.workflow,
     uiWorkflow,
@@ -133,7 +127,6 @@ onConnect((connection) => {
 
 // any event that is emitted from the `<VueFlow />` component can be listened to using the `onEventName` method
 onInit(() => {
-  console.log('onInit')
   // `instance` is the same type as the return of `useVueFlow` (VueFlowStore)
   nextTick(() => {
     fitView()
@@ -185,7 +178,6 @@ function onDrop(event: DragEvent) {
  */
 onNodeDragStop(({ event, nodes, node }) => {
   // selectedWfNode.value = node.data
-  console.log('Node drag stop:', nodes, node, event)
   if (node) {
     node.data.positionX = node.position.x
     node.data.positionY = node.position.y
@@ -195,7 +187,6 @@ onNodeDragStop(({ event, nodes, node }) => {
 
 // Node click event handler
 onNodeClick(({ event, node }) => {
-  console.log('Node clicked:', node, event)
   if (node.selected) {
     hidePropertyPanel.value = false
     selectedWfNode.value = node.data
@@ -204,7 +195,6 @@ onNodeClick(({ event, node }) => {
 
 // Edge click event handler
 onEdgeClick(({ event, edge }) => {
-  console.log('Edge clicked:', edge, event)
   if (selectedWfNode.value)
     hidePropertyPanel.value = false
 })
@@ -224,28 +214,27 @@ async function onSave() {
     // 只需要更新新增节点和边的id
     wfStore.updateNodesAndEdgesId(props.workflow.uuid, updatedWorkflow)
   } catch (e) {
-    console.log(e)
+    console.error(e)
   } finally {
     submitting.value = false
   }
 }
 
 onMounted(() => {
-  console.log('workflow define onMounted', this)
   nextTick(() => {
-    if (wfStore.wfComponents.length === 0) {
-      setTimeout(() => {
-        renderGraph()
-      }, 2000)
-    } else {
-      renderGraph()
-    }
+    renderGraph()
   })
 })
 
-onUnmounted(() => {
-  console.log('workflow define onUnMounted', this)
-})
+// 数据就绪即渲染：workflow 异步加载完成时触发（替代原 setTimeout 2 秒硬等）
+watch(
+  () => props.workflow.nodes.length,
+  () => {
+    nextTick(() => {
+      renderGraph()
+    })
+  },
+)
 </script>
 
 <template>

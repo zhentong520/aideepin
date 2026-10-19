@@ -31,7 +31,6 @@ function renderIcon(icon: string) {
 
 function handleSelect(key: string | number) {
   if (key === 'delete') {
-    console.log('delete node', key)
     wfStore.deleteNode(props.wfNode.workflowUuid, props.wfNode.uuid)
   }
 }

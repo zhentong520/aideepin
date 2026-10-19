@@ -41,7 +41,6 @@ watch(
 )
 const innerHeight = window.innerHeight < 800 ? 800 : window.innerHeight
 onMounted(() => {
-  console.log('props.wfNode.title', props.wfNode.title)
   nodeTitle.value = props.wfNode.title
 })
 </script>

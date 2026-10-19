@@ -31,7 +31,6 @@ const loaddingBar = useLoadingBar()
 const { isMobile } = useBasicLayout()
 const { scrollRef, scrollToBottom, scrollToBottomIfAtBottom, scrollTo } = useScroll()
 const currWfUuid = props.workflow.uuid
-console.log('instance list currWfUuid', currWfUuid)
 const showDetailModal = ref<boolean>(false)
 const detailNodes = ref<Workflow.WfRuntimeNode[]>([])
 const detailErrorMsg = ref<string>('')
@@ -50,7 +49,6 @@ async function loadMoreMessage(callback?: Function) {
     wfStore.setLoadingRuntimes(currWfUuid, true)
 
     const { data } = await api.workflowRuntimes<Workflow.WfRuntimesResp>(currWfUuid, currentPage, pageSize)
-    console.log('kb record response:', data)
     if (data.records)
       wfStore.unshiftWfRuntimes(currWfUuid, data.records)
 

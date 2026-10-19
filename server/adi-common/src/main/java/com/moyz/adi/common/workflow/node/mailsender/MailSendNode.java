@@ -4,7 +4,7 @@ import com.moyz.adi.common.entity.WorkflowComponent;
 import com.moyz.adi.common.entity.WorkflowNode;
 import com.moyz.adi.common.exception.BaseException;
 import com.moyz.adi.common.helper.AdiMailSender;
-import com.moyz.adi.common.util.AesUtil;
+import com.moyz.adi.common.service.CredentialVaultService;
 import com.moyz.adi.common.util.SpringUtil;
 import com.moyz.adi.common.vo.CustomMailInfo;
 import com.moyz.adi.common.workflow.NodeProcessResult;
@@ -60,14 +60,19 @@ public class MailSendNode extends AbstractWfNode {
                 log.warn("Mail send node configuration error 3, {}", state.getUuid());
                 throw new BaseException(A_MAIL_SENDER_EMPTY);
             }
-            if (StringUtils.isAnyBlank(senderInfo.getName(), senderInfo.getMail(), senderInfo.getPassword())) {
+            // 二开新增（T2-07）：密码解析走凭据库门面（开关两态）——
+            // vault-enabled 且节点带 credential_uuid → 从 adi_credential 解密；
+            // 否则走旧机制（node_config 内 AesUtil 密文解密）。明文只在内存流转，禁止落日志。
+            CredentialVaultService credentialVaultService = SpringUtil.getBean(CredentialVaultService.class);
+            String password = credentialVaultService.resolveMailPassword(node, senderInfo.getPassword());
+            if (StringUtils.isAnyBlank(senderInfo.getName(), senderInfo.getMail(), password)) {
                 log.warn("Mail send node configuration error 4, {}", state.getUuid());
                 throw new BaseException(A_MAIL_SENDER_CONFIG_ERROR);
             }
             AdiMailSender adiMailSender = SpringUtil.getBean(AdiMailSender.class);
             CustomMailInfo customMailInfo = new CustomMailInfo();
             setSmtpInfo(customMailInfo, nodeConfig.getSmtp());
-            setSenderInfo(customMailInfo, senderInfo);
+            setSenderInfo(customMailInfo, senderInfo, password);
             setCustomMailInfo(customMailInfo, subject, content, toMails, ccMails);
             adiMailSender.customSend(customMailInfo);
         } else {
@@ -94,12 +99,12 @@ public class MailSendNode extends AbstractWfNode {
         customMailInfo.setPort(smtpInfo.getPort());
     }
 
-    private void setSenderInfo(CustomMailInfo customMailInfo, MailSendNodeConfig.SenderInfo senderInfo) {
+    private void setSenderInfo(CustomMailInfo customMailInfo, MailSendNodeConfig.SenderInfo senderInfo, String plainPassword) {
         customMailInfo.setSenderName(senderInfo.getName());
         customMailInfo.setSenderMail(senderInfo.getMail());
-        String password = senderInfo.getPassword();
-        String decrypt = AesUtil.decrypt(password);
-        customMailInfo.setSenderPassword(decrypt);
+        // 二开（T2-07）：password 已由 CredentialVaultService.resolveMailPassword 解出明文，
+        // 不再二次 AesUtil.decrypt
+        customMailInfo.setSenderPassword(plainPassword);
     }
 
     private List<String> filterValidMails(String mails) {

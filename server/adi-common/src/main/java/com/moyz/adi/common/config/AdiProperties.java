@@ -88,6 +88,36 @@ public class AdiProperties {
     private Ext ext = new Ext();
 
     /**
+     * 二开新增（T2-07，2026-10-19）：凭据集中管理配置（铁律 10：行为改动必须带开关，可热回滚）。
+     */
+    @Valid
+    private Credential credential = new Credential();
+
+    /**
+     * 凭据集中管理配置（adi.credential.*，T2-07）。
+     */
+    @Data
+    public static class Credential {
+
+        /**
+         * 凭据库开关（adi.credential.vault-enabled，默认 false）。
+         * <p>
+         * false 时全部读写路径走旧机制（node_config jsonb 内 AesUtil 加密字段），行为与历史版本一致；
+         * true 时：保存节点把明文凭据加密进 adi_credential（jsonb 原字段置空 + 写 credential_uuid），
+         * 节点执行/响应体按 credential_uuid 解密取值，日志与响应一律不出现明文。
+         * <p>
+         * ⚠️ 开启前先跑管理端回填（POST /admin/credential/backfill）迁移存量；
+         * ⚠️ 生产环境必须配置环境变量 ADI_CRED_KEY（Base64 32 字节），否则启动 fail-fast。
+         * <p>
+         * Vault switch. Disabled by default: read/write paths keep the legacy mechanism
+         * (AesUtil-encrypted fields inside node_config jsonb). When enabled, secrets are stored
+         * in adi_credential (AES-256-GCM) and referenced by credential_uuid. Run the admin
+         * backfill endpoint before enabling; production must set env ADI_CRED_KEY or startup fails.
+         */
+        private boolean vaultEnabled = false;
+    }
+
+    /**
      * External API 限流与配额配置（adi.ext.*，T1-09）。
      * <p>
      * 三层限制：单 Key QPS（Redis 固定 1 秒窗口）、单 Key 日调用次数（Redis INCR + 当日过期）、

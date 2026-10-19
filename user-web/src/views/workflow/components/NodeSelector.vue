@@ -68,7 +68,6 @@ for (let i = 0; i < nodes.length; i++) {
 // }
 
 function handleSelect(value: string) {
-  console.log('node selected', value)
   emit('nodeSelected', value)
 }
 </script>

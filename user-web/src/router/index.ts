@@ -4,7 +4,6 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 import { setupPageGuard } from './permission'
 import { ChatLayout } from '@/views/chat/layout'
 import { KnowledgeBaseLayout } from '@/views/knowledge-base/layout'
-import { WorkflowBaseLayout } from '@/views/workflow/layout'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -98,7 +97,8 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/workflow',
-    component: WorkflowBaseLayout,
+    // T2-04：整页异步化，workflow 模块（含 @vue-flow 与 21 个节点组件）不进首屏
+    component: () => import('@/views/workflow/layout'),
     name: 'WfIndex',
     children: [
       {

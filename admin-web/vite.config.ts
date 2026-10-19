@@ -17,6 +17,24 @@ function pathResolve(dir: string) {
   return resolve(process.cwd(), '.', dir);
 }
 
+// 按包名拆分 vendor chunk（T2-03）
+function manualChunks(id: string) {
+  if (!id.includes('node_modules')) return;
+  if (id.includes('vue-flow')) return 'vendor-flow';
+  // 精确按 node_modules 段匹配，避免 vue-demi / vueuc 等子串误命中
+  if (/[\\/]node_modules[\\/](vue|vue-router|pinia|vue-i18n|@vue|@vueuse|@intlify|vue-types)[\\/]/.test(id)) return 'vendor-vue';
+  if (/[\\/]node_modules[\\/](naive-ui|vueuc|@css-render|css-render|seemly|vdirs|treemate|vooks|@vicons|date-fns|@iconify)[\\/]/.test(id)) return 'vendor-naive';
+  if (/[\\/]node_modules[\\/]echarts[\\/]/.test(id)) return 'vendor-echarts';
+  if (/[\\/]node_modules[\\/]highlight\.js[\\/]/.test(id)) return 'vendor-hljs';
+  // ⚠️ dompurify 不能放进 vendor-md：sanitize.ts 在入口静态链上，会把 markdown-it-katex→katex 拖进首屏
+  if (id.includes('markdown-it') || id.includes('link-attributes')) return 'vendor-md';
+  if (/[\\/]node_modules[\\/]katex[\\/]/.test(id)) return 'vendor-katex';
+  if (id.includes('json-editor') || id.includes('jsoneditor')) return 'vendor-jsoneditor';
+  if (id.includes('vuedraggable') || id.includes('sortablejs')) return 'vendor-drag';
+  if (/[\\/]node_modules[\\/]axios[\\/]/.test(id)) return 'vendor-http';
+  return 'vendor';
+}
+
 export default ({ command, mode }: ConfigEnv): UserConfig => {
   const root = process.cwd();
   const env = loadEnv(mode, root);
@@ -75,7 +93,12 @@ export default ({ command, mode }: ConfigEnv): UserConfig => {
       cssTarget: 'chrome80',
       outDir: OUTPUT_DIR,
       reportCompressedSize: false,
-      chunkSizeWarningLimit: 2000,
+      chunkSizeWarningLimit: 700,
+      rollupOptions: {
+        output: {
+          manualChunks,
+        },
+      },
     },
   };
 };

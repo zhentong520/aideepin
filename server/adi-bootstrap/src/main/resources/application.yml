@@ -134,6 +134,14 @@ adi:
     # Using the default key will fail on startup, please replace with your own key (16-char string) or pass via environment variable ADI_ENCRYPT_AES_KEY
     # 使用默认密钥启动会失败，请先替换为自己的密钥(长度为16的字符串)，或通过环境变量 ADI_ENCRYPT_AES_KEY 传入
     aes-key: ${ADI_ENCRYPT_AES_KEY:Ap9da0CopbjiKGc1}
+  credential:
+    # T2-07 凭据集中管理开关（铁律 10，默认 false=走旧明文字段机制，可回滚）。
+    # true 后：节点保存/回填把明文凭据加密进 adi_credential（AES-256-GCM），jsonb 原字段置空 + 写 credential_uuid，
+    # 读取路径按 credential_uuid 解密；日志与响应体不出现明文。
+    # 主密钥只从环境变量 ADI_CRED_KEY 读取（Base64 编码的 32 字节随机密钥），不入库不入日志；
+    # 生产环境（prod profile）未配置 ADI_CRED_KEY 时启动直接失败；dev 未配置时生成临时随机密钥并 warn。
+    # 开启前先执行管理端回填：POST /admin/credential/backfill
+    vault-enabled: ${ADI_CREDENTIAL_VAULT_ENABLED:false}
 
 local:
   base-data-path: ${ADI_LOCAL_BASE_DATA_PATH:/data/aideepin}

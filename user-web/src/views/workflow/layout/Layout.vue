@@ -29,7 +29,6 @@ const getContainerClass = computed(() => {
 
 // F5刷新时
 if (currWfUuid !== 'default' && activeUuid.value === 'default') {
-  console.log('在工作流列表中按F5刷新时')
   wfStore.setActive(currWfUuid)
 }
 
@@ -37,8 +36,6 @@ onMounted(async () => {
   const { data: operators } = await api.workflowOperators<Workflow.Operator[]>()
   if (operators && operators.length > 0)
     wfStore.setOperators(operators)
-  else
-    console.log('operators为空')
 })
 </script>
 

@@ -44,6 +44,9 @@ public class WorkflowNodeService extends ServiceImpl<WorkflowNodeMapper, Workflo
     @Resource
     private WorkflowComponentService workflowComponentService;
 
+    @Resource
+    private CredentialVaultService credentialVaultService;
+
     public WorkflowNode getStartNode(long workflowId) {
         return baseMapper.getStartNode(workflowId);
     }
@@ -149,9 +152,21 @@ public class WorkflowNodeService extends ServiceImpl<WorkflowNodeMapper, Workflo
             MailSendNodeConfig mailSendNodeConfig = JsonUtil.fromJson(workflowNode.getNodeConfig(), MailSendNodeConfig.class);
             if (null != mailSendNodeConfig && null != mailSendNodeConfig.getSender() && null != mailSendNodeConfig.getSender().getPassword()) {
                 String password = mailSendNodeConfig.getSender().getPassword();
-                String encrypt = AesUtil.encrypt(password);
-                mailSendNodeConfig.getSender().setPassword(encrypt);
-                workflowNode.setNodeConfig((ObjectNode) JsonUtil.classToJsonNode(mailSendNodeConfig));
+                // 二开新增（T2-07）：vault 开启时明文只进凭据库（AES-256-GCM），jsonb 原字段置空 + 写 credential_uuid；
+                // password 为空且 DTO 带回已有 credentialUuid（用户未改密码）→ 保持原关联不覆盖（铁律 3：DTO 回读）。
+                // 开关关闭走旧机制（AesUtil 入 jsonb），可回滚。
+                if (credentialVaultService.enabled()) {
+                    if (StringUtils.isNotBlank(password)) {
+                        String credentialUuid = credentialVaultService.store(CredentialVaultService.TYPE_MAIL_PASSWORD, password);
+                        workflowNode.setCredentialUuid(credentialUuid);
+                    }
+                    mailSendNodeConfig.getSender().setPassword("");
+                    workflowNode.setNodeConfig((ObjectNode) JsonUtil.classToJsonNode(mailSendNodeConfig));
+                } else {
+                    String encrypt = AesUtil.encrypt(password);
+                    mailSendNodeConfig.getSender().setPassword(encrypt);
+                    workflowNode.setNodeConfig((ObjectNode) JsonUtil.classToJsonNode(mailSendNodeConfig));
+                }
             }
         }
     }
@@ -172,14 +187,22 @@ public class WorkflowNodeService extends ServiceImpl<WorkflowNodeMapper, Workflo
         }
         if (component.getName().equals(WfComponentNameEnum.MAIL_SEND.getName())) {
             MailSendNodeConfig mailSendNodeConfig = JsonUtil.fromJson(workflowNode.getNodeConfig(), MailSendNodeConfig.class);
-            if (null != mailSendNodeConfig && null != mailSendNodeConfig.getSender() && null != mailSendNodeConfig.getSender().getPassword()) {
-                String password = mailSendNodeConfig.getSender().getPassword();
-                if (StringUtils.isNotBlank(password)) {
-                    String decrypt = AesUtil.decrypt(password);
-                    mailSendNodeConfig.getSender().setPassword(decrypt);
-                }
-                workflowNode.setNodeConfig((ObjectNode) JsonUtil.classToJsonNode(mailSendNodeConfig));
+            if (null == mailSendNodeConfig || null == mailSendNodeConfig.getSender()) {
+                return;
             }
+            // 二开新增（T2-07）：vault 开启时响应体一律不出现明文——不解密，jsonb 密文字段置空后返回，
+            // 真实值由节点执行时按 credential_uuid 从凭据库解密。开关关闭走旧机制（可回滚）。
+            if (credentialVaultService.enabled()) {
+                mailSendNodeConfig.getSender().setPassword("");
+                workflowNode.setNodeConfig((ObjectNode) JsonUtil.classToJsonNode(mailSendNodeConfig));
+                return;
+            }
+            String password = mailSendNodeConfig.getSender().getPassword();
+            if (StringUtils.isNotBlank(password)) {
+                String decrypt = AesUtil.decrypt(password);
+                mailSendNodeConfig.getSender().setPassword(decrypt);
+            }
+            workflowNode.setNodeConfig((ObjectNode) JsonUtil.classToJsonNode(mailSendNodeConfig));
         }
     }
 

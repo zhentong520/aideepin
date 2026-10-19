@@ -45,7 +45,6 @@ const userInputs = ref<Workflow.UserInput[]>(startNode?.inputConfig.user_inputs.
 }) || [])
 const errorMsg = ref<string>('')
 const currWfUuid = props.workflow.uuid
-console.log('instance list currWfUuid', currWfUuid)
 const showCurrentExecution = ref<boolean>(false)
 const tabObj = ref<TabObj>({ name: 'runtimes', defaultTab: t('workflow.flowRunDetail'), tab: `${t('workflow.flowRunDetail')} ↓` })
 const fileListLength = ref(0)
@@ -94,7 +93,6 @@ async function run() {
   }
 
   if (fileListLength.value > 0 && uploadedFileUuids.value.length !== fileListLength.value) {
-    console.log('先执行文件上传操作')
     uploadBeforeRun()
     return
   } else {
@@ -104,7 +102,6 @@ async function run() {
   }
 
   if (userInputs.value.some(input => input.required && input.content.value === null)) {
-    console.log('请输入所有必填参数')
     ms.warning(t('workflow.pleaseInputAllRequired'))
     return
   }
@@ -140,16 +137,12 @@ async function run() {
           [wfRuntime],
         )
       },
-      thinkingDataReceived: (chunk) => {
-        // 处理思考数据
-        console.log('Thinking data received:', chunk)
-      },
+      thinkingDataReceived: () => {},
       messageReceived: (chunk, event) => {
         const eventName = event || ''
         try {
           if (eventName.includes('[NODE_RUN_')) {
             const nodeUuid = eventName.replace('[NODE_RUN_', '').replace(']', '')
-            console.log(`${nodeUuid}开始运行`)
             const runtimeNode = JSON.parse(chunk) as Workflow.WfRuntimeNode
             nodeUuidToRuntimeNodeUuid.set(nodeUuid, runtimeNode.uuid)
             wfStore.appendRuntimeNode(
@@ -242,24 +235,19 @@ async function resume() {
 }
 
 function onUploadChange(options: { fileList: UploadFileInfo[] }) {
-  console.log('onUploadChange', options)
 }
 
 function handleFileListChange(fileList: UploadFileInfo[]) {
-  console.log('handleFileListChange', fileList)
   fileListLength.value = fileList.length
   if (uploadedFileUuids.value.length === fileListLength.value)
     run()
 }
 
 function onUploadFinish({ file, event }: { file: UploadFileInfo; event?: ProgressEvent }) {
-  console.log('onUploadFinish', file, event)
   const res = JSON.parse((event?.target as XMLHttpRequest).response)
   if (res.success) {
-    console.log('uploaded file data:', res.data)
     uploadedFileUuids.value.push(res.data.uuid)
   } else {
-    console.log(`onUploadFinish err:${res.data}`)
   }
   return file
 }

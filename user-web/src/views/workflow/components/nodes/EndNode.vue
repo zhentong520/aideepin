@@ -1,13 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
 import type { NodeProps } from '@vue-flow/core'
 import CommonNodeHeader from '../CommonNodeHeader.vue'
 
-const props = defineProps<NodeProps>()
-const x = computed(() => `${Math.round(props.position.x)}px`)
-const y = computed(() => `${Math.round(props.position.y)}px`)
-console.log('x,y', x, y)
+defineProps<NodeProps>()
 </script>
 
 <template>

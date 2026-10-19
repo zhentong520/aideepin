@@ -7,6 +7,7 @@ import com.moyz.adi.common.file.AliyunOssFileOperator;
 import com.moyz.adi.common.file.LocalFileOperator;
 import com.moyz.adi.common.rag.*;
 import com.moyz.adi.common.util.AesUtil;
+import com.moyz.adi.common.util.CredentialCipher;
 import com.moyz.adi.common.entity.SysConfig;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
@@ -17,8 +18,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
 import java.util.Locale;
 
 /**
@@ -47,6 +50,8 @@ public class Initializer {
     private String chatMemoryPath;
     @Resource
     private AdiProperties adiProperties;
+    @Resource
+    private Environment environment;
     @Resource
     private AiModelService aiModelService;
     @Resource
@@ -77,6 +82,19 @@ public class Initializer {
     public void init() {
         if (adiProperties.getEncrypt().getAesKey().equals("Ap9da0CopbjiKGc1")) {
             throw new RuntimeException("Cannot use the default AES key. Please set your own key in application.yml => adi.encrypt.aes-key");
+        }
+        // 二开新增（T2-07，2026-10-19）：凭据库启动校验（fail-fast 写在配置校验处）。
+        // 主密钥只从环境变量 ADI_CRED_KEY 读取（Base64 32 字节）：生产（prod profile）未显式配置直接拒绝启动；
+        // dev 未配置时 CredentialCipher.initFromEnv() 生成临时随机密钥并 warn（仅本地可用）；
+        // 配置了但格式非法（非 Base64 / 非 32 字节）任何 profile 都 fail-fast。
+        if (adiProperties.getCredential().isVaultEnabled()) {
+            boolean prodProfile = Arrays.asList(environment.getActiveProfiles()).contains("prod");
+            String masterKey = System.getenv(CredentialCipher.ENV_MASTER_KEY);
+            if (prodProfile && (masterKey == null || masterKey.isBlank())) {
+                throw new RuntimeException("adi.credential.vault-enabled=true requires env " + CredentialCipher.ENV_MASTER_KEY
+                        + " (Base64 of 32 random bytes). Refusing to start production without an explicit credential master key.");
+            }
+            CredentialCipher.initFromEnv();
         }
         sysConfigService.loadAndCache();
         initDefaultLocale();
