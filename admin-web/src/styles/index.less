@@ -1,1 +1,25 @@
 @import url('./transition/index.less');
+
+/* T3-01：节点/面板内容行统一样式（与 user-web/src/styles/global.less 保持一致）
+   注意：仅增强不破坏 —— 画布节点内的 .vue-flow__node .content_line 规则优先级更高，仍按原样渲染 */
+.content_line {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 10px;
+	margin: 4px 0;
+	border: 1px solid #e5e7eb;
+	border-radius: 6px;
+	background: #f9fafb;
+	font-size: 13px;
+	color: #374151;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	transition: background-color 0.15s ease, border-color 0.15s ease;
+
+	&:hover {
+		background: #f3f4f6;
+		border-color: #d1d5db;
+	}
+}

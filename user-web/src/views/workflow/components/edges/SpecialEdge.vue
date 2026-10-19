@@ -23,7 +23,8 @@ export default {
 
 <template>
   <!-- You can use the `BaseEdge` component to create your own custom edge more easily -->
-  <BaseEdge :path="path[0]" />
+  <!-- T3-03：应用边样式（按数据流方向/类型着色，替代全局 animated:true） -->
+  <BaseEdge :path="path[0]" :style="props.style" />
 
   <!-- Use the `EdgeLabelRenderer` to escape the SVG world of edges and render your own custom label in a `<div>` ctx -->
   <EdgeLabelRenderer>

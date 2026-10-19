@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid'
 import { emptyWorkflowNode } from './functions'
+import { pushWorkflowHistory } from './workflow-history'
 import { useAppStore } from '@/store'
 import { t } from '@/locales'
 
@@ -56,8 +57,16 @@ export function createNewNode(
 
   workflow.nodes.push(newWfNode)
   uiWorkflow.nodes.push(wfNodeToUiNode(newWfNode))
+  // T3-05：入口埋点 —— 加节点进历史栈
+  pushWorkflowHistory(workflow)
 }
 
+/**
+ * T3-06：创建连线（含合法性校验）
+ * - 自环连线（source === target）拦截
+ * - 重复连线（同 source + sourceHandle + target）拦截
+ * @returns 是否创建成功
+ */
 export function createNewEdge(params: {
   workflow: Workflow.WorkflowInfo
   uiWorkflow: Workflow.UIWorkflow
@@ -65,7 +74,22 @@ export function createNewEdge(params: {
   sourceHandle: string
   target: string
 },
-) {
+): boolean {
+  // T3-06：自环连线拦截
+  if (params.target && params.source === params.target)
+    return false
+
+  // T3-06：重复连线拦截
+  if (params.target) {
+    const duplicated = params.workflow.edges.some(edge =>
+      edge.sourceNodeUuid === params.source
+      && edge.targetNodeUuid === params.target
+      && (edge.sourceHandle || '') === (params.sourceHandle || ''),
+    )
+    if (duplicated)
+      return false
+  }
+
   const wfEdge = {
     id: '',
     uuid: uuidv4().replace(/-/g, ''),
@@ -77,16 +101,9 @@ export function createNewEdge(params: {
   }
   params.workflow.edges.push(wfEdge)
   if (params.target) {
-    const uiEdge = {
-      id: wfEdge.uuid,
-      source: wfEdge.sourceNodeUuid,
-      target: wfEdge.targetNodeUuid,
-      type: 'special',
-      animated: true,
-      sourceHandle: params.sourceHandle ? params.sourceHandle : undefined,
-      data: wfEdge,
-    }
-    params.uiWorkflow.edges.push(uiEdge)
+    // T3-03：连线按数据流方向/类型着色
+    const sourceNode = params.workflow.nodes.find(node => node.uuid === params.source)
+    params.uiWorkflow.edges.push(buildUiEdge(wfEdge, sourceNode))
   }
   // 判断源节点是否【条件分支】或【内容分类】
   params.workflow.nodes.forEach((node) => {
@@ -108,6 +125,9 @@ export function createNewEdge(params: {
       }
     }
   })
+  // T3-05：入口埋点 —— 连线进历史栈
+  pushWorkflowHistory(params.workflow)
+  return true
 }
 
 export function updateEdgeBySourceHandle(params:
@@ -129,14 +149,20 @@ export function updateEdgeBySourceHandle(params:
   if (idx > -1)
     params.uiWorkflow.edges.splice(idx, 1)
 
+  // T3-03：连线按数据流方向/类型着色
+  const sourceNode = params.workflow.nodes.find(node => node.uuid === params.source)
+  const visual = getEdgeVisual(sourceNode?.wfComponent?.name || '', params.sourceHandle)
   const uiEdge = {
     id: wfEdge.uuid,
     source: wfEdge.sourceNodeUuid,
     target: wfEdge.targetNodeUuid,
-    animated: true,
+    animated: visual.animated,
+    style: buildEdgeStyle(visual),
     sourceHandle: params.sourceHandle,
   }
   params.uiWorkflow.edges.push(uiEdge)
+  // T3-05：断线/改向进历史栈
+  pushWorkflowHistory(params.workflow)
 }
 
 export function deleteEdgesBySource(
@@ -160,6 +186,9 @@ export function deleteEdgesBySource(
     if (uiEdgeIndex !== -1)
       uiWorkflow.edges.splice(edgeIndex, 1)
   })
+  // T3-05：入口埋点 —— 断线进历史栈
+  if (edges.length > 0)
+    pushWorkflowHistory(workflow)
 }
 
 export function deleteEdgesBySourceHandle(
@@ -183,7 +212,7 @@ export function deleteEdgesBySourceHandle(
     uiWorkflow.edges.splice(edgeIndex, 1)
 }
 
-function wfNodeToUiNode(node: Workflow.WorkflowNode) {
+export function wfNodeToUiNode(node: Workflow.WorkflowNode) {
   const newNode = {
     id: node.uuid,
     type: node.wfComponent.name.toLowerCase(),
@@ -528,4 +557,200 @@ export function getIconClassByComponentName(name: string) {
     default:
       return ''
   }
+}
+
+/**
+ * T3-02：按 7 类节点类型返回色条颜色
+ * 开始 / LLM / 知识库 / 条件 / 输出(结束) / 插件 / 其他
+ */
+export function getNodeColorByComponentName(name: string) {
+  switch (name.toLowerCase()) {
+    case 'start':
+      return '#3b82f6' // 开始：蓝
+    case 'answer':
+    case 'classifier':
+    case 'keywordextractor':
+    case 'faqextractor':
+    case 'template':
+      return '#8b5cf6' // LLM：紫
+    case 'knowledgeretrieval':
+    case 'documentextractor':
+      return '#14b8a6' // 知识库：青
+    case 'switcher':
+      return '#f59e0b' // 条件：琥珀
+    case 'end':
+      return '#f43f5e' // 输出/结束：玫红
+    case 'httprequest':
+    case 'mailsend':
+    case 'google':
+    case 'agent':
+    case 'database':
+    case 'mcp':
+    case 'skill':
+    case 'humanfeedback':
+    case 'openaiimage':
+    case 'tongyiwanx':
+      return '#64748b' // 插件/工具：石板灰
+    default:
+      return '#94a3b8'
+  }
+}
+
+/**
+ * T3-02：节点配置摘要 —— 取 nodeConfig 中第一个有意义的值，一行展示
+ * （LLM 节点显示模型名、知识库节点显示库名、HTTP 节点显示 URL……）
+ */
+export function getNodeConfigSummary(node: Workflow.WorkflowNode): string {
+  const cfg = (node.nodeConfig || {}) as Record<string, unknown>
+  const candidates = ['model_name', 'knowledge_base_name', 'skill_name', 'url', 'query', 'to_mails', 'tool_name', 'prompt', 'sql']
+  for (const key of candidates) {
+    const value = cfg[key]
+    if (typeof value === 'string' && value.trim()) {
+      const text = value.trim().replace(/\s+/g, ' ')
+      return text.length > 32 ? `${text.slice(0, 32)}…` : text
+    }
+  }
+  return ''
+}
+
+/**
+ * T3-03：连线按数据流方向/类型着色
+ * - 条件分支（Switcher/Classifier 的分支）：琥珀色 + 流动动画
+ * - 条件默认分支：灰色虚线（静态，表示兜底流向）
+ * - 普通数据流：石板蓝，静态实线
+ */
+export interface EdgeVisual {
+  color: string
+  animated: boolean
+  dashed: boolean
+}
+
+export function getEdgeVisual(sourceComponentName: string, sourceHandle?: string): EdgeVisual {
+  const name = (sourceComponentName || '').toLowerCase()
+  if (name === 'switcher' || name === 'classifier') {
+    if (sourceHandle === 'default_handle')
+      return { color: '#9ca3af', animated: false, dashed: true }
+
+    return { color: '#f59e0b', animated: true, dashed: false }
+  }
+  return { color: '#64748b', animated: false, dashed: false }
+}
+
+export function buildEdgeStyle(visual: EdgeVisual): Record<string, string | number> {
+  const style: Record<string, string | number> = { stroke: visual.color, strokeWidth: 1.5 }
+  if (visual.dashed)
+    style.strokeDasharray = '6 4'
+
+  return style
+}
+
+/**
+ * 由业务边对象构建 UI 边（T3-03：按数据流方向/类型着色，替代原全局 animated:true）
+ */
+export function buildUiEdge(wfEdge: Workflow.WorkflowEdge, sourceNode?: Workflow.WorkflowNode) {
+  const visual = getEdgeVisual(sourceNode?.wfComponent?.name || '', wfEdge.sourceHandle || '')
+  return {
+    id: wfEdge.uuid,
+    source: wfEdge.sourceNodeUuid,
+    target: wfEdge.targetNodeUuid,
+    type: 'special',
+    animated: visual.animated,
+    style: buildEdgeStyle(visual),
+    sourceHandle: wfEdge.sourceHandle ? wfEdge.sourceHandle : undefined,
+    data: wfEdge,
+  }
+}
+
+/**
+ * 按 workflow.nodes/edges 全量重建 UI 画布数据（撤销/重做恢复时使用）
+ */
+export function rebuildUiWorkflow(workflow: Workflow.WorkflowInfo, uiWorkflow: Workflow.UIWorkflow) {
+  const nodeById = new Map(workflow.nodes.map(node => [node.uuid, node]))
+  const newUiNodes = workflow.nodes.map(node => wfNodeToUiNode(node))
+  const newUiEdges = workflow.edges
+    .filter(edge => nodeById.has(edge.sourceNodeUuid))
+    .map(edge => buildUiEdge(edge, nodeById.get(edge.sourceNodeUuid)))
+  uiWorkflow.nodes.splice(0, uiWorkflow.nodes.length, ...newUiNodes)
+  uiWorkflow.edges.splice(0, uiWorkflow.edges.length, ...newUiEdges)
+}
+
+/**
+ * 复制节点时，重映射 nodeConfig 内部指向旧节点 uuid 的连线目标（Switcher/Classifier）
+ */
+export function remapClonedNodeConfig(node: Workflow.WorkflowNode, uuidMap: Map<string, string>) {
+  const cfg = node.nodeConfig as Record<string, unknown> | undefined
+  if (!cfg)
+    return
+
+  if (node.wfComponent.name === 'Switcher') {
+    const switcher = cfg as unknown as Workflow.NodeConfigSwitcher
+    if (switcher.default_target_node_uuid && uuidMap.has(switcher.default_target_node_uuid))
+      switcher.default_target_node_uuid = uuidMap.get(switcher.default_target_node_uuid)!
+
+    switcher.cases.forEach((item) => {
+      if (item.target_node_uuid && uuidMap.has(item.target_node_uuid))
+        item.target_node_uuid = uuidMap.get(item.target_node_uuid)!
+    })
+  } else if (node.wfComponent.name === 'Classifier') {
+    const classifier = cfg as unknown as Workflow.NodeConfigClassifier
+    classifier.categories.forEach((item) => {
+      if (item.target_node_uuid && uuidMap.has(item.target_node_uuid))
+        item.target_node_uuid = uuidMap.get(item.target_node_uuid)!
+    })
+  }
+}
+
+/**
+ * T3-07：一键自动布局 —— 分层网格整理（BFS 分层 + 层内顺序排列，不引重依赖）
+ */
+export function autoLayoutWorkflow(workflow: Workflow.WorkflowInfo, uiWorkflow: Workflow.UIWorkflow) {
+  const nodes = workflow.nodes
+  if (nodes.length === 0)
+    return
+
+  const edges = workflow.edges
+  const inDegree = new Map(nodes.map(node => [node.uuid, 0]))
+  edges.forEach((edge) => {
+    if (inDegree.has(edge.targetNodeUuid) && edge.sourceNodeUuid !== edge.targetNodeUuid)
+      inDegree.set(edge.targetNodeUuid, inDegree.get(edge.targetNodeUuid)! + 1)
+  })
+
+  // BFS 分层：从无入边节点开始
+  const layers: string[][] = []
+  let frontier = nodes.filter(node => (inDegree.get(node.uuid) || 0) === 0).map(node => node.uuid)
+  const visited = new Set(frontier)
+  while (frontier.length > 0) {
+    layers.push(frontier)
+    const next: string[] = []
+    for (const uuid of frontier) {
+      edges.forEach((edge) => {
+        if (edge.sourceNodeUuid === uuid && !visited.has(edge.targetNodeUuid)) {
+          visited.add(edge.targetNodeUuid)
+          next.push(edge.targetNodeUuid)
+        }
+      })
+    }
+    frontier = next
+  }
+  // 有环/孤岛兜底：未访问节点追加为一层
+  const rest = nodes.map(node => node.uuid).filter(uuid => !visited.has(uuid))
+  if (rest.length > 0)
+    layers.push(rest)
+
+  const H_GAP = 360
+  const V_GAP = 190
+  layers.forEach((layer, layerIdx) => {
+    layer.forEach((uuid, nodeIdx) => {
+      const wfNode = nodes.find(node => node.uuid === uuid)
+      const uiNode = uiWorkflow.nodes.find(item => item.id === uuid)
+      const x = 20 + layerIdx * H_GAP
+      const y = 20 + nodeIdx * V_GAP
+      if (wfNode) {
+        wfNode.positionX = x
+        wfNode.positionY = y
+      }
+      if (uiNode)
+        uiNode.position = { x, y }
+    })
+  })
 }

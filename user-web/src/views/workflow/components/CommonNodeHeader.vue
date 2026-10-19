@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { h } from 'vue'
+import { computed, h } from 'vue'
 import { NDropdown } from 'naive-ui'
 import { SvgIcon } from '@/components/common'
-import { getIconByComponentName, getIconClassByComponentName } from '@/utils/workflow-util'
+import { getIconByComponentName, getIconClassByComponentName, getNodeColorByComponentName, getNodeConfigSummary } from '@/utils/workflow-util'
 import { useWfStore } from '@/store'
 import { t } from '@/locales'
 const props = defineProps<Props>()
@@ -17,6 +17,10 @@ interface Props {
   wfNode: Workflow.WorkflowNode
 }
 const wfStore = useWfStore()
+
+// T3-02：节点类型色条 + 配置摘要
+const typeColor = computed(() => getNodeColorByComponentName(props.wfNode.wfComponent.name))
+const summary = computed(() => getNodeConfigSummary(props.wfNode))
 
 function renderIcon(icon: string) {
   return () => {
@@ -37,6 +41,8 @@ function handleSelect(key: string | number) {
 </script>
 
 <template>
+  <!-- T3-02：按节点类型的配色色条 -->
+  <div class="wf-type-bar" :style="{ backgroundColor: typeColor }" />
   <div
     class="w-full flex border-b divide-gray-400 pb-3 mb-3 font-bold text-base text-center items-center justify-center"
   >
@@ -54,5 +60,9 @@ function handleSelect(key: string | number) {
         <SvgIcon class="cursor-pointer" icon="ri:more-fill" />
       </NDropdown>
     </div>
+  </div>
+  <!-- T3-02：配置摘要（模型名/库名/URL 等关键配置一眼可见） -->
+  <div v-if="summary" class="wf-node-summary">
+    {{ summary }}
   </div>
 </template>

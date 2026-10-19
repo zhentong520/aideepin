@@ -1,11 +1,11 @@
 <script lang="ts" setup>
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { NInput } from 'naive-ui'
 import { AgentNodeProperty, AnswerNodeProperty, ClassifierNodeProperty, DatabaseNodeProperty, DocumentExtractorNodeProperty, EndNodeProperty, FaqExtractorNodeProperty, GoogleNodeProperty, HttpRequestNodeProperty, HumanFeedbackNodeProperty, KeywordExtractorNodeProperty, KnowledgeRetrievalNodeProperty, MailSendNodeProperty, McpNodeProperty, OpenAiImageNodeProperty, SkillNodeProperty, StartNodeProperty, SwticherNodeProperty, TemplateNodeProperty, TongyiwanxNodeProperty } from './components/nodes'
 import { useWfStore } from '@/store'
 import { t } from '@/locales'
 import { SvgIcon } from '@/components/common'
-import { getIconByComponentName, getIconClassByComponentName } from '@/utils/workflow-util'
+import { getIconByComponentName, getIconClassByComponentName, getNodeColorByComponentName, getNodeConfigSummary } from '@/utils/workflow-util'
 import { emptyWorkflowNode } from '@/utils/functions'
 
 interface Props {
@@ -20,8 +20,20 @@ const props = withDefaults(defineProps<Props>(), {
   wfNode: () => emptyWorkflowNode(),
 })
 
+const emit = defineEmits<Emit>()
+
+interface Emit {
+  (e: 'expand'): void
+  (e: 'collapse'): void
+}
+
 const wfStore = useWfStore()
 const nodeTitle = ref<string>(props.wfNode.title)
+
+// T3-04：折叠时仅保留 56px 摘要条；无选中节点同样折叠
+const collapsed = computed(() => props.hidePropertyPanel || !props.wfNode?.uuid)
+const typeColor = computed(() => props.wfNode ? getNodeColorByComponentName(props.wfNode.wfComponent.name) : '#94a3b8')
+const summary = computed(() => props.wfNode ? getNodeConfigSummary(props.wfNode) : '')
 
 watch(
   () => props.wfNode,
@@ -39,35 +51,49 @@ watch(
   },
   { immediate: true, deep: true },
 )
-const innerHeight = window.innerHeight < 800 ? 800 : window.innerHeight
 onMounted(() => {
   nodeTitle.value = props.wfNode.title
 })
 </script>
 
 <template>
-  <div class="absolute right-0 top-20 bg-white rounded-lg shadow-xl">
-    <!-- 右侧属性面板 -->
-    <div v-if="!hidePropertyPanel && wfNode" class="px-3 pt-5 h-full" style="width:600px">
-      <div class="w-full flex flex-col border-b divide-gray-400 pb-3 mb-5">
-        <div class="text-3xl flex items-center h-10 mb-2">
+  <!-- T3-04：属性面板改为 380px 独立栏（画布自适应收窄，编辑时始终可见被编辑节点）；折叠时 56px 摘要条 -->
+  <div class="wf-props-panel shrink-0 h-full bg-white border-l border-gray-200 flex flex-col" :style="{ width: collapsed ? '56px' : '380px' }">
+    <!-- 折叠：56px 摘要条 -->
+    <div
+      v-if="collapsed" class="w-full h-full flex flex-col items-center py-3 cursor-pointer hover:bg-gray-50"
+      :title="wfNode?.title || t('workflow.nodeNamePlaceholder')"
+      @click="emit('expand')"
+    >
+      <SvgIcon
+        v-if="wfNode?.uuid" class="text-xl shrink-0" :class="getIconClassByComponentName(wfNode.wfComponent.name)"
+        :icon="getIconByComponentName(wfNode.wfComponent.name)"
+      />
+      <div class="wf-panel-vertical-text" :style="{ color: typeColor }">
+        {{ wfNode?.title || summary }}
+      </div>
+      <SvgIcon class="text-gray-400 shrink-0" icon="ri:arrow-left-s-line" />
+    </div>
+    <!-- 展开：380px 属性栏 -->
+    <div v-else class="w-full h-full flex flex-col overflow-hidden">
+      <div class="px-3 pt-4 pb-3 border-b divide-gray-400 shrink-0">
+        <div class="text-xl flex items-center h-9 mb-2">
           <SvgIcon
-            class="mt-1 mr-2" :class="getIconClassByComponentName(wfNode.wfComponent.name)"
+            class="mr-2" :class="getIconClassByComponentName(wfNode.wfComponent.name)"
             :icon="getIconByComponentName(wfNode.wfComponent.name)"
           />
           <NInput
             v-model:value="nodeTitle" :placeholder="t('workflow.nodeNamePlaceholder')" class="h-8 border-gray-100"
             style="font-size: 1rem;line-height: 1.5rem;font-weight: 700;"
           />
+          <!-- 折叠按钮 -->
+          <SvgIcon class="text-gray-400 cursor-pointer ml-2 shrink-0" icon="ri:arrow-right-s-line" @click="emit('collapse')" />
         </div>
-        <!-- <div class="mb-2">
-                    <NInput v-model:value="selectedNode.data.remark" placeholder="该节点功能描述" />
-                  </div> -->
         <div class="text-sm text-gray-500">
           {{ t('workflow.componentFunction') }}{{ wfNode.wfComponent.remark }}
         </div>
       </div>
-      <div class="overflow-y-auto" :style="`height:${innerHeight - 250}px`">
+      <div class="flex-1 overflow-y-auto px-3 pt-4">
         <StartNodeProperty
           v-if="wfNode.wfComponent.name === 'Start'" :key="wfNode.uuid" :workflow="workflow"
           :wf-node="wfNode"
@@ -122,7 +148,7 @@ onMounted(() => {
         />
         <MailSendNodeProperty
           v-else-if="wfNode.wfComponent.name === 'MailSend'" :key="`mailsend_${wfNode.uuid}`"
-          :workflow="workflow" :ui-workflow="uiWorkflow" :wf-node="wfNode"
+          :workflow="workflow" :wf-node="wfNode"
         />
         <HttpRequestNodeProperty
           v-else-if="wfNode.wfComponent.name === 'HttpRequest'" :key="`httprequest_${wfNode.uuid}`"
@@ -150,6 +176,17 @@ onMounted(() => {
         />
       </div>
     </div>
-    <!-- 右侧属性面板 end -->
   </div>
 </template>
+
+<style scoped>
+.wf-panel-vertical-text {
+  writing-mode: vertical-rl;
+  max-height: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  margin: 8px 0;
+}
+</style>

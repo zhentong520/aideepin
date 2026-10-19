@@ -8,3 +8,52 @@ body {
 	padding-bottom: constant(safe-area-inset-bottom);
 	padding-bottom: env(safe-area-inset-bottom);
 }
+
+/* T3-01：节点/面板内容行统一样式（配合 Tailwind flex items-center 使用）
+   注意：仅增强不破坏 —— 画布节点内的 .vue-flow__node .content_line 规则优先级更高，仍按原样渲染 */
+.content_line {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 10px;
+	margin: 4px 0;
+	border: 1px solid #e5e7eb;
+	border-radius: 6px;
+	background: #f9fafb;
+	font-size: 13px;
+	color: #374151;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	transition: background-color 0.15s ease, border-color 0.15s ease;
+
+	&:hover {
+		background: #f3f4f6;
+		border-color: #d1d5db;
+	}
+}
+
+/* T3-02：节点类型色条（贴节点顶部，随节点圆角裁剪） */
+.wf-type-bar {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 4px;
+	border-radius: 10px 10px 0 0;
+	pointer-events: none;
+}
+
+/* T3-02：节点配置摘要行 */
+.wf-node-summary {
+	margin: 0 0 6px;
+	padding: 2px 8px;
+	font-size: 12px;
+	line-height: 18px;
+	color: #6b7280;
+	background: #f3f4f6;
+	border-radius: 4px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
