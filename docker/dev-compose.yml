@@ -1,0 +1,61 @@
+# 开发环境依赖（2026-10-16）
+# ============================================================
+# 用途：本地开发/调试时一键拉起后端依赖（PG + Redis），与生产 docker-compose.yml 隔离。
+# 用法：
+#   docker compose -f docker/dev-compose.yml up -d
+#   docker compose -f docker/dev-compose.yml down        # 停止（保留数据卷）
+#   docker compose -f docker/dev-compose.yml down -v     # 停止并清空数据
+#
+# 端口：PG 5433 / Redis 6380（错开常见占用；起后端时 ADI_DB_PORT=5433 ADI_REDIS_PORT=6380）
+# 凭证：仅限开发环境使用（adi/adi），生产凭证请走 .env，切勿复用本文件。
+#
+# ⚠️ 扩展说明：
+#   项目依赖 pgvector（向量检索）与 Apache AGE（图谱检索）。
+#   默认镜像 pgvector/pgvector:pg16 自带 pgvector；AGE 需要专用镜像，
+#   如需图谱功能把 PG_IMAGE 换成 apache/age 的 PG16 构建，例如：
+#     PG_IMAGE=apache/age:release_PG16_1.5.0 docker compose -f docker/dev-compose.yml up -d
+#   initdb 脚本对两种镜像都兼容：扩展已存在时 CREATE EXTENSION 不会失败。
+#
+# ⚠️ Flyway 协作（2026-10-16 起）：
+#   V1__baseline.sql 之外的表结构变更由应用启动时的 Flyway 自动执行；
+#   本 initdb 只负责装扩展 + 建库，不再手工执行任何表结构 SQL。
+services:
+  postgres:
+    image: ${PG_IMAGE:-pgvector/pgvector:pg16}
+    container_name: aideepin-dev-postgres
+    environment:
+      # 与 application-dev.yml 默认凭证对齐（aideepin/aideepin123），起后端无需再传环境变量
+      POSTGRES_USER: aideepin
+      POSTGRES_PASSWORD: aideepin123
+      POSTGRES_DB: aideepin
+      TZ: Asia/Shanghai
+    ports:
+      # 5432 可能被本机其他开发环境占用（实测 dev-env 项目占用中），错开到 5433；
+      # 起后端时用 ADI_DB_PORT=5433 指向这里
+      - "5433:5432"
+    volumes:
+      - adi-dev-pgdata:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aideepin -d aideepin"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:6.2.5
+    container_name: aideepin-dev-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6380:6379"
+    volumes:
+      - adi-dev-redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  adi-dev-pgdata:
+  adi-dev-redisdata:

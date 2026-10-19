@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.moyz</groupId>
+        <artifactId>aideepin</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>adi-bootstrap</artifactId>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.moyz</groupId>
+            <artifactId>adi-chat</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>com.moyz</groupId>
+            <artifactId>adi-admin</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+        <!--
+            OPS-01（2026-10-16）：健康检查端点。
+            只暴露 /health（readiness+liveness 探针），其余端点全部关闭——
+            actuator 默认会暴露 /env /configprops /heapdump，属敏感信息泄露面。
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <!--
+            数据库迁移工具化（2026-10-16）：此前 db_migration/*.sql 靠人工执行，
+            二开改表容易"代码新了表没新"。引入 Flyway 后改表 = 在
+            src/main/resources/db/migration/ 下加 V{n}__desc.sql，启动即自动迁移。
+            版本由 spring-boot-starter-parent 3.5.14 管理（Flyway 11.x），
+            PG 需单独的 database 模块。
+        -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+    </dependencies>
+    <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <includes>
+                    <include>**/*</include>
+                </includes>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>com.moyz.adi.BootstrapApplication</mainClass>
+                    <includeSystemScope>true</includeSystemScope>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>build-info</goal>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

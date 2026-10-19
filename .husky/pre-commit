@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# T0-01 质量门禁：i18n 字面花括号守卫（两端任一失败即阻断提交）
+node user-web/scripts/check-i18n-braces.mjs || exit 1
+node admin-web/scripts/check-i18n-braces.mjs || exit 1
+
+npx lint-staged

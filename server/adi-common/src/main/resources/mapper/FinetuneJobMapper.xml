@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.moyz.adi.common.mapper.FinetuneJobMapper">
+
+    <!--
+      autoMapping + 显式声明两个 jsonb 列的类型处理器。
+      原生 SQL 用 resultType 自动映射时，@TableField(typeHandler=...) 是 MyBatis-Plus 的概念、
+      普通 resultType 不认，hyper_params 会被映射成 null —— 结果就是 Worker 领到任务却拿不到
+      任何超参，只能退回 Worker 内置默认值训练（参数怎么调都没用）。这里用 resultMap 兜住。
+    -->
+    <resultMap id="JobResultMap" type="com.moyz.adi.common.entity.FinetuneJob" autoMapping="true">
+        <id column="id" property="id"/>
+        <result column="hyper_params" property="hyperParams"
+                typeHandler="com.moyz.adi.common.base.ObjectNodeTypeHandler"/>
+        <result column="metrics" property="metrics"
+                typeHandler="com.moyz.adi.common.base.ObjectNodeTypeHandler"/>
+    </resultMap>
+
+    <!--
+      Atomically claim one pending job for an external GPU worker (runs inside a transaction):
+      FOR UPDATE SKIP LOCKED keeps concurrent workers from picking the same row. The claim
+      writes worker_id, a fresh worker_epoch (zombie-late-writes guard, same idea as the
+      in-process index queue's executor_epoch) and the time baselines. PG UPDATE..RETURNING
+      must run via executeQuery, hence the select tag.
+    -->
+    <select id="claimOne" resultMap="JobResultMap">
+        UPDATE adi_finetune_job t
+        SET status         = 'running',
+            update_time    = now(),
+            claim_time     = COALESCE(t.claim_time, now()),
+            start_time     = now(),
+            heartbeat_time = now(),
+            stop_flag      = false,
+            fail_reason    = '',
+            worker_id      = #{workerId},
+            worker_epoch   = md5(random()::text || clock_timestamp()::text)
+        WHERE t.id = (
+            SELECT p.id
+            FROM adi_finetune_job p
+            WHERE p.status = 'pending' AND p.is_deleted = false AND p.user_id = #{userId}
+            ORDER BY p.id
+            LIMIT 1
+            FOR UPDATE SKIP LOCKED
+        )
+        RETURNING *
+    </select>
+
+    <!-- Worker liveness proof: refresh heartbeat_time only while the row is running under our
+         epoch. Returns 0 = the row was stale-reset or re-claimed elsewhere; this worker is a
+         zombie and must not keep reporting. -->
+    <update id="heartbeat">
+        UPDATE adi_finetune_job
+        SET heartbeat_time = now()
+        WHERE id = #{id} AND status = 'running' AND worker_epoch = #{workerEpoch}
+    </update>
+
+    <!-- Progress write-back folded with the heartbeat refresh (one round trip per report).
+         RETURNING stop_flag spares the follow-up SELECT the service used to issue on every
+         report: workers report every few seconds, so that extra round trip dominated the cost.
+         No row returned = the row was taken over (stale-reset, re-claimed or force-failed),
+         i.e. this worker is a zombie. PG UPDATE..RETURNING must run via executeQuery. -->
+    <select id="reportProgress" resultType="java.lang.Boolean">
+        UPDATE adi_finetune_job
+        SET heartbeat_time = now(),
+            progress       = #{progress},
+            current_epoch  = #{currentEpoch},
+            train_loss     = #{trainLoss},
+            eval_loss      = #{evalLoss}
+        WHERE id = #{id} AND status = 'running' AND worker_epoch = #{workerEpoch}
+        RETURNING stop_flag
+    </select>
+
+    <!-- Terminal state. Guards: status='running' AND the claiming worker's epoch — a row
+         stale-reset and re-claimed under a new epoch must not be finalized by the previous
+         (zombie) worker. -->
+    <update id="finish">
+        UPDATE adi_finetune_job
+        SET status      = #{status},
+            fail_reason = #{failReason},
+            end_time    = now(),
+            update_time = now()
+        WHERE id = #{id} AND status = 'running' AND worker_epoch = #{workerEpoch}
+    </update>
+
+    <!-- Admin requests stop: pending fails the queue in place (no owner, safe); running only
+         gets stop_flag — the worker reads it from the progress response and aborts itself. -->
+    <update id="requestStop">
+        UPDATE adi_finetune_job
+        SET status      = CASE WHEN status = 'pending' THEN 'stopped' ELSE status END,
+            fail_reason = CASE WHEN status = 'pending' THEN 'stopped by admin' ELSE fail_reason END,
+            stop_flag   = true,
+            end_time    = CASE WHEN status = 'pending' THEN now() ELSE end_time END,
+            update_time = now()
+        WHERE uuid = #{uuid} AND status IN ('pending', 'running') AND is_deleted = false
+    </update>
+
+    <!-- Crash recovery: running rows whose heartbeat timed out go back to pending for rerun
+         (worker process died); worker fields are cleared so the next claim starts fresh -->
+    <update id="resetStaleRunning">
+        UPDATE adi_finetune_job
+        SET status = 'pending', update_time = now(),
+            worker_id = '', worker_epoch = '', progress = 0,
+            current_epoch = 0, train_loss = 0, eval_loss = 0
+        WHERE status = 'running'
+          AND COALESCE(heartbeat_time, start_time, update_time) &lt; now() - (#{minutes} || ' minutes')::interval
+    </update>
+
+    <!-- Hung circuit breaker: rows still heartbeating but exceeding the max runtime are
+         force-failed (process alive but stuck). stop_flag is set as well so the still-live
+         worker learns from its next progress response that it must abort — otherwise the GPU
+         keeps burning on a job the server already declared dead.
+         Returns the broken rows for post-processing
+         (PG UPDATE..RETURNING must run via executeQuery, hence the select tag). -->
+    <select id="failOverdue" resultMap="JobResultMap">
+        UPDATE adi_finetune_job t
+        SET status = 'failed', fail_reason = 'max execution time exceeded', end_time = now(), update_time = now(),
+            stop_flag = true
+        WHERE t.status = 'running'
+          AND t.start_time &lt; now() - (#{minutes} || ' minutes')::interval
+        RETURNING *
+    </select>
+</mapper>

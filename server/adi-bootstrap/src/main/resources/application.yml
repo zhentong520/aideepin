@@ -1,0 +1,146 @@
+server:
+  port: 9999
+  context-path: /
+  # OPS-02：优雅停机——等在途请求（SSE 流/工作流执行/索引进度）完成后才退出，
+  # 与 BeanConfig 两个线程池的 awaitTermination=60s 对齐；默认 immediate 会硬切在途请求
+  shutdown: graceful
+  servlet:
+    session:
+      timeout: 28800s
+  tomcat:
+    uri-encoding: UTF-8
+
+# OPS-01：健康检查。仅暴露 /actuator/health 供容器探活；
+# 其余端点（env/configprops/heapdump/metrics…）默认全部关闭，防敏感信息泄露。
+# readiness 含 DB+Redis 连通性检查；liveness 无外部依赖（避免下游故障引发重启风暴）。
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  health:
+    defaults:
+      enabled: true
+    # 图存储走 PG 的 AGE 扩展（无需独立 Neo4j 连接），classpath 里残留的 Neo4j 驱动
+    # 会让 actuator 自动装配 Neo4j 健康检查 → 整体 health 恒为 DOWN，关闭之
+    neo4j:
+      enabled: false
+    # dev/mock 模式 SMTP 未配置是预期状态，邮件健康检查失败不该把整体拉 DOWN
+    mail:
+      enabled: false
+
+spring:
+  application:
+    name: AISelf
+  lifecycle:
+    # 与 server.shutdown=graceful 配套：宽限期与线程池 awaitTermination 对齐
+    timeout-per-shutdown-phase: 60s
+  profiles:
+    active: dev
+  flyway:
+    enabled: true
+    # 迁移脚本目录（V{n}__desc.sql）；V1__baseline.sql 由 db_migration/all_ddl.sql 复制而来
+    locations: classpath:db/migration
+    # 存量库已有表：首次运行按 baseline-version 打基线并跳过之前的脚本；
+    # 全新空库不打基线，从 V1 开始完整执行
+    baseline-on-migrate: true
+    baseline-version: 1
+    # 生产环境建议显式 false，先人工 review 迁移 SQL 再启动；
+    # dev 环境保持 true 以便启动即同步
+    out-of-order: false
+  mvc:
+    async:
+      request-timeout: 180000
+  jackson:
+    date-format: "yyyy-MM-dd HH:mm:ss"
+    time-zone: "GMT+8"
+    serialization: { write-dates-as-timestamps: false }
+  cache:
+    type: redis
+    redis:
+      key-prefix: 'AUTO_CACHE\:'
+      time-to-live: 1h
+  mail:
+    default-encoding: UTF-8
+    protocol: smtps
+    host: ${ADI_MAIL_HOST:your-email-host}
+    username: ${ADI_MAIL_USERNAME:your-email-username}
+    password: ${ADI_MAIL_PASSWORD:your-email-password}
+    port: 465
+    properties:
+      mail:
+        smtp:
+          ssl:
+            enable: true
+  servlet:
+    multipart:
+      max-file-size: 600MB
+      max-request-size: 700MB
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+mybatis-plus:
+  # Support wildcards * or semicolon separation
+  # 支持统配符 * 或者 ; 分割
+  mapper-locations: classpath*:/mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+
+adi:
+  host: ${ADI_HOST:aideepin.com}
+  frontend-url: http://www.${adi.host}
+  backend-url: http://www.${adi.host}/api
+  mail:
+    # mock 模式：不连 SMTP，邮件内容打日志并落盘 {local.base-data-path}/mail-outbox/
+    # 生产请配置真实 spring.mail 并保持 false（或设 ADI_MAIL_MOCK=false）
+    mock: ${ADI_MAIL_MOCK:false}
+  register:
+    email-code:
+      # 注册邮箱验证码开关（二开 2026-09-28）：默认 false，注册走「图形验证码 + 激活邮件链接」。
+      # 置为 true 后注册改为「邮箱验证码」，校验通过即直接激活账号。
+      # 前端开关 VITE_REGISTER_EMAIL_CODE 必须与这里保持一致。
+      enable: ${ADI_REGISTER_EMAIL_CODE_ENABLE:true}
+      code-length: ${ADI_REGISTER_EMAIL_CODE_LENGTH:6}
+      expire-minutes: ${ADI_REGISTER_EMAIL_CODE_EXPIRE_MINUTES:10}
+      resend-interval-seconds: ${ADI_REGISTER_EMAIL_CODE_RESEND_INTERVAL:60}
+  ocr:
+    # 扫描件 OCR 兜底（二开）：enabled 默认 true，但 OcrService.isEnabled() 要求
+    # 「enabled=true 且 endpoint 非空」同时满足，所以这里不填 endpoint 就等于关闭（安全）。
+    # 生产接入 OCR 服务后设 ADI_OCR_ENDPOINT 即可生效；dev 环境在 application-dev.yml
+    # 中已指向本地 RapidOCR 服务（dev-scripts/start-ocr.bat）。
+    enabled: ${ADI_OCR_ENABLED:true}
+    endpoint: ${ADI_OCR_ENDPOINT:}
+    file-field: ${ADI_OCR_FILE_FIELD:file}
+    lang: ${ADI_OCR_LANG:ch}
+    connect-timeout-ms: 10000
+    read-timeout-ms: 60000
+    dpi: 200
+    max-pages: 20
+    max-file-mb: 40
+  proxy:
+    enable: false
+    host: 127.0.0.1
+    http-port: 1087
+  encrypt:
+    # Encryption key for sensitive database fields, do not disclose
+    # 数据库敏感字段加密的密钥，不要泄露
+    # Using the default key will fail on startup, please replace with your own key (16-char string) or pass via environment variable ADI_ENCRYPT_AES_KEY
+    # 使用默认密钥启动会失败，请先替换为自己的密钥(长度为16的字符串)，或通过环境变量 ADI_ENCRYPT_AES_KEY 传入
+    aes-key: ${ADI_ENCRYPT_AES_KEY:Ap9da0CopbjiKGc1}
+
+local:
+  base-data-path: ${ADI_LOCAL_BASE_DATA_PATH:/data/aideepin}
+  files: ${local.base-data-path}/files/
+  images: ${local.base-data-path}/images/
+  watermark-images: ${local.base-data-path}/mark-images/
+  thumbnails: ${local.base-data-path}/thumbnails/
+  watermark-thumbnails: ${local.base-data-path}/watermark-thumbnails/
+  tmp-images: ${local.base-data-path}/tmp-images/
+  chat-memory: ${local.base-data-path}/chat-memory/

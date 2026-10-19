@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 聊天 · AISelf</title>
+<style>
+  :root{
+    --bg:#f5f6f8; --panel:#fff; --primary:#2f6bff; --border:#e6e8eb;
+    --text:#1f2329; --muted:#8a919f;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{margin:0;font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+       background:var(--bg);color:var(--text);display:flex;flex-direction:column;}
+  header{padding:10px 18px;background:var(--panel);border-bottom:1px solid var(--border);
+         display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  header h1{font-size:15px;margin:0;font-weight:600;white-space:nowrap;}
+  header .spacer{flex:1;}
+  header .field{font-size:11px;color:var(--muted);display:flex;flex-direction:column;gap:3px;}
+  header input,header select{border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;width:190px;}
+  .btn{background:var(--primary);color:#fff;border:none;border-radius:8px;padding:9px 16px;
+       font-size:14px;cursor:pointer;}
+  .btn:hover{opacity:.92;}
+  .btn.ghost{background:#fff;color:var(--primary);border:1px solid var(--primary);}
+  .btn.sm{padding:5px 10px;font-size:12px;border-radius:6px;}
+  #login{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:20;}
+  #login .card{background:var(--panel);padding:30px;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.08);width:320px;}
+  #login h2{margin:0 0 18px;font-size:18px;}
+  #login label{display:block;font-size:12px;color:var(--muted);margin:12px 0 4px;}
+  #login input{width:100%;border:1px solid var(--border);border-radius:8px;padding:10px;font-size:14px;}
+  #login .btn{width:100%;margin-top:18px;}
+  #messages{flex:1;overflow-y:auto;padding:22px;display:flex;flex-direction:column;gap:16px;}
+  .msg{display:flex;gap:12px;max-width:780px;width:100%;margin:0 auto;}
+  .msg .avatar{width:32px;height:32px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;
+              justify-content:center;font-size:13px;color:#fff;}
+  .msg.user .avatar{background:#2f6bff;}
+  .msg.assistant .avatar{background:#34c759;}
+  .msg .bubble{padding:10px 14px;border-radius:12px;line-height:1.65;font-size:14px;white-space:pre-wrap;
+               word-break:break-word;}
+  .msg.user{flex-direction:row-reverse;}
+  .msg.user .bubble{background:#2f6bff;color:#fff;}
+  .msg.assistant .bubble{background:#fff;border:1px solid var(--border);}
+  #status{text-align:center;font-size:12px;color:var(--muted);padding:4px 8px;min-height:20px;}
+  #inputbar{padding:14px;background:var(--panel);border-top:1px solid var(--border);}
+  #inputbar .wrap{max-width:780px;margin:0 auto;display:flex;gap:10px;align-items:flex-end;}
+  #prompt{flex:1;resize:none;border:1px solid var(--border);border-radius:10px;padding:11px 14px;
+          font-size:14px;height:48px;max-height:160px;font-family:inherit;line-height:1.4;}
+  .err{color:#e54545;}
+  .meta{font-size:11px;color:var(--muted);margin-top:4px;text-align:right;max-width:780px;width:100%;margin-left:auto;margin-right:auto;}
+
+  /* 管理面板 | Manage panel */
+  #manage{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:15;}
+  #manage .card{background:var(--panel);border-radius:12px;width:min(880px,94vw);max-height:88vh;display:flex;flex-direction:column;}
+  #manage .head{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border);}
+  #manage .head h3{margin:0;font-size:15px;}
+  #manage .tabs{display:flex;gap:6px;padding:10px 18px 0;}
+  #manage .tabs button{border:1px solid var(--border);background:#fff;border-radius:8px 8px 0 0;padding:7px 14px;
+       font-size:13px;cursor:pointer;color:var(--muted);}
+  #manage .tabs button.on{color:var(--primary);border-color:var(--primary);font-weight:600;}
+  #manage .body{padding:16px 18px;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  #manage .col h4{margin:0 0 8px;font-size:13px;}
+  #manage label{display:block;font-size:11px;color:var(--muted);margin:8px 0 3px;}
+  #manage input,#manage select,#manage textarea{width:100%;border:1px solid var(--border);border-radius:7px;
+       padding:7px 9px;font-size:13px;font-family:inherit;}
+  #manage textarea{min-height:62px;resize:vertical;}
+  #manage .list{border:1px solid var(--border);border-radius:8px;max-height:210px;overflow-y:auto;}
+  #manage .item{padding:8px 10px;border-bottom:1px solid var(--border);font-size:12.5px;display:flex;
+       align-items:center;gap:8px;cursor:pointer;}
+  #manage .item:last-child{border-bottom:none;}
+  #manage .item:hover{background:#f7f9ff;}
+  #manage .item.sel{background:#eaf0ff;}
+  #manage .item .uuid{color:var(--muted);font-size:10.5px;}
+  #manage .row{display:flex;gap:8px;align-items:center;margin-top:10px;}
+  #manage .close{margin-left:auto;cursor:pointer;font-size:20px;color:var(--muted);line-height:1;}
+  #manage pre{background:#f7f8fa;border:1px solid var(--border);border-radius:8px;padding:9px;font-size:11.5px;
+       max-height:190px;overflow:auto;white-space:pre-wrap;word-break:break-all;margin:8px 0 0;}
+  .hint{font-size:11px;color:var(--muted);}
+  /* 知识库来源 | KB citation block */
+  .refs{margin-top:8px;border:1px solid var(--border);border-radius:8px;overflow:hidden;font-size:12px;}
+  .refs summary{cursor:pointer;padding:6px 10px;background:#f7f9ff;color:var(--primary);font-weight:600;user-select:none;}
+  .refs .ref-item{padding:7px 10px;border-top:1px solid var(--border);line-height:1.5;}
+  .refs .ref-item b{font-size:12px;}
+  .refs .ref-item .ref-quote{color:var(--muted);margin-top:2px;word-break:break-word;}
+  .refs .ref-item .ref-score{color:var(--muted);font-size:10.5px;}
+  /* 开关 | Toggle switch */
+  .switch{position:relative;display:inline-block;width:34px;height:18px;flex-shrink:0;}
+  .switch input{opacity:0;width:0;height:0;}
+  .switch .slider{position:absolute;cursor:pointer;inset:0;background:#cfd4dc;border-radius:18px;transition:.2s;}
+  .switch .slider:before{content:"";position:absolute;height:14px;width:14px;left:2px;top:2px;background:#fff;border-radius:50%;transition:.2s;}
+  .switch input:checked + .slider{background:var(--primary);}
+  .switch input:checked + .slider:before{transform:translateX(16px);}
+  #manage .item .switch{margin-left:auto;}
+</style>
+</head>
+<body>
+  <div id="login">
+    <div class="card">
+      <h2>登录 AISelf</h2>
+      <label>邮箱</label>
+      <input id="le" type="email" value="catkeeper@aideepin.com" autocomplete="username">
+      <label>密码</label>
+      <input id="lp" type="password" value="AdiTest@123" autocomplete="current-password">
+      <button class="btn" id="loginBtn">登录</button>
+      <div id="loginErr" class="err" style="margin-top:12px;font-size:12px;"></div>
+    </div>
+  </div>
+
+  <header>
+    <h1>AI 聊天</h1>
+    <div class="field"><span>场景</span><select id="sceneSel" style="width:170px"><option value="">(不按场景)</option></select></div>
+    <div class="field"><span>Agent</span><select id="agentSel" style="width:190px"><option value="">(手动指定角色)</option></select></div>
+    <div class="spacer"></div>
+    <div class="field"><span>API 地址(留空=同源)</span><input id="base" placeholder="http://localhost:9999"></div>
+    <div class="field"><span>角色 UUID</span><input id="charUuid" value="f47ac10b58cc4372a5670e02b2c3d479"></div>
+    <div class="field"><span>模型平台</span><input id="platform" value="volcengine"></div>
+    <div class="field"><span>模型名</span><input id="model" value="doubao-seed-2.0-lite"></div>
+    <button class="btn ghost sm" id="manageBtn">管理</button>
+    <button class="btn ghost sm" id="logoutBtn">退出</button>
+  </header>
+
+  <div id="messages"></div>
+  <div id="status"></div>
+  <div id="inputbar">
+    <div class="wrap">
+      <textarea id="prompt" placeholder="输入消息，Enter 发送，Shift+Enter 换行"></textarea>
+      <button class="btn" id="sendBtn">发送</button>
+    </div>
+  </div>
+
+  <!-- 管理面板：Agent / 场景 / 数据库 MCP | Manage panel -->
+  <div id="manage">
+    <div class="card">
+      <div class="head">
+        <h3>管理面板</h3>
+        <span class="hint" id="mHint"></span>
+        <span class="close" id="mClose">&times;</span>
+      </div>
+      <div class="tabs">
+        <button data-tab="agent" class="on">Agent</button>
+        <button data-tab="scene">场景</button>
+        <button data-tab="db">数据库 MCP</button>
+        <button data-tab="skill">技能</button>
+        <button data-tab="kb">知识库</button>
+      </div>
+
+      <div class="body">
+        <!-- Agent tab -->
+        <div class="col" data-body="agent">
+          <h4>Agent 列表</h4>
+          <div class="list" id="agentList"></div>
+          <div class="row"><button class="btn sm" id="agentReload">刷新</button>
+            <button class="btn sm ghost" id="agentDel">删除选中</button></div>
+        </div>
+        <div class="col" data-body="agent">
+          <h4>新建 / 更新 Agent</h4>
+          <label>标题</label><input id="aTitle" placeholder="例如：订单分析助手">
+          <label>系统提示词（角色设定）</label><textarea id="aSys" placeholder="你是一位资深数据分析师..."></textarea>
+          <label>工作设计-目标</label><input id="aGoal" placeholder="从订单数据中找出异常并给出结论">
+          <label>工作设计-执行步骤（每行一条）</label><textarea id="aSteps" placeholder="读取订单表&#10;统计异常项&#10;输出结论"></textarea>
+          <label>工作设计-约束</label><input id="aLimit" placeholder="只使用查询到的数据，不要编造">
+          <label>工作设计-输出格式</label><input id="aOut" placeholder="先结论，再分点说明">
+          <label>模型平台 / 模型名</label>
+          <div class="row"><input id="aPlat" value="volcengine"><input id="aModel" value="doubao-seed-2.0-lite"></div>
+          <label>知识库 id（逗号分隔）</label><input id="aKb" placeholder="1,2">
+          <label>绑定工作流 uuid（逗号分隔）</label><input id="aWf" placeholder="可留空">
+          <div class="row"><button class="btn sm" id="agentSave">保存 Agent</button>
+            <button class="btn sm ghost" id="agentBindWf">绑定工作流</button></div>
+        </div>
+
+        <!-- Scene tab -->
+        <div class="col" data-body="scene" style="display:none">
+          <h4>场景列表</h4>
+          <div class="list" id="sceneList"></div>
+          <div class="row"><button class="btn sm" id="sceneReload">刷新</button>
+            <button class="btn sm ghost" id="sceneDel">删除选中</button></div>
+        </div>
+        <div class="col" data-body="scene" style="display:none">
+          <h4>新建 / 更新场景</h4>
+          <label>场景标题</label><input id="sTitle" placeholder="例如：数据分析场景">
+          <label>说明</label><input id="sRemark" placeholder="可选">
+          <label>图标</label><input id="sIcon" placeholder="可选，如 📊">
+          <label>绑定 Agent uuid（逗号分隔，顺序即展示顺序）</label><input id="sAgents" placeholder="uuid1,uuid2">
+          <div class="row"><button class="btn sm" id="sceneSave">保存场景</button>
+            <button class="btn sm ghost" id="sceneBind">绑定 Agent</button></div>
+          <pre id="sceneTip">提示：先在 Agent 页创建 Agent，复制其 uuid 到这里绑定。绑定后对话页顶部「场景」下拉即可切换。</pre>
+        </div>
+
+        <!-- DB tab -->
+        <div class="col" data-body="db" style="display:none">
+          <h4>数据源列表</h4>
+          <div class="list" id="dbList"></div>
+          <div class="row"><button class="btn sm" id="dbReload">刷新</button>
+            <button class="btn sm ghost" id="dbTest">测试连接</button>
+            <button class="btn sm ghost" id="dbTables">查看表</button></div>
+        </div>
+        <div class="col" data-body="db" style="display:none">
+          <h4>新建 / 更新数据源</h4>
+          <label>标题</label><input id="dTitle" placeholder="例如：业务库 MySQL">
+          <label>类型</label>
+          <select id="dType"><option value="postgresql">postgresql</option><option value="mysql">mysql</option></select>
+          <div class="row"><input id="dHost" placeholder="host"><input id="dPort" placeholder="5432" style="width:90px"></div>
+          <div class="row"><input id="dName" placeholder="database"><input id="dUser" placeholder="user"></div>
+          <label>密码</label><input id="dPass" type="password" placeholder="password">
+          <div class="row"><button class="btn sm" id="dbSave">保存数据源</button>
+            <button class="btn sm ghost" id="dbQuery">只读查询</button></div>
+          <label>SQL（仅 select / with，单条）</label><textarea id="dSql" placeholder="select * from orders limit 20"></textarea>
+          <label>同步到知识库：目标知识库 uuid</label><input id="dKb" placeholder="知识库 uuid">
+          <label>内容模板（可选，用 {列名} 占位）</label><input id="dTpl" placeholder="订单 {order_id} 金额 {amount}">
+          <div class="row"><button class="btn sm" id="dbSyncTask">创建同步任务</button>
+            <button class="btn sm ghost" id="dbRun">执行同步</button>
+            <button class="btn sm ghost" id="dbTaskList">任务列表</button></div>
+          <pre id="dbOut"></pre>
+        </div>
+
+        <!-- Skill tab -->
+        <div class="col" data-body="skill" style="display:none">
+          <h4>技能市场</h4>
+          <div class="row"><input id="kKeyword" placeholder="搜索关键词（可空）">
+            <button class="btn sm" id="skillReload">刷新</button></div>
+          <div class="list" id="skillList" style="max-height:170px"></div>
+          <div class="row">
+            <button class="btn sm ghost" id="skillInstall">安装 / 启用选中</button>
+            <button class="btn sm ghost" id="skillUninstall">停用选中</button>
+            <button class="btn sm ghost" id="skillView">查看内容</button>
+          </div>
+          <h4 style="margin-top:14px">绑定到当前对话角色</h4>
+          <label>当前角色 UUID（对话页顶部那个）</label>
+          <input id="kChar" readonly>
+          <label>技能 id（选中后自动填入；多个逗号分隔，保存为该角色的完整技能清单）</label>
+          <input id="kIds" placeholder="如 3 或 3,7">
+          <div class="row">
+            <button class="btn sm" id="skillBind">保存角色技能绑定</button>
+            <button class="btn sm ghost" id="skillBindAdd">追加绑定（不覆盖已有）</button>
+          </div>
+          <pre id="skillTip">提示：也可以直接在对话里说「创建一个技能：...」，AI 会调用 create_skill 工具自动创建并绑定当前角色。</pre>
+        </div>
+        <div class="col" data-body="skill" style="display:none">
+          <h4>我的技能</h4>
+          <div class="list" id="mySkillList" style="max-height:170px"></div>
+          <div class="row"><button class="btn sm" id="mySkillReload">刷新</button></div>
+          <h4 style="margin-top:14px">技能详情</h4>
+          <pre id="skillOut">（点「查看内容」显示选中技能的完整指令）</pre>
+        </div>
+
+        <!-- KB tab -->
+        <div class="col" data-body="kb" style="display:none">
+          <h4>我的知识库</h4>
+          <div class="list" id="kbList" style="max-height:320px"></div>
+          <div class="row"><button class="btn sm" id="kbReload">刷新</button></div>
+        </div>
+        <div class="col" data-body="kb" style="display:none">
+          <h4>检索开关</h4>
+          <div class="row" style="justify-content:space-between">
+            <span id="kbSelTitle" style="font-size:13px">（在左侧点选知识库）</span>
+            <label class="switch"><input type="checkbox" id="kbRetrieval"><span class="slider"></span></label>
+          </div>
+          <label>开启 = 参与对话自动检索；关闭 = 对话链路跳过该库（文档仍保留，外部 API 显式调用不受影响）</label>
+          <pre id="kbTip">切换后立即保存。Agent 关联的知识库在关闭后会自动从检索范围剔除，无需重新绑定。</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const $ = id => document.getElementById(id);
+let TOKEN = '';
+let AGENTS = [], SCENES = [], DBS = [];
+let selAgentUuid = '', selSceneUuid = '', selDbUuid = '';
+
+function baseUrl(){
+  const v = $('base').value.trim();
+  return v ? v.replace(/\/$/,'') : (location.origin || 'http://localhost:9999');
+}
+function setStatus(t, isErr){
+  const s = $('status'); s.textContent = t || ''; s.className = isErr ? 'err' : '';
+}
+async function api(path, opt){
+  opt = opt || {};
+  const headers = Object.assign({'Content-Type':'application/json', 'Authorization': TOKEN}, opt.headers || {});
+  const r = await fetch(baseUrl() + path, Object.assign({}, opt, {headers}));
+  const txt = await r.text();
+  let j = null;
+  try { j = txt ? JSON.parse(txt) : null; } catch(e) { j = txt; }
+  if(!r.ok) throw new Error((j && j.message) ? j.message : ('HTTP ' + r.status));
+  return j;
+}
+
+async function login(){
+  const email = $('le').value.trim(), pwd = $('lp').value;
+  if(!email || !pwd){ $('loginErr').textContent = '请输入邮箱和密码'; return; }
+  setStatus('登录中...');
+  try{
+    const r = await fetch(baseUrl()+'/auth/login', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({email, password: pwd})
+    });
+    const j = await r.json();
+    if(j && j.success && j.data && j.data.token){
+      TOKEN = j.data.token;
+      $('login').style.display = 'none';
+      setStatus('');
+      loadScenes();
+    } else {
+      $('loginErr').textContent = '登录失败：' + (j && j.message ? j.message : JSON.stringify(j));
+    }
+  } catch(e){ $('loginErr').textContent = '请求失败：' + e.message; }
+}
+
+function addMsg(role, text){
+  const m = document.createElement('div'); m.className = 'msg ' + role;
+  const av = document.createElement('div'); av.className = 'avatar'; av.textContent = role === 'user' ? '我' : 'AI';
+  const b = document.createElement('div'); b.className = 'bubble'; b.textContent = text;
+  m.appendChild(av); m.appendChild(b);
+  $('messages').appendChild(m);
+  $('messages').scrollTop = $('messages').scrollHeight;
+  return { m, b };
+}
+function parseEvent(chunk){
+  let ev = '', data = '';
+  chunk.split('\n').forEach(line => {
+    if(line.startsWith('event:')) ev = line.slice(6).trim();
+    else if(line.startsWith('data:')) data += line.slice(5).replace(/^ /, '');
+  });
+  return { ev, data };
+}
+function scrollBottom(){ $('messages').scrollTop = $('messages').scrollHeight; }
+
+async function send(){
+  const text = $('prompt').value.trim();
+  if(!text || !TOKEN) return;
+  $('prompt').value = '';
+  addMsg('user', text);
+  const { m: am, b: bubble } = addMsg('assistant', '');
+  let acc = '', metaLine = '';
+  setStatus('AI 思考中...');
+
+  const body = {
+    characterUuid: $('charUuid').value.trim(),
+    prompt: text,
+    modelPlatform: $('platform').value.trim(),
+    modelName: $('model').value.trim()
+  };
+  try{
+    const resp = await fetch(baseUrl()+'/chat/process', {
+      method:'POST',
+      headers:{'Content-Type':'application/json', 'Authorization': TOKEN},
+      body: JSON.stringify(body)
+    });
+    if(!resp.ok){ setStatus('HTTP ' + resp.status, true); return; }
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder('utf-8');
+    let buf = '';
+    while(true){
+      const { done, value } = await reader.read();
+      if(done) break;
+      buf += dec.decode(value, { stream:true });
+      let idx;
+      while((idx = buf.indexOf('\n\n')) >= 0){
+        const chunk = buf.slice(0, idx); buf = buf.slice(idx + 2);
+        const { ev, data } = parseEvent(chunk);
+        if(ev === '[DONE]'){ metaLine = data; setStatus(''); }
+        else if(ev === '[ERROR]'){ setStatus('错误：' + data, true); }
+        else if(ev === '[STATE_CHANGED]'){ try{ const st = JSON.parse(data); setStatus(st.remark || st.state || ''); }catch(e){} }
+        else { acc += data; bubble.textContent = acc; scrollBottom(); }
+      }
+    }
+    if(metaLine && metaLine.indexOf('[META]') === 0){
+      try{
+        const meta = JSON.parse(metaLine.slice('[META]'.length));
+        const a = meta.answer || {};
+        const metaEl = document.createElement('div'); metaEl.className = 'meta';
+        metaEl.textContent = 'tokens: ' + (a.inputTokens||0) + ' in / ' + (a.outputTokens||0) + ' out · ' + ((a.duration||0)/1000).toFixed(1) + 's';
+        am.appendChild(metaEl);
+        // 知识库引用来源 | KB citation sources
+        const refs = a.refs || [];
+        if(refs.length){
+          const refsEl = document.createElement('details'); refsEl.className = 'refs';
+          const sum = document.createElement('summary');
+          sum.textContent = '📚 知识库来源（' + refs.length + '）';
+          refsEl.appendChild(sum);
+          refs.forEach(rf => {
+            const item = document.createElement('div'); item.className = 'ref-item';
+            const head = document.createElement('b');
+            const kb = rf.kbTitle ? (' · ' + rf.kbTitle) : '';
+            const sc = (rf.score != null) ? ('  ' + rf.score.toFixed(3)) : '';
+            head.textContent = (rf.docTitle || rf.source || '来源') + kb + sc;
+            const quote = document.createElement('div'); quote.className = 'ref-quote';
+            quote.textContent = rf.segmentContent || '';
+            item.appendChild(head);
+            if(quote.textContent) item.appendChild(quote);
+            refsEl.appendChild(item);
+          });
+          am.appendChild(refsEl);
+          scrollBottom();
+        }
+      }catch(e){}
+    }
+  } catch(e){ setStatus('请求异常：' + e.message, true); }
+}
+
+/* ---------- 场景 / Agent ---------- */
+async function loadScenes(){
+  try{
+    SCENES = await api('/scene/list');
+    const sel = $('sceneSel');
+    sel.innerHTML = '<option value="">(不按场景)</option>';
+    SCENES.forEach(s => {
+      const o = document.createElement('option');
+      o.value = s.uuid; o.textContent = s.title || s.uuid;
+      sel.appendChild(o);
+    });
+  }catch(e){ /* 场景为空时忽略 */ }
+}
+async function loadAgentsOfScene(sceneUuid){
+  const sel = $('agentSel');
+  sel.innerHTML = '<option value="">(手动指定角色)</option>';
+  if(!sceneUuid){ AGENTS = []; return; }
+  try{
+    AGENTS = await api('/scene/agents?sceneUuid=' + encodeURIComponent(sceneUuid));
+    AGENTS.forEach(a => {
+      const o = document.createElement('option');
+      o.value = a.uuid; o.textContent = a.title || a.uuid;
+      sel.appendChild(o);
+    });
+    if(AGENTS.length) { sel.selectedIndex = 1; applyAgent(sel.value); }
+  }catch(e){ setStatus('加载场景Agent失败：' + e.message, true); }
+}
+function applyAgent(uuid){
+  const a = AGENTS.find(x => x.uuid === uuid);
+  if(!a) return;
+  if(a.characterUuid) $('charUuid').value = a.characterUuid;
+  if(a.modelPlatform) $('platform').value = a.modelPlatform;
+  if(a.modelName) $('model').value = a.modelName;
+  setStatus('已切换 Agent：' + (a.title || a.uuid) + (a.characterUuid ? '' : '（缺少角色，无法对话）'));
+}
+$('sceneSel').addEventListener('change', e => { selSceneUuid = e.target.value; loadAgentsOfScene(selSceneUuid); });
+$('agentSel').addEventListener('change', e => { selAgentUuid = e.target.value; applyAgent(selAgentUuid); });
+
+/* ---------- 管理面板 ---------- */
+function openManage(){ $('manage').style.display = 'flex'; loadAgentList(); }
+$('manageBtn').addEventListener('click', openManage);
+$('mClose').addEventListener('click', () => $('manage').style.display = 'none');
+document.querySelectorAll('#manage .tabs button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#manage .tabs button').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    const tab = btn.dataset.tab;
+    document.querySelectorAll('#manage [data-body]').forEach(el => {
+      el.style.display = (el.dataset.body === tab) ? '' : 'none';
+    });
+    if(tab === 'db') loadDbList();
+    if(tab === 'scene') loadSceneList();
+  });
+});
+function hint(t){ $('mHint').textContent = t || ''; }
+
+/* 防重复提交：按钮在执行期间禁用，避免快速双击创建出重复数据
+   Guard against double submits: disable the button while the action is running */
+function once(btn, fn){
+  return async function(){
+    if(btn.dataset.busy === '1'){ return; }
+    btn.dataset.busy = '1';
+    btn.disabled = true;
+    try { await fn(); }
+    finally { btn.disabled = false; btn.dataset.busy = '0'; }
+  };
+}
+
+function renderList(el, items, onPick, selectedUuid){
+  el.innerHTML = '';
+  if(!items || !items.length){
+    const empty = document.createElement('div'); empty.className = 'item';
+    const es = document.createElement('span'); es.className = 'uuid'; es.textContent = '（空）';
+    empty.appendChild(es); el.appendChild(empty); return;
+  }
+  items.forEach(it => {
+    const d = document.createElement('div');
+    d.className = 'item' + (it.uuid === selectedUuid ? ' sel' : '');
+    //Build nodes with textContent: titles are user input and must never be parsed as HTML
+    const t = document.createElement('span'); t.textContent = it.title || it.name || it.uuid;
+    const u = document.createElement('span'); u.className = 'uuid'; u.textContent = it.uuid;
+    d.appendChild(t); d.appendChild(u);
+    d.addEventListener('click', () => onPick(it));
+    el.appendChild(d);
+  });
+}
+
+/* Agent */
+async function loadAgentList(){
+  try{
+    AGENTS = await api('/agent/list');
+    renderList($('agentList'), AGENTS, a => { selAgentUuid = a.uuid; loadAgentList(); }, selAgentUuid);
+  }catch(e){ hint('加载Agent失败：' + e.message); }
+}
+$('agentReload').addEventListener('click', loadAgentList);
+$('agentSave').addEventListener('click', once($('agentSave'), async () => {
+  const steps = $('aSteps').value.split('\n').map(s => s.trim()).filter(Boolean);
+  const workDesign = { goal: $('aGoal').value, steps, constraints: $('aLimit').value, outputFormat: $('aOut').value };
+  const payload = {
+    title: $('aTitle').value, systemMessage: $('aSys').value, workDesign: JSON.stringify(workDesign),
+    modelPlatform: $('aPlat').value, modelName: $('aModel').value, kbIds: $('aKb').value,
+    enableRag: true, enableMcp: false, enableWebSearch: false
+  };
+  try{
+    const saved = await api('/agent/saveOrUpdate', {method:'POST', body: JSON.stringify(payload)});
+    hint('已保存 Agent：' + saved.uuid + '（角色 ' + saved.characterUuid + '）');
+    const wf = $('aWf').value.trim();
+    if(wf){
+      const uuids = wf.split(',').map(s => s.trim()).filter(Boolean);
+      await api('/agent/bindWorkflows?agentUuid=' + saved.uuid, {method:'POST', body: JSON.stringify(uuids)});
+      hint('已保存并绑定 ' + uuids.length + ' 个工作流');
+    }
+    loadAgentList(); loadScenes();
+  }catch(e){ hint('保存失败：' + e.message); }
+}));
+$('agentBindWf').addEventListener('click', once($('agentBindWf'), async () => {
+  if(!selAgentUuid){ hint('请先在左侧点选一个 Agent'); return; }
+  const uuids = $('aWf').value.split(',').map(s => s.trim()).filter(Boolean);
+  try{
+    await api('/agent/bindWorkflows?agentUuid=' + selAgentUuid, {method:'POST', body: JSON.stringify(uuids)});
+    hint('已绑定 ' + uuids.length + ' 个工作流');
+  }catch(e){ hint('绑定失败：' + e.message); }
+}));
+$('agentDel').addEventListener('click', async () => {
+  if(!selAgentUuid){ hint('请先点选一个 Agent'); return; }
+  try{ await api('/agent/delete?uuid=' + selAgentUuid, {method:'POST'}); selAgentUuid=''; loadAgentList(); hint('已删除'); }
+  catch(e){ hint('删除失败：' + e.message); }
+});
+
+/* Scene */
+async function loadSceneList(){
+  try{
+    SCENES = await api('/scene/list');
+    renderList($('sceneList'), SCENES, s => { selSceneUuid = s.uuid; loadSceneList(); }, selSceneUuid);
+  }catch(e){ hint('加载场景失败：' + e.message); }
+}
+$('sceneReload').addEventListener('click', loadSceneList);
+$('sceneSave').addEventListener('click', once($('sceneSave'), async () => {
+  const payload = { title: $('sTitle').value, remark: $('sRemark').value, icon: $('sIcon').value };
+  try{
+    const saved = await api('/scene/saveOrUpdate', {method:'POST', body: JSON.stringify(payload)});
+    const agents = $('sAgents').value.split(',').map(s => s.trim()).filter(Boolean);
+    if(agents.length){
+      await api('/scene/bindAgents?sceneUuid=' + saved.uuid, {method:'POST', body: JSON.stringify(agents)});
+    }
+    hint('已保存场景：' + saved.uuid + (agents.length ? ('，绑定 ' + agents.length + ' 个Agent') : ''));
+    loadSceneList(); loadScenes();
+  }catch(e){ hint('保存失败：' + e.message); }
+}));
+$('sceneBind').addEventListener('click', once($('sceneBind'), async () => {
+  if(!selSceneUuid){ hint('请先点选一个场景'); return; }
+  const agents = $('sAgents').value.split(',').map(s => s.trim()).filter(Boolean);
+  try{
+    await api('/scene/bindAgents?sceneUuid=' + selSceneUuid, {method:'POST', body: JSON.stringify(agents)});
+    hint('已绑定 ' + agents.length + ' 个Agent');
+  }catch(e){ hint('绑定失败：' + e.message); }
+}));
+$('sceneDel').addEventListener('click', async () => {
+  if(!selSceneUuid){ hint('请先点选一个场景'); return; }
+  try{ await api('/scene/delete?uuid=' + selSceneUuid, {method:'POST'}); selSceneUuid=''; loadSceneList(); loadScenes(); hint('已删除'); }
+  catch(e){ hint('删除失败：' + e.message); }
+});
+
+/* Database MCP */
+async function loadDbList(){
+  try{
+    DBS = await api('/db-datasource/list');
+    renderList($('dbList'), DBS, d => { selDbUuid = d.uuid; loadDbList(); }, selDbUuid);
+  }catch(e){ hint('加载数据源失败：' + e.message); }
+}
+$('dbReload').addEventListener('click', loadDbList);
+$('dbSave').addEventListener('click', once($('dbSave'), async () => {
+  const payload = {
+    title: $('dTitle').value, dbType: $('dType').value, host: $('dHost').value,
+    port: parseInt($('dPort').value || '0', 10), dbName: $('dName').value,
+    username: $('dUser').value, password: $('dPass').value
+  };
+  try{
+    const saved = await api('/db-datasource/saveOrUpdate', {method:'POST', body: JSON.stringify(payload)});
+    selDbUuid = saved.uuid;
+    hint('已保存数据源：' + saved.uuid);
+    loadDbList();
+  }catch(e){ hint('保存失败：' + e.message); }
+}));
+$('dbTest').addEventListener('click', async () => {
+  if(!selDbUuid){ hint('请先点选一个数据源'); return; }
+  try{ $('dbOut').textContent = JSON.stringify(await api('/db-datasource/test?uuid=' + selDbUuid), null, 2); }
+  catch(e){ $('dbOut').textContent = '测试失败：' + e.message; }
+});
+$('dbTables').addEventListener('click', async () => {
+  if(!selDbUuid){ hint('请先点选一个数据源'); return; }
+  try{
+    const t = await api('/db-datasource/tables?uuid=' + selDbUuid);
+    $('dbOut').textContent = (t || []).map(x => x.schema ? (x.schema + '.' + x.table) : x.table).join('\n') || '(无表)';
+  }catch(e){ $('dbOut').textContent = '读取失败：' + e.message; }
+});
+$('dbQuery').addEventListener('click', async () => {
+  if(!selDbUuid){ hint('请先点选一个数据源'); return; }
+  try{
+    const r = await api('/db-datasource/query', {method:'POST',
+      body: JSON.stringify({uuid: selDbUuid, sql: $('dSql').value, limit: 50})});
+    $('dbOut').textContent = '行数：' + r.count + '\n\n' + JSON.stringify(r.rows, null, 2);
+  }catch(e){ $('dbOut').textContent = '查询失败：' + e.message; }
+});
+$('dbSyncTask').addEventListener('click', once($('dbSyncTask'), async () => {
+  if(!selDbUuid){ hint('请先点选一个数据源'); return; }
+  try{
+    const saved = await api('/db-datasource/task/saveOrUpdate', {method:'POST', body: JSON.stringify({
+      datasourceUuid: selDbUuid, kbUuid: $('dKb').value.trim(), title: $('dTitle').value || 'db sync',
+      sqlText: $('dSql').value, contentTemplate: $('dTpl').value
+    })});
+    hint('已创建同步任务：' + saved.uuid);
+    $('dbOut').textContent = JSON.stringify(saved, null, 2);
+  }catch(e){ $('dbOut').textContent = '创建失败：' + e.message; }
+}));
+$('dbRun').addEventListener('click', once($('dbRun'), async () => {
+  try{
+    const tasks = await api('/db-datasource/task/list');
+    if(!tasks.length){ $('dbOut').textContent = '没有同步任务，请先创建'; return; }
+    const r = await api('/db-datasource/task/run?uuid=' + tasks[0].uuid, {method:'POST'});
+    $('dbOut').textContent = JSON.stringify(r, null, 2);
+    hint('同步执行完成');
+  }catch(e){ $('dbOut').textContent = '执行失败：' + e.message; }
+}));
+$('dbTaskList').addEventListener('click', async () => {
+  try{ $('dbOut').textContent = JSON.stringify(await api('/db-datasource/task/list'), null, 2); }
+  catch(e){ $('dbOut').textContent = '读取失败：' + e.message; }
+});
+
+/* 事件绑定 */
+$('loginBtn').addEventListener('click', login);
+$('logoutBtn').addEventListener('click', () => { TOKEN=''; $('login').style.display='flex'; });
+$('sendBtn').addEventListener('click', send);
+$('prompt').addEventListener('keydown', e => {
+  if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); send(); }
+});
+
+/* ---------- 技能 | Skills ---------- */
+let SKILLS = [], MY_SKILLS = [], selSkillId = null;
+
+async function loadSkillMarket(){
+  try{
+    const kw = $('kKeyword').value.trim();
+    const page = await api('/skill/search?keyword=' + encodeURIComponent(kw) + '&currentPage=1&pageSize=100');
+    SKILLS = (page && page.records) ? page.records : (page || []);
+    const mineIds = new Set(MY_SKILLS.filter(s => s.isEnable).map(s => s.skillId));
+    const el = $('skillList');
+    el.innerHTML = '';
+    if(!SKILLS.length){
+      const d = document.createElement('div'); d.className = 'item';
+      const s = document.createElement('span'); s.className = 'uuid'; s.textContent = '（空）';
+      d.appendChild(s); el.appendChild(d);
+    }
+    SKILLS.forEach(k => {
+      const d = document.createElement('div');
+      d.className = 'item' + (k.id === selSkillId ? ' sel' : '');
+      const t = document.createElement('span');
+      t.textContent = (mineIds.has(k.id) ? '✓ ' : '') + (k.title || k.name);
+      const u = document.createElement('span'); u.className = 'uuid'; u.textContent = k.name;
+      d.appendChild(t); d.appendChild(u);
+      d.addEventListener('click', () => { selSkillId = k.id; loadSkillMarket(); });
+      el.appendChild(d);
+    });
+  }catch(e){ hint('加载技能失败：' + e.message); }
+}
+async function loadMySkills(){
+  try{
+    MY_SKILLS = await api('/user/skill/list');
+    const byId = {}; SKILLS.forEach(k => byId[k.id] = k);
+    const el = $('mySkillList');
+    el.innerHTML = '';
+    if(!MY_SKILLS.length){
+      const d = document.createElement('div'); d.className = 'item';
+      const s = document.createElement('span'); s.className = 'uuid'; s.textContent = '（未安装任何技能）';
+      d.appendChild(s); el.appendChild(d);
+    }
+    MY_SKILLS.forEach(us => {
+      const k = byId[us.skillId] || {};
+      const d = document.createElement('div');
+      d.className = 'item' + (us.skillId === selSkillId ? ' sel' : '');
+      const t = document.createElement('span');
+      t.textContent = (k.title || k.name || ('技能#' + us.skillId)) + (us.isEnable ? '' : '（已停用）');
+      d.appendChild(t);
+      const sw = document.createElement('label'); sw.className = 'switch';
+      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !!us.isEnable;
+      cb.addEventListener('change', async () => {
+        try{
+          await api('/user/skill/saveOrUpdate?skillId=' + us.skillId + '&isEnable=' + cb.checked, {method:'POST'});
+          hint('技能已' + (cb.checked ? '启用' : '停用'));
+        }catch(e){ hint('操作失败：' + e.message); cb.checked = !cb.checked; }
+      });
+      const sl = document.createElement('span'); sl.className = 'slider';
+      sw.appendChild(cb); sw.appendChild(sl); d.appendChild(sw);
+      d.addEventListener('click', ev => {
+        if(ev.target.closest('.switch')) return;
+        selSkillId = us.skillId; loadMySkills();
+      });
+      el.appendChild(d);
+    });
+  }catch(e){ hint('加载我的技能失败：' + e.message); }
+}
+$('skillReload').addEventListener('click', loadSkillMarket);
+$('mySkillReload').addEventListener('click', loadMySkills);
+$('skillInstall').addEventListener('click', once($('skillInstall'), async () => {
+  if(!selSkillId){ hint('请先点选一个技能'); return; }
+  try{
+    await api('/user/skill/saveOrUpdate?skillId=' + selSkillId + '&isEnable=true', {method:'POST'});
+    hint('已安装并启用技能 #' + selSkillId);
+    loadMySkills(); loadSkillMarket();
+  }catch(e){ hint('安装失败：' + e.message); }
+}));
+$('skillUninstall').addEventListener('click', once($('skillUninstall'), async () => {
+  if(!selSkillId){ hint('请先点选一个技能'); return; }
+  try{
+    await api('/user/skill/remove?skillId=' + selSkillId, {method:'POST'});
+    hint('已卸载技能 #' + selSkillId);
+    loadMySkills(); loadSkillMarket();
+  }catch(e){ hint('卸载失败：' + e.message); }
+}));
+$('skillView').addEventListener('click', async () => {
+  if(!selSkillId){ hint('请先点选一个技能'); return; }
+  try{
+    const k = await api('/skill/public/' + (SKILLS.find(x => x.id === selSkillId) || {}).uuid);
+    $('skillOut').textContent = '【' + (k.title || k.name) + '】' + (k.description || '') + '\n\n' + (k.content || '');
+  }catch(e){ $('skillOut').textContent = '读取失败：' + e.message; }
+});
+async function saveCharSkillIds(merge){
+  const charUuid = $('kChar').value.trim();
+  if(!charUuid){ hint('缺少角色 UUID'); return; }
+  let ids = $('kIds').value.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n) && n > 0);
+  try{
+    if(merge){
+      const chars = await api('/character/list');
+      const cur = (chars || []).find(c => c.uuid === charUuid);
+      const existing = (cur && cur.skillIds) ? cur.skillIds : [];
+      ids = Array.from(new Set(existing.concat(ids)));
+    }
+    await api('/character/edit/' + charUuid, {method:'POST', body: JSON.stringify({skillIds: ids})});
+    hint('角色技能绑定已保存：' + ids.join(','));
+  }catch(e){ hint('绑定失败：' + e.message); }
+}
+$('skillBind').addEventListener('click', once($('skillBind'), () => saveCharSkillIds(false)));
+$('skillBindAdd').addEventListener('click', once($('skillBindAdd'), () => saveCharSkillIds(true)));
+
+/* ---------- 知识库检索开关 | KB retrieval switch ---------- */
+let KBS = [], selKbId = null;
+async function loadKbList(){
+  try{
+    const page = await api('/knowledge-base/mine/search?keyword=&currentPage=1&pageSize=100');
+    KBS = (page && page.records) ? page.records : (page || []);
+    const el = $('kbList');
+    el.innerHTML = '';
+    if(!KBS.length){
+      const d = document.createElement('div'); d.className = 'item';
+      const s = document.createElement('span'); s.className = 'uuid'; s.textContent = '（空）';
+      d.appendChild(s); el.appendChild(d);
+    }
+    KBS.forEach(kb => {
+      const d = document.createElement('div');
+      d.className = 'item' + (kb.id === selKbId ? ' sel' : '');
+      const t = document.createElement('span');
+      t.textContent = (kb.title || kb.uuid) + (kb.isRetrievalEnabled === false ? '（检索已关）' : '');
+      const u = document.createElement('span'); u.className = 'uuid'; u.textContent = kb.uuid;
+      d.appendChild(t); d.appendChild(u);
+      d.addEventListener('click', () => { selKbId = kb.id; loadKbList(); showKbSwitch(); });
+      el.appendChild(d);
+    });
+    showKbSwitch();
+  }catch(e){ hint('加载知识库失败：' + e.message); }
+}
+function showKbSwitch(){
+  const kb = KBS.find(x => x.id === selKbId);
+  $('kbSelTitle').textContent = kb ? (kb.title || kb.uuid) : '（在左侧点选知识库）';
+  $('kbRetrieval').checked = kb ? kb.isRetrievalEnabled !== false : false;
+}
+$('kbReload').addEventListener('click', loadKbList);
+$('kbRetrieval').addEventListener('change', async e => {
+  const kb = KBS.find(x => x.id === selKbId);
+  if(!kb){ e.target.checked = false; hint('请先点选一个知识库'); return; }
+  try{
+    // 编辑路径要求带 ingestModelId（saveOrUpdate 对编辑强制校验）
+    await api('/knowledge-base/saveOrUpdate', {method:'POST', body: JSON.stringify({
+      id: kb.id, title: kb.title, ingestModelId: kb.ingestModelId,
+      isRetrievalEnabled: e.target.checked
+    })});
+    kb.isRetrievalEnabled = e.target.checked;
+    hint('已' + (e.target.checked ? '开启' : '关闭') + '「' + (kb.title || kb.uuid) + '」的对话检索');
+    loadKbList();
+  }catch(err){
+    e.target.checked = !e.target.checked;
+    hint('保存失败：' + err.message);
+  }
+});
+</script>
+</body>
+</html>
