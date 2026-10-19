@@ -27,6 +27,7 @@ pnpm-debug.log*
 /components.d.ts
 
 # 环境变量不入库（.env.example 为模板）
-.env
-.env.*
+# 真实密钥不入库；VITE 构建配置（无密钥）需入库供 CI 构建
+.env.local
+.env.*.local
 !.env.example
