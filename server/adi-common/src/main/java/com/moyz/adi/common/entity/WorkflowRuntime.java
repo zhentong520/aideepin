@@ -58,4 +58,11 @@ public class WorkflowRuntime extends BaseEntity {
      */
     @TableField("duration")
     private Integer duration;
+
+    /**
+     * 二开新增（T3-10，2026-10-19）：true = 单节点试跑记录。
+     * 试跑复用引擎全链路（SSE/runtime_node/指标），但正式执行记录列表（page）过滤本列。
+     */
+    @TableField("is_test")
+    private Boolean isTest;
 }

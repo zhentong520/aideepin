@@ -94,6 +94,44 @@ public class AdiProperties {
     private Credential credential = new Credential();
 
     /**
+     * 二开新增（T3-10/T3-13，2026-10-19）：工作流行为开关（铁律 10：行为改动必须带开关，可热回滚）。
+     */
+    @Valid
+    private Wf wf = new Wf();
+
+    /**
+     * 工作流行为开关配置（adi.wf.*，T3-10/T3-13）。
+     */
+    @Data
+    public static class Wf {
+
+        /**
+         * 单节点试跑开关（adi.wf.single-node-test-enabled，默认 true）。
+         * <p>
+         * false 时「从指定节点起执行」接口直接拒绝（A_WF_TEST_RUN_DISABLED），正式运行路径不受影响。
+         * 默认 true 的理由：纯前端配合功能，只新增一个显式端点、不改变既有执行语义，
+         * 且试跑记录带 is_test 标记、不污染正式记录——关闭它只会隐藏功能，不会改变任何既有行为。
+         * <p>
+         * Single-node test-run switch. Enabled by default: the feature only adds an explicit
+         * endpoint and an is_test flag on runtime rows; disabling it just hides the feature
+         * (the endpoint refuses with A_WF_TEST_RUN_DISABLED) without touching the formal run path.
+         */
+        private boolean singleNodeTestEnabled = true;
+
+        /**
+         * 字段级变量引用开关（adi.wf.field-ref-enabled，默认 true）。
+         * <p>
+         * false 时模板渲染回退旧版宽松行为：{@code {{var.path}}} 不再解析、节点执行不再因
+         * 引用错误抛异常（铁律 10 热回滚位）。
+         * <p>
+         * Field-level variable reference switch. Disabled by default only in the sense of
+         * roll-back safety: when false, {@code {{var.path}}} stays unresolved and template
+         * rendering keeps the legacy lenient behavior.
+         */
+        private boolean fieldRefEnabled = true;
+    }
+
+    /**
      * 凭据集中管理配置（adi.credential.*，T2-07）。
      */
     @Data

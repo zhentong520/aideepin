@@ -8,6 +8,7 @@ import com.moyz.adi.common.base.ThreadContext;
 import com.moyz.adi.common.cosntant.RedisKeyConstant;
 import com.moyz.adi.common.dto.TmpNode;
 import com.moyz.adi.common.dto.workflow.WfEdgeReq;
+import com.moyz.adi.common.dto.workflow.WfExportResp;
 import com.moyz.adi.common.dto.workflow.WfNodeDto;
 import com.moyz.adi.common.dto.workflow.WorkflowResp;
 import com.moyz.adi.common.dto.workflow.WorkflowUpdateReq;
@@ -32,8 +33,10 @@ import org.springframework.util.CollectionUtils;
 
 import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -61,6 +64,9 @@ public class WorkflowService extends ServiceImpl<WorkflowMapper, Workflow> {
 
     @Resource
     private RedisTemplateUtil redisTemplateUtil;
+
+    @Resource
+    private KnowledgeBaseService knowledgeBaseService;
 
     @Transactional
     public WorkflowResp add(String title, String remark, Boolean isPublic) {
@@ -287,8 +293,144 @@ public class WorkflowService extends ServiceImpl<WorkflowMapper, Workflow> {
                 .update();
     }
 
-    private WorkflowResp changeWorkflowToDTO(Workflow workflow) {
-        WorkflowResp workflowResp = new WorkflowResp();
+    /**
+     * T3-14：导出工作流为 JSON。知识检索节点引用的 kbUuid 位于 nodeConfig.knowledge_base_uuid，
+     * 随 nodeConfig 原样导出； componentName 仅导出时填充，供跨环境导入按名称重映射组件。
+     */
+    public WfExportResp export(String wfUuid) {
+        Workflow workflow = PrivilegeUtil.checkAndGetByUuid(wfUuid, this.query(), ErrorEnum.A_WF_NOT_FOUND);
+        WfExportResp resp = new WfExportResp();
+        resp.setVersion(1);
+        resp.setTitle(workflow.getTitle());
+        resp.setRemark(workflow.getRemark());
+        List<WfNodeDto> nodes = workflowNodeService.listDtoByWfId(workflow.getId());
+        Map<Long, String> componentIdToName = workflowComponentService.getAllEnable().stream()
+                .collect(Collectors.toMap(WorkflowComponent::getId, WorkflowComponent::getName, (a, b) -> a));
+        nodes.forEach(node -> node.setComponentName(componentIdToName.get(node.getWorkflowComponentId())));
+        resp.setNodes(nodes);
+        resp.setEdges(workflowEdgeService.listDtoByWfId(workflow.getId()));
+        return resp;
+    }
+
+    /**
+     * T3-14：导入工作流。
+     * <ol>
+     *   <li>kbUuid 校验：收集知识检索节点引用的 knowledge_base_uuid，按 uuid 匹配现有库；
+     *       ⚠️ 匹配不到必须明确报错（A_WF_IMPORT_KB_NOT_FOUND，错误体列出全部缺失 uuid），
+     *       不允许静默丢弃节点；</li>
+     *   <li>组件重映射：workflowComponentId 在目标环境匹配不到时按 componentName 重映射；</li>
+     *   <li>重名处理：同名工作流导入为新建副本，名字加后缀；</li>
+     *   <li>不调用 {@link #add}（避免自动创建 START 节点与导入的 START 重复）。</li>
+     * </ol>
+     */
+    @Transactional
+    public WorkflowResp importWorkflow(WfExportResp req) {
+        if (null == req || CollectionUtils.isEmpty(req.getNodes())) {
+            throw new BaseException(ErrorEnum.A_PARAMS_ERROR);
+        }
+        //1. kbUuid 校验（先于任何写入，缺失即中止）
+        validateKnowledgeBases(req.getNodes());
+        //2. 组件重映射
+        remapComponentIds(req.getNodes());
+        //3. 同名导入 → 新建副本，名字加后缀
+        String title = StringUtils.isBlank(req.getTitle()) ? "Imported workflow" : req.getTitle().trim();
+        title = dedupeImportTitle(title);
+        Workflow workflow = new Workflow();
+        workflow.setUuid(UuidUtil.createShort());
+        workflow.setTitle(title);
+        workflow.setUserId(ThreadContext.getCurrentUserId());
+        workflow.setRemark(req.getRemark());
+        workflow.setIsEnable(true);
+        workflow.setIsPublic(false);
+        baseMapper.insert(workflow);
+        //4. 节点/边落库（导入节点自带 START，不走 add() 的自动建 START 逻辑）
+        workflowNodeService.createOrUpdateNodes(workflow.getId(), req.getNodes());
+        workflowEdgeService.createOrUpdateEdges(workflow.getId(), req.getEdges());
+        return changeWorkflowToDTO(workflow);
+    }
+
+    /**
+     * 收集知识检索节点引用的 kbUuid 并校验存在性；缺失即抛 A_WF_IMPORT_KB_NOT_FOUND
+     * （错误体列出全部缺失 uuid，不允许静默丢节点）。
+     */
+    private void validateKnowledgeBases(List<WfNodeDto> nodes) {
+        Set<String> kbUuids = new LinkedHashSet<>();
+        Map<Long, String> componentIdToName = workflowComponentService.getAllEnable().stream()
+                .collect(Collectors.toMap(WorkflowComponent::getId, WorkflowComponent::getName, (a, b) -> a));
+        for (WfNodeDto node : nodes) {
+            String componentName = componentIdToName.get(node.getWorkflowComponentId());
+            if (StringUtils.isNotBlank(node.getComponentName())) {
+                componentName = node.getComponentName();
+            }
+            if (!WfComponentNameEnum.KNOWLEDGE_RETRIEVER.getName().equals(componentName)) {
+                continue;
+            }
+            ObjectNode nodeConfig = node.getNodeConfig();
+            if (null == nodeConfig || !nodeConfig.hasNonNull("knowledge_base_uuid")) {
+                continue;
+            }
+            String kbUuid = nodeConfig.get("knowledge_base_uuid").asText();
+            if (StringUtils.isNotBlank(kbUuid)) {
+                kbUuids.add(kbUuid);
+            }
+        }
+        if (kbUuids.isEmpty()) {
+            return;
+        }
+        List<String> existing = knowledgeBaseService.filterExistingUuids(kbUuids);
+        List<String> missing = kbUuids.stream().filter(uuid -> !existing.contains(uuid)).toList();
+        if (!missing.isEmpty()) {
+            log.error("Workflow import aborted, missing knowledge base uuids:{}", missing);
+            throw new BaseException(ErrorEnum.A_WF_IMPORT_KB_NOT_FOUND, String.join(", ", missing));
+        }
+    }
+
+    /**
+     * 组件重映射：workflowComponentId 在目标环境查不到（跨环境自增 id 不一致）时，
+     * 按导出的 componentName 重映射；仍找不到则报错（不静默跳过）。
+     */
+    private void remapComponentIds(List<WfNodeDto> nodes) {
+        List<WorkflowComponent> allComponents = workflowComponentService.getAllEnable();
+        for (WfNodeDto node : nodes) {
+            boolean idHit = allComponents.stream().anyMatch(item -> item.getId().equals(node.getWorkflowComponentId()));
+            if (idHit) {
+                continue;
+            }
+            WorkflowComponent byName = StringUtils.isNotBlank(node.getComponentName())
+                    ? allComponents.stream().filter(item -> item.getName().equals(node.getComponentName())).findFirst().orElse(null)
+                    : null;
+            if (null == byName) {
+                log.error("Workflow import aborted, component not found, componentName:{}, componentId:{}",
+                        node.getComponentName(), node.getWorkflowComponentId());
+                throw new BaseException(ErrorEnum.A_WF_COMPONENT_NOT_FOUND);
+            }
+            node.setWorkflowComponentId(byName.getId());
+        }
+    }
+
+    /**
+     * 同名工作流导入策略：新建副本，名字加后缀（-imported，仍冲突则追加时间戳）。
+     */
+    private String dedupeImportTitle(String title) {
+        Long userId = ThreadContext.getCurrentUserId();
+        boolean exists = ChainWrappers.lambdaQueryChain(baseMapper)
+                .eq(Workflow::getTitle, title)
+                .eq(Workflow::getUserId, userId)
+                .eq(Workflow::getIsDeleted, false)
+                .exists();
+        if (!exists) {
+            return title;
+        }
+        String candidate = title + "-imported";
+        boolean candidateExists = ChainWrappers.lambdaQueryChain(baseMapper)
+                .eq(Workflow::getTitle, candidate)
+                .eq(Workflow::getUserId, userId)
+                .eq(Workflow::getIsDeleted, false)
+                .exists();
+        return candidateExists ? candidate + "-" + System.currentTimeMillis() : candidate;
+    }
+
+    private WorkflowResp changeWorkflowToDTO(Workflow workflow) {        WorkflowResp workflowResp = new WorkflowResp();
         BeanUtils.copyProperties(workflow, workflowResp);
 
         fillNodesAndEdges(workflowResp);

@@ -13,6 +13,7 @@ import com.moyz.adi.common.service.WorkflowRuntimeService;
 import com.moyz.adi.common.util.JsonUtil;
 import com.moyz.adi.common.util.SpringUtil;
 import com.moyz.adi.common.workflow.NodeExecutionMetrics;
+import com.moyz.adi.common.workflow.WfNodeIODataUtil;
 import com.moyz.adi.common.workflow.data.NodeIOData;
 import com.moyz.adi.common.workflow.def.WfNodeIO;
 import com.moyz.adi.common.workflow.metrics.LLMMetrics;
@@ -88,26 +89,70 @@ public class WorkflowEngine {
     }
 
     public void run(User user, List<ObjectNode> userInputs, String sseUuid) {
+        run(user, userInputs, sseUuid, null, null, false);
+    }
+
+    /**
+     * T3-10：从指定节点起执行（单节点试跑）。
+     * <ul>
+     *   <li>startNodeUuid 非空时：跳过上游，直接执行该节点及其下游；</li>
+     *   <li>upstreamContext：最近一次成功执行的节点输出（nodeUuid -> 输出参数），用于给
+     *       起跑节点补齐上游变量（refInput / 模板引用）；调用方在无历史上下文时必须显式报错；</li>
+     *   <li>isTest=true：运行记录打 is_test 标记，不进正式执行记录列表。</li>
+     * </ul>
+     */
+    public void run(User user, List<ObjectNode> userInputs, String sseUuid, String startNodeUuid,
+                    Map<String, List<NodeIOData>> upstreamContext, boolean isTest) {
         this.user = user;
         this.sseUuid = sseUuid;
         this.runStartedMillis = System.currentTimeMillis();
-        log.info("WorkflowEngine run,userId:{},workflowUuid:{},userInputs:{}", user.getId(), workflow.getUuid(), userInputs);
+        log.info("WorkflowEngine run,userId:{},workflowUuid:{},userInputs:{},startNodeUuid:{},isTest:{}",
+                user.getId(), workflow.getUuid(), userInputs, startNodeUuid, isTest);
         if (!this.workflow.getIsEnable()) {
+            if (isTest) {
+                throw new BaseException(ErrorEnum.A_WF_DISABLED);
+            }
             sseManager.sendErrorAndComplete(user.getId(), sseUuid, SpringUtil.getMessage(ErrorEnum.A_WF_DISABLED.getInfo()));
             throw new BaseException(ErrorEnum.A_WF_DISABLED);
         }
 
         Long workflowId = this.workflow.getId();
-        this.wfRuntimeResp = workflowRuntimeService.create(user, workflowId);
+        this.wfRuntimeResp = workflowRuntimeService.create(user, workflowId, isTest);
+        //试跑同样发送 START 事件（携带 runtime uuid），前端需要它查询试跑明细/结果
         this.sseManager.startSse(user, sseUuid, JsonUtil.toJson(wfRuntimeResp));
 
         String runtimeUuid = this.wfRuntimeResp.getUuid();
         try {
-            Pair<WorkflowNode, Set<WorkflowNode>> startAndEnds = findStartAndEndNode();
-            WorkflowNode startNode = startAndEnds.getLeft();
-            List<NodeIOData> wfInputs = getAndCheckUserInput(userInputs, startNode);
+            WorkflowNode startNode;
+            if (StringUtils.isNotBlank(startNodeUuid)) {
+                startNode = wfNodes.stream().filter(item -> item.getUuid().equals(startNodeUuid)).findFirst()
+                        .orElseThrow(() -> new BaseException(ErrorEnum.A_WF_NODE_NOT_FOUND));
+                //把起跑节点当作根节点构图：临时剪掉它的入边，避免 buildCompileNode 把它当作普通下游节点
+                wfEdges.removeIf(edge -> edge.getTargetNodeUuid().equals(startNodeUuid));
+            } else {
+                Pair<WorkflowNode, Set<WorkflowNode>> startAndEnds = findStartAndEndNode();
+                startNode = startAndEnds.getLeft();
+            }
+            List<NodeIOData> wfInputs;
+            if (StringUtils.isNotBlank(startNodeUuid)) {
+                //指定节点起跑：宽松组装输入（起跑节点通常不是 START 节点，不按 START 定义强校验）
+                wfInputs = new ArrayList<>();
+                if (null != userInputs) {
+                    for (ObjectNode userInput : userInputs) {
+                        try {
+                            wfInputs.add(WfNodeIODataUtil.createNodeIOData(userInput));
+                        } catch (Exception e) {
+                            log.warn("Test run: skip invalid user input:{}", e.getMessage());
+                        }
+                    }
+                }
+            } else {
+                wfInputs = getAndCheckUserInput(userInputs, startNode);
+            }
             //工作流运行实例状态
             this.wfState = new WfState(user, wfInputs, runtimeUuid);
+            //T3-10：回放最近一次成功执行的上游输出，让 refInput/模板引用可以命中历史变量
+            seedUpstreamContext(upstreamContext);
             workflowRuntimeService.updateInput(this.wfRuntimeResp.getId(), wfState);
             CompileNode rootCompileNode = new CompileNode();
             rootCompileNode.setId(startNode.getUuid());
@@ -135,6 +180,30 @@ public class WorkflowEngine {
         } catch (Throwable e) {
             errorWhenExe(e instanceof Exception ? (Exception) e : new RuntimeException(e));
         }
+    }
+
+    /**
+     * T3-10：把最近一次成功执行的节点输出种进 completedNodes（只构造实例、不执行），
+     * 供起跑节点的 refInput 解析（wfState.getIOByNodeUuid）与 getLatestOutputs 使用。
+     * 包私有以便单测。
+     */
+    void seedUpstreamContext(Map<String, List<NodeIOData>> upstreamContext) {
+        if (null == upstreamContext || upstreamContext.isEmpty()) {
+            return;
+        }
+        for (Map.Entry<String, List<NodeIOData>> entry : upstreamContext.entrySet()) {
+            WorkflowNode seedNodeDef = wfNodes.stream().filter(item -> item.getUuid().equals(entry.getKey())).findFirst().orElse(null);
+            WorkflowComponent seedComponent = null == seedNodeDef ? null : components.stream()
+                    .filter(item -> item.getId().equals(seedNodeDef.getWorkflowComponentId())).findFirst().orElse(null);
+            if (null == seedNodeDef || null == seedComponent) {
+                log.warn("seedUpstreamContext: skip missing node/component, nodeUuid:{}", entry.getKey());
+                continue;
+            }
+            WfNodeState seedState = new WfNodeState();
+            seedState.getOutputs().addAll(entry.getValue());
+            wfState.getCompletedNodes().add(WfNodeFactory.create(seedComponent, seedNodeDef, wfState, seedState));
+        }
+        log.info("seedUpstreamContext: seeded {} upstream nodes", upstreamContext.size());
     }
 
     private void exe(RunnableConfig invokeConfig, boolean resume) {
@@ -302,6 +371,10 @@ public class WorkflowEngine {
         long inputTokens = 0;
         long outputTokens = 0;
         long duration = 0;
+        //wfState 可能在构图/输入校验阶段抛错时还未创建（如指定节点不存在），此时无已消费 token 可汇总
+        if (null == wfState) {
+            return new WfRuntimeMetricsSummary(0, 0, 0);
+        }
         for (AbstractWfNode node : wfState.getCompletedNodes()) {
             NodeExecutionMetrics metrics = node.getState().getMetrics();
             if (metrics != null) {

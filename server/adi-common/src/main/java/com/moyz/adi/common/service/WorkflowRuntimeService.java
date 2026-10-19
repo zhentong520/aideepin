@@ -3,6 +3,7 @@ package com.moyz.adi.common.service;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.baomidou.mybatisplus.extension.toolkit.ChainWrappers;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.moyz.adi.common.base.ThreadContext;
 import com.moyz.adi.common.dto.workflow.WfRuntimeMetricsSummary;
@@ -10,6 +11,7 @@ import com.moyz.adi.common.dto.workflow.WfRuntimeNodeDto;
 import com.moyz.adi.common.dto.workflow.WfRuntimeResp;
 import com.moyz.adi.common.entity.User;
 import com.moyz.adi.common.entity.Workflow;
+import com.moyz.adi.common.entity.WorkflowNode;
 import com.moyz.adi.common.entity.WorkflowRuntime;
 import com.moyz.adi.common.enums.ErrorEnum;
 import com.moyz.adi.common.mapper.WorkflowRunMapper;
@@ -18,6 +20,7 @@ import com.moyz.adi.common.util.MPPageUtil;
 import com.moyz.adi.common.util.NumberUtil;
 import com.moyz.adi.common.util.PrivilegeUtil;
 import com.moyz.adi.common.util.UuidUtil;
+import com.moyz.adi.common.workflow.WfNodeIODataUtil;
 import com.moyz.adi.common.workflow.WfState;
 import com.moyz.adi.common.workflow.data.NodeIOData;
 import jakarta.annotation.Resource;
@@ -27,9 +30,15 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static com.moyz.adi.common.cosntant.AdiConstant.WorkflowConstant.WORKFLOW_PROCESS_STATUS_DOING;
+import static com.moyz.adi.common.cosntant.AdiConstant.WorkflowConstant.WORKFLOW_PROCESS_STATUS_SUCCESS;
 
 @Slf4j
 @Service
@@ -41,11 +50,23 @@ public class WorkflowRuntimeService extends ServiceImpl<WorkflowRunMapper, Workf
     @Resource
     private WorkflowRuntimeNodeService workflowRuntimeNodeService;
 
+    @Resource
+    private WorkflowNodeService workflowNodeService;
+
     public WfRuntimeResp create(User user, Long workflowId) {
+        return create(user, workflowId, false);
+    }
+
+    /**
+     * T3-10：isTest=true 创建「单节点试跑」运行记录。试跑复用引擎全链路（SSE/runtime_node/指标），
+     * 仅以 is_test 列区分；正式执行记录查询（page）过滤 is_test=true。
+     */
+    public WfRuntimeResp create(User user, Long workflowId, boolean isTest) {
         WorkflowRuntime one = new WorkflowRuntime();
         one.setUuid(UuidUtil.createShort());
         one.setUserId(user.getId());
         one.setWorkflowId(workflowId);
+        one.setIsTest(isTest);
         baseMapper.insert(one);
 
         one = baseMapper.selectById(one.getId());
@@ -134,6 +155,8 @@ public class WorkflowRuntimeService extends ServiceImpl<WorkflowRunMapper, Workf
         Page<WorkflowRuntime> page = ChainWrappers.lambdaQueryChain(baseMapper)
                 .eq(WorkflowRuntime::getWorkflowId, workflow.getId())
                 .eq(WorkflowRuntime::getIsDeleted, false)
+                //T3-10：试跑记录（is_test）不进正式执行记录列表
+                .eq(WorkflowRuntime::getIsTest, false)
                 .eq(!user.getIsAdmin(), WorkflowRuntime::getUserId, user.getId())
                 .orderByDesc(WorkflowRuntime::getUpdateTime)
                 .page(new Page<>(currentPage, pageSize));
@@ -204,5 +227,59 @@ public class WorkflowRuntimeService extends ServiceImpl<WorkflowRunMapper, Workf
                 .eq(WorkflowRuntime::getId, workflowRuntime.getId())
                 .set(WorkflowRuntime::getIsDeleted, true)
                 .update();
+    }
+
+    /**
+     * T3-10：查找当前用户在本工作流上最近一次「成功」的正式运行记录（排除试跑）。
+     * 无则返回 null。
+     */
+    public WorkflowRuntime findLastSuccess(Long workflowId, Long userId) {
+        return ChainWrappers.lambdaQueryChain(baseMapper)
+                .eq(WorkflowRuntime::getWorkflowId, workflowId)
+                .eq(WorkflowRuntime::getUserId, userId)
+                .eq(WorkflowRuntime::getStatus, WORKFLOW_PROCESS_STATUS_SUCCESS)
+                .eq(WorkflowRuntime::getIsTest, false)
+                .eq(WorkflowRuntime::getIsDeleted, false)
+                .orderByDesc(WorkflowRuntime::getId)
+                .last("limit 1")
+                .one();
+    }
+
+    /**
+     * T3-10：加载最近一次成功执行的「节点输出上下文」：nodeUuid -> 该节点最近一次的输出参数。
+     * 用于「从指定节点起执行」时给下游节点补齐上游变量；无历史成功记录返回空 Map
+     * （调用方必须显式报错，不允许静默起跑）。
+     */
+    public Map<String, List<NodeIOData>> loadLastSuccessContext(Long workflowId, Long userId) {
+        WorkflowRuntime runtime = findLastSuccess(workflowId, userId);
+        if (null == runtime) {
+            return Map.of();
+        }
+        List<WfRuntimeNodeDto> runtimeNodes = workflowRuntimeNodeService.listByWfRuntimeId(runtime.getId());
+        if (CollectionUtils.isEmpty(runtimeNodes)) {
+            return Map.of();
+        }
+        Map<Long, String> nodeIdToUuid = workflowNodeService.listByWorkflowId(workflowId).stream()
+                .collect(Collectors.toMap(WorkflowNode::getId, WorkflowNode::getUuid, (a, b) -> a));
+        Map<String, List<NodeIOData>> result = new LinkedHashMap<>();
+        for (WfRuntimeNodeDto dto : runtimeNodes) {
+            String nodeUuid = nodeIdToUuid.get(dto.getNodeId());
+            if (null == nodeUuid || null == dto.getOutput()) {
+                continue;
+            }
+            List<NodeIOData> outputs = new ArrayList<>();
+            Iterator<Map.Entry<String, JsonNode>> iterator = dto.getOutput().fields();
+            while (iterator.hasNext()) {
+                Map.Entry<String, JsonNode> entry = iterator.next();
+                NodeIOData data = WfNodeIODataUtil.createNodeIODataFromRuntimeEntry(entry.getKey(), entry.getValue());
+                if (null != data) {
+                    outputs.add(data);
+                }
+            }
+            if (!outputs.isEmpty()) {
+                result.put(nodeUuid, outputs);
+            }
+        }
+        return result;
     }
 }

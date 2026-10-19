@@ -3,6 +3,7 @@ import { nextTick, onUnmounted, reactive, ref, watch } from 'vue'
 import { NButton, NInput, NInputNumber, NP, NSwitch, NTab, NTabPane, NTabs, NText, NUpload, NUploadDragger, useMessage } from 'naive-ui'
 import type { UploadFileInfo, UploadInst } from 'naive-ui'
 import RuntimeNodes from './RuntimeNodes.vue'
+import type { WfReplayEvent } from './wf-replay'
 import { useAuthStore, useWfStore } from '@/store'
 import { SvgIcon } from '@/components/common'
 import api from '@/api'
@@ -18,6 +19,10 @@ interface TabObj {
 interface Emit {
   (e: 'runDone'): void
   (e: 'runError', errorMsg: string): void
+  // T3-09：失败条目点击 → 画布定位（转发给 WorkflowDefine）
+  (e: 'locateNode', nodeUuid: string): void
+  // T3-09：执行链路回放事件（reset/node/finish/error）
+  (e: 'replayEvent', ev: WfReplayEvent): void
 }
 const props = defineProps<Props>()
 const emit = defineEmits<Emit>()
@@ -115,6 +120,8 @@ async function run() {
     wfRuntimeUuid.value = ''
     const nodeUuidToRuntimeNodeUuid = new Map<string, string>()
     runtimeNodes.splice(0, runtimeNodes.length)
+    // T3-09：回放开始 —— 清空上一轮画布高亮
+    emit('replayEvent', { type: 'reset' })
     await api.workflowRun({
       options: {
         uuid: currWfUuid,
@@ -150,6 +157,8 @@ async function run() {
               runtimeNode,
             )
             runtimeNodes.push(runtimeNode)
+            // T3-09：回放 —— 节点状态驱动画布高亮/连线动画
+            emit('replayEvent', { type: 'node', nodeUuid, status: runtimeNode.status, remark: runtimeNode.statusRemark || '' })
           } else if (eventName.includes('[NODE_CHUNK_')) {
             const nodeUuid = eventName.replace('[NODE_CHUNK_', '').replace(']', '')
             const runtimeNodeUuid = nodeUuidToRuntimeNodeUuid.get(nodeUuid) || ''
@@ -198,6 +207,7 @@ async function run() {
           wfStore.updateSuccess(currWfUuid, wfRuntimeUuid.value, chunk)
           runtimeErrorMsg.value = ''
           ms.success(t('workflow.runSuccess'))
+          emit('replayEvent', { type: 'finish' })
           emit('runDone')
         })
       },
@@ -207,6 +217,7 @@ async function run() {
         ms.error(`${t('common.systemTip')}${error}`)
         wfStore.updateErrorMsg(currWfUuid, wfRuntimeUuid.value, error)
         runtimeErrorMsg.value = error || ''
+        emit('replayEvent', { type: 'error' })
         emit('runError', error)
       },
     })
@@ -290,7 +301,10 @@ onUnmounted(() => {
       <NTabPane name="runtimes" display-directive="show" :tab-props="{ style: 'display:none' }">
         <transition name="collapse">
           <div v-show="showCurrentExecution" class="max-h-[500px] overflow-y-auto mb-2">
-            <RuntimeNodes :nodes="runtimeNodes" :workflow="workflow" :error-msg="runtimeErrorMsg" />
+            <RuntimeNodes
+              :nodes="runtimeNodes" :workflow="workflow" :error-msg="runtimeErrorMsg"
+              @locate="(nodeUuid: string) => emit('locateNode', nodeUuid)"
+            />
             <div class="sticky bottom-0 left-0 flex justify-center">
               <NButton v-show="submitting" size="tiny" @click="handleStop">
                 <template #icon>

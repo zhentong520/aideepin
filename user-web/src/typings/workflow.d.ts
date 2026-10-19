@@ -310,8 +310,13 @@ declare namespace Workflow {
   interface NodeConfigKnowledgeRetrieval implements NodeConfig {
     knowledge_base_uuid: string
     knowledge_base_name: string
-    score: number
-    top_n: number
+    /** T3-12：留空（键不存在）= 继承知识库级配置 */
+    score?: number | null
+    top_n?: number | null
+    /** T3-12：重排开关，'' 继承 / 'true' / 'false' */
+    rerank?: string
+    /** T3-12：上下文扩窗开关，'' 继承 / 'true' / 'false' */
+    expand_window?: string
     is_strict: boolean
     default_response: string
   }
@@ -489,5 +494,44 @@ declare namespace Workflow {
   interface InputLabel {
     label: string
     value: string
+  }
+
+  // ==================== T3-13 变量穿梭框 / 模板校验 ====================
+
+  /** 指定节点可用变量（GET /workflow/available-vars），对象类型递归展开 children 2 层 */
+  interface WfAvailableVar {
+    name: string
+    sourceNodeUuid?: string
+    sourceNodeTitle?: string
+    sourceParamName?: string
+    /** text / number / bool / files / options / object / array / unknown */
+    type: string
+    example?: unknown
+    children?: WfAvailableVar[]
+  }
+
+  /** 模板校验响应（POST /workflow/validate-template），errors 非空即校验失败 */
+  interface WfTemplateValidateResp {
+    valid: boolean
+    errors: WfVarError[]
+  }
+
+  interface WfVarError {
+    /** 出错的引用表达式，如 resp.data.id */
+    ref: string
+    /** 错误码：A0077 根变量不存在 / A0078 字段路径不存在 / A0079 导入知识包缺失 */
+    code: string
+    /** 人类可读原因（后端已 i18n） */
+    message: string
+  }
+
+  // ==================== T3-14 导出 / 导入 ====================
+
+  interface WfExportReq {
+    version?: number
+    title: string
+    remark: string
+    nodes: Array<Record<string, unknown>>
+    edges: Array<Record<string, unknown>>
   }
 }

@@ -23,7 +23,8 @@ public class TemplateNode extends AbstractWfNode {
         TemplateNodeConfig nodeConfig = checkAndGetConfig(TemplateNodeConfig.class);
         log.info("Template node config:{}", nodeConfig);
         WfNodeIODataUtil.changeFilesContentToMarkdown(state.getInputs());
-        String content = WorkflowUtil.renderTemplate(nodeConfig.getTemplate(), state.getInputs());
+        //T3-13：字段级变量引用（{{var.path}}），带开关 adi.wf.field-ref-enabled，关闭时回退宽松行为
+        String content = WorkflowUtil.renderTemplateStrict(nodeConfig.getTemplate(), state.getInputs());
         NodeIOData output = NodeIOData.createByText(DEFAULT_OUTPUT_PARAM_NAME, "", content);
         return NodeProcessResult.builder().content(List.of(output)).build();
     }

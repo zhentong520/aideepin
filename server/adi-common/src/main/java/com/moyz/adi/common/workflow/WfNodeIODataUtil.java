@@ -2,6 +2,7 @@ package com.moyz.adi.common.workflow;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import com.google.gson.JsonObject;
 import com.moyz.adi.common.enums.ErrorEnum;
 import com.moyz.adi.common.enums.WfIODataTypeEnum;
@@ -69,6 +70,25 @@ public class WfNodeIODataUtil {
             }
         }
         return result;
+    }
+
+    /**
+     * T3-10：把运行时节点输出 jsonb 的一个条目（{paramName: {type,title,value}}）还原成 NodeIOData。
+     * 结构不完整或类型不识别时返回 null（跳过），不抛异常。
+     */
+    public static NodeIOData createNodeIODataFromRuntimeEntry(String name, JsonNode content) {
+        if (null == name || null == content || !content.has("type") || !content.has("value")
+                || content.get("value").isNull() || content.get("value").isMissingNode()) {
+            return null;
+        }
+        ObjectNode wrapper = JsonUtil.createObjectNode();
+        wrapper.set("name", TextNode.valueOf(name));
+        wrapper.set("content", content);
+        try {
+            return createNodeIOData(wrapper);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**

@@ -884,6 +884,42 @@ export default {
     validationSelfLoop: 'Self-loop connection',
     validationDuplicateEdge: 'Duplicate connection',
     validationGoto: 'Locate',
+    // T3-08 SchemaForm three-section groups
+    schemaGroupRequired: 'Required',
+    schemaGroupAdvanced: 'Advanced Settings',
+    // T3-09 failure locate & replay
+    nodeFailedLabel: 'Failed',
+    nodeRunningLabel: 'Running',
+    nodeDoneLabel: 'Succeeded',
+    replayLocate: 'Locate node',
+    replayStatusTip: 'Replaying execution path',
+    // T3-11 node validation badge
+    nodeInvalidBadge: 'Node configuration incomplete',
+    nodeInvalidItem: 'Missing: {field}',
+    // T3-12 knowledge retrieval enhancement
+    inheritKbLevelTip: 'Leave empty to inherit knowledge-base level config',
+    // T3-13 variable picker
+    varTitle: 'Available Variables',
+    varSearchPlaceholder: 'Search variables',
+    varEmpty: 'No available variables (no upstream input or run history)',
+    varInsertTip: 'Type two consecutive braces to open the picker; click to insert',
+    varErrorRootNotFound: 'Referenced variable not found (A0077)',
+    varErrorPathNotFound: 'Referenced field path not found (A0078)',
+    varErrorFallback: 'Template validation failed (A0077/A0078)',
+    varTypeError: 'Variable reference error',
+    // T3-14 node doc / presets / import
+    nodeDocTitle: 'Node Guide',
+    nodeDocPurpose: 'Purpose',
+    nodeDocRequired: 'Required',
+    nodeDocOutput: 'Output',
+    nodeDocErrors: 'Common Errors',
+    presetSection: 'Node Templates',
+    presetDragTip: 'Drag onto canvas to create',
+    importBtn: 'Import Workflow',
+    importSuccess: 'Imported successfully',
+    importFailed: 'Import failed',
+    importMissingKbTitle: 'Import failed: the following knowledge bases do not exist in this environment',
+    importFileInvalid: 'File content is not a valid workflow JSON',
     componentTitle: {
       Start: 'Start',
       End: 'End',

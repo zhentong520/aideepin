@@ -7,15 +7,19 @@ import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import { MiniMap } from '@vue-flow/minimap'
 import { v4 as uuidv4 } from 'uuid'
-import { AgentNode, AnswerNode, ClassifierNode, DatabaseNode, DocumentExtractorNode, EndNode, FaqExtractorNode, GoogleNode, HttpRequestNode, HumanFeedbackNode, KeywordExtractorNode, KnowledgeRetrievalNode, MailSendNode, McpNode, OpenAiImageNode, SkillNode, SpecialNode, StartNode, SwitcherNode, TemplateNode, TongyiwanxNode } from './components/nodes'
+// T5-03：画布节点 slot 由描述文件驱动遍历生成（20 种节点一个 v-for，SpecialNode 为边场景专用节点保留）
+import { wfNodeDescriptors } from './components/nodes'
+import SpecialNode from './components/nodes/SpecialNode.vue'
 import SpecialEdge from './components/edges/SpecialEdge.vue'
 import CustomEdge from './components/edges/CustomEdge.vue'
 import CustomEdge2 from './components/edges/CustomEdge2.vue'
 import RunDetail from '@/views/workflow/components/RunDetail.vue'
+// T3-09：执行链路回放事件
+import type { WfReplayEvent } from '@/views/workflow/components/wf-replay'
 import WfDefineRightPanel from '@/views/workflow/WfDefineRightPanel.vue'
 import WfDefineSidebar from '@/views/workflow/WfDefineSiderbar.vue'
 import { emptyWorkflowInfo } from '@/utils/functions'
-import { autoLayoutWorkflow, buildUiEdge, createNewEdge, createNewNode, rebuildUiWorkflow, remapClonedNodeConfig, wfNodeToUiNode } from '@/utils/workflow-util'
+import { autoLayoutWorkflow, buildUiEdge, createNewEdge, createNewNode, getComponentTitle, rebuildUiWorkflow, remapClonedNodeConfig, wfNodeToUiNode } from '@/utils/workflow-util'
 import { getWorkflowHistory, isSameWfSnapshot, pushWorkflowHistory, takeWfSnapshot } from '@/utils/workflow-history'
 import type { WfSnapshot } from '@/utils/workflow-history'
 import { validateWorkflow } from '@/utils/workflow-validate'
@@ -23,6 +27,9 @@ import type { WfValidationError } from '@/utils/workflow-validate'
 import { useUserStore, useWfStore } from '@/store'
 import api from '@/api'
 import { t } from '@/locales'
+import i18n from '@/locales'
+// T3-14：内置节点模板（可整体拖入画布）
+import { getWfNodePreset } from './components/nodes'
 interface Props {
   workflow: Workflow.WorkflowInfo
 }
@@ -419,6 +426,13 @@ function onDragOver(event: DragEvent) {
 const wrapper = ref()
 
 function onDrop(event: DragEvent) {
+  // T3-14：内置模板整体拖入
+  const presetKey = event.dataTransfer?.getData('application/vueflow-preset')
+  if (presetKey) {
+    applyPresetToCanvas(presetKey, event)
+    return
+  }
+
   const comName = event.dataTransfer?.getData('application/vueflow') as string
   const component = wfStore.getWfComponent(comName)
   if (!component) {
@@ -483,10 +497,9 @@ function validationKindLabel(kind: WfValidationError['kind']) {
   }
 }
 
-function locateErrorNode(error: WfValidationError) {
-  validationErrors.value = []
-  const wfNode = props.workflow.nodes.find(node => node.uuid === error.nodeUuid)
-  const uiNode = uiWorkflow.nodes.find(node => node.id === error.nodeUuid)
+function locateNodeByUuid(nodeUuid: string) {
+  const wfNode = props.workflow.nodes.find(node => node.uuid === nodeUuid)
+  const uiNode = uiWorkflow.nodes.find(node => node.id === nodeUuid)
   if (!wfNode || !uiNode)
     return
 
@@ -494,6 +507,149 @@ function locateErrorNode(error: WfValidationError) {
   hidePropertyPanel.value = false
   addSelectedNodes([uiNode])
   setCenter(uiNode.position.x + NODE_DEFAULT_WIDTH / 2, uiNode.position.y + 40, { zoom: 1.2, duration: 300 })
+}
+
+function locateErrorNode(error: WfValidationError) {
+  validationErrors.value = []
+  locateNodeByUuid(error.nodeUuid)
+}
+
+// ==================== T3-09：执行链路回放（节点依次高亮 + 连线数据流动画） ====================
+const REPLAY_RUNNING = 'wf-node-replay-running'
+const REPLAY_DONE = 'wf-node-replay-done'
+const REPLAY_FAILED = 'wf-node-replay-failed'
+
+function setReplayClass(node: { id: string, class?: string }, state: 'running' | 'done' | 'failed') {
+  const kept = String(node.class || '')
+    .split(' ')
+    .filter(cls => cls && !cls.startsWith('wf-node-replay'))
+  const cls = state === 'running' ? REPLAY_RUNNING : state === 'done' ? REPLAY_DONE : REPLAY_FAILED
+  kept.push(cls)
+  node.class = kept.join(' ')
+}
+
+function clearReplayVisual() {
+  for (const node of uiWorkflow.nodes) {
+    if (node.class && String(node.class).includes('wf-node-replay')) {
+      node.class = String(node.class)
+        .split(' ')
+        .filter(cls => !cls.startsWith('wf-node-replay'))
+        .join(' ') || undefined
+    }
+  }
+  for (const edge of uiWorkflow.edges) {
+    if (edge.class && String(edge.class).includes('wf-edge-replay')) {
+      edge.class = undefined
+      edge.animated = false
+    }
+  }
+}
+
+function onReplayEvent(ev: WfReplayEvent) {
+  if (ev.type === 'reset') {
+    clearReplayVisual()
+    return
+  }
+  // finish/error：保留最终高亮供用户检查，下次运行 reset 时统一清理
+  if (ev.type !== 'node' || !ev.nodeUuid)
+    return
+
+  const uiNode = uiWorkflow.nodes.find(node => node.id === ev.nodeUuid)
+  if (!uiNode)
+    return
+
+  // 依次高亮：上一个"执行中"节点落定为完成态
+  for (const node of uiWorkflow.nodes) {
+    if (node.id !== ev.nodeUuid && String(node.class || '').includes(REPLAY_RUNNING))
+      setReplayClass(node, 'done')
+  }
+
+  if (ev.status === 4)
+    setReplayClass(uiNode, 'failed')
+  else if (ev.status === 3)
+    setReplayClass(uiNode, 'done')
+  else
+    setReplayClass(uiNode, 'running')
+
+  // 连线数据流动画：进入当前执行节点的连线流动，执行完成后恢复静态
+  for (const edge of uiWorkflow.edges) {
+    if (edge.target !== ev.nodeUuid)
+      continue
+    if (ev.status === 2) {
+      edge.class = 'wf-edge-replay'
+      edge.animated = true
+    } else {
+      edge.class = undefined
+      edge.animated = false
+    }
+  }
+}
+
+// ==================== T3-14：内置节点模板整体拖入画布 ====================
+function localeValue(v: unknown): unknown {
+  if (v && typeof v === 'object' && 'zh' in v && 'en' in v) {
+    const locale = (i18n.global.locale as unknown as { value: string })?.value || 'zh-CN'
+    return locale.startsWith('en') ? (v as { en: string }).en : (v as { zh: string }).zh
+  }
+  return v
+}
+
+function applyPresetConfigPatch(target: Record<string, unknown>, patch: Record<string, unknown>) {
+  for (const [key, value] of Object.entries(patch)) {
+    // 数组补丁按索引浅合并（如 Classifier 的 categories 保留已生成的 uuid）
+    if (Array.isArray(value) && Array.isArray(target[key])) {
+      const arr = target[key] as Record<string, unknown>[]
+      value.forEach((item, idx) => {
+        if (idx < arr.length && item && typeof item === 'object')
+          Object.assign(arr[idx], item)
+      })
+    } else {
+      target[key] = localeValue(value)
+    }
+  }
+}
+
+function applyPresetToCanvas(presetKey: string, event: DragEvent) {
+  const preset = getWfNodePreset(presetKey)
+  if (!preset)
+    return
+
+  const flowbounds = wrapper.value.$el.getBoundingClientRect()
+  const position = project({
+    x: event.clientX - flowbounds.left,
+    y: event.clientY - flowbounds.top,
+  })
+
+  const locale = (i18n.global.locale as unknown as { value: string })?.value || 'zh-CN'
+  const created: Workflow.WorkflowNode[] = []
+  for (const item of preset.nodes) {
+    const component = wfStore.getWfComponent(item.type)
+    if (!component) {
+      ms.warning(getComponentTitle(item.type))
+      return
+    }
+    createNewNode(props.workflow, uiWorkflow, component, { x: position.x + item.dx, y: position.y + item.dy })
+    const node = props.workflow.nodes[props.workflow.nodes.length - 1]
+    created.push(node)
+    if (item.title)
+      node.title = locale.startsWith('en') ? item.title.en : item.title.zh
+    if (item.config)
+      applyPresetConfigPatch(node.nodeConfig as Record<string, unknown>, item.config)
+  }
+  for (const [sourceIdx, targetIdx, handle] of preset.edges) {
+    const source = created[sourceIdx]
+    const target = created[targetIdx]
+    if (!source || !target)
+      continue
+    let sourceHandle = ''
+    // Classifier 分支边：handle 为分类项下标，换算成 category_uuid（与画布连线一致）
+    if (typeof handle === 'number') {
+      const categories = (source.nodeConfig as Workflow.NodeConfigClassifier).categories
+      sourceHandle = categories?.[handle]?.category_uuid || ''
+    }
+    createNewEdge({ workflow: props.workflow, uiWorkflow, source: source.uuid, sourceHandle, target: target.uuid })
+  }
+  ms.success(locale.startsWith('en') ? preset.title.en : preset.title.zh)
 }
 
 function onRun() {
@@ -554,7 +710,7 @@ const quickAddOptions = computed(() => {
     if (!keyword)
       return true
 
-    const label = t(`workflow.componentTitle.${component.name}`).toLowerCase()
+    const label = getComponentTitle(component.name).toLowerCase()
     return component.name.toLowerCase().includes(keyword) || label.includes(keyword)
   })
 })
@@ -614,66 +770,13 @@ watch(
                     >
                       <!-- T3-03：网格背景 -->
                       <Background variant="lines" :gap="24" pattern-color="#dbe4ee" />
-                      <!-- bind your custom node type to a component by using slots, slot names are always `node-<type>` -->
-                      <template #node-start="nodeProps">
-                        <StartNode v-bind="nodeProps" :workflow="workflow" />
-                      </template>
-                      <template #node-end="nodeProps">
-                        <EndNode v-bind="nodeProps" :workflow="workflow" />
-                      </template>
-                      <template #node-answer="nodeProps">
-                        <AnswerNode v-bind="nodeProps" :workflow="workflow" />
-                      </template>
-                      <template #node-classifier="nodeProps">
-                        <ClassifierNode v-bind="nodeProps" :workflow="workflow" />
-                      </template>
-                      <template #node-documentextractor="nodeProps">
-                        <DocumentExtractorNode v-bind="nodeProps" :workflow="workflow" />
-                      </template>
-                      <template #node-openaiimage="nodeProps">
-                        <OpenAiImageNode v-bind="nodeProps" :workflow="workflow" />
-                      </template>
-                      <template #node-tongyiwanx="nodeProps">
-                        <TongyiwanxNode v-bind="nodeProps" :workflow="workflow" />
-                      </template>
-                      <template #node-knowledgeretrieval="nodeProps">
-                        <KnowledgeRetrievalNode v-bind="nodeProps" :workflow="workflow" />
-                      </template>
-                      <template #node-keywordextractor="nodeProps">
-                        <KeywordExtractorNode v-bind="nodeProps" :workflow="workflow" />
-                      </template>
-                      <template #node-google="nodeProps">
-                        <GoogleNode v-bind="nodeProps" :workflow="workflow" />
-                      </template>
-                      <template #node-switcher="nodeProps">
-                        <SwitcherNode v-bind="nodeProps" :workflow="workflow" />
-                      </template>
-                      <template #node-template="nodeProps">
-                        <TemplateNode v-bind="nodeProps" :workflow="workflow" />
-                      </template>
-                      <template #node-faqextractor="nodeProps">
-                        <FaqExtractorNode v-bind="nodeProps" :workflow="workflow" />
-                      </template>
-                      <template #node-humanfeedback="nodeProps">
-                        <HumanFeedbackNode v-bind="nodeProps" :workflow="workflow" />
-                      </template>
-                      <template #node-mailsend="nodeProps">
-                        <MailSendNode v-bind="nodeProps" :workflow="workflow" />
-                      </template>
-                      <template #node-httprequest="nodeProps">
-                        <HttpRequestNode v-bind="nodeProps" :workflow="workflow" />
-                      </template>
-                      <template #node-agent="nodeProps">
-                        <AgentNode v-bind="nodeProps" :workflow="workflow" />
-                      </template>
-                      <template #node-database="nodeProps">
-                        <DatabaseNode v-bind="nodeProps" :workflow="workflow" />
-                      </template>
-                      <template #node-mcp="nodeProps">
-                        <McpNode v-bind="nodeProps" :workflow="workflow" />
-                      </template>
-                      <template #node-skill="nodeProps">
-                        <SkillNode v-bind="nodeProps" :workflow="workflow" />
+                      <!-- T5-03：节点 slot 由描述文件遍历生成，slot 名约定为 `node-<type小写>` -->
+                      <template
+                        v-for="desc in wfNodeDescriptors"
+                        :key="`slot_node_${desc.type}`"
+                        #[`node-${desc.type.toLowerCase()}`]="nodeProps"
+                      >
+                        <component :is="desc.component" v-bind="nodeProps" :workflow="workflow" />
                       </template>
                       <template #node-special="nodeProps">
                         <SpecialNode v-bind="nodeProps" :workflow="workflow" />
@@ -767,7 +870,11 @@ watch(
             v-model:show="showRunModal" :mask-closable="false" :auto-focus="false" preset="card"
             style="width: 95%; max-width: 800px"
           >
-            <RunDetail :workflow="workflow" />
+            <!-- T3-09：执行链路回放事件上抛，驱动画布节点高亮与连线动画；失败条目定位 -->
+            <RunDetail
+              :workflow="workflow" @locate-node="locateNodeByUuid"
+              @replay-event="onReplayEvent"
+            />
           </NModal>
           <!-- T3-06：保存前校验错误列表（可点击定位到具体节点） -->
           <NModal
@@ -809,7 +916,7 @@ watch(
                   class="px-3 py-2 rounded cursor-pointer hover:bg-gray-100 text-sm"
                   @click="quickAddComponent(component)"
                 >
-                  {{ t(`workflow.componentTitle.${component.name}`) }}
+                  {{ getComponentTitle(component.name) }}
                 </div>
               </div>
             </div>
@@ -946,6 +1053,36 @@ watch(
   background: #ec4899;
   pointer-events: none;
   z-index: 10;
+}
+
+/* T3-09：执行链路回放 —— 节点状态高亮（图标/文案在运行详情侧，画布侧重形与描边） */
+.vue-flow__node.wf-node-replay-running {
+  border: 1px solid #2563eb;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 0.3);
+}
+
+.vue-flow__node.wf-node-replay-done {
+  border: 1px solid #16a34a;
+  box-shadow: 0 0 0 3px rgb(22 163 74 / 0.18);
+}
+
+.vue-flow__node.wf-node-replay-failed {
+  border: 1px solid #dc2626;
+  box-shadow: 0 0 0 3px rgb(220 38 38 / 0.3);
+}
+
+/* T3-09：回放中连线数据流动画（虚线滚动） */
+.vue-flow__edge.wf-edge-replay .vue-flow__edge-path {
+  stroke: #2563eb !important;
+  stroke-width: 2.5 !important;
+  stroke-dasharray: 6 6;
+  animation: wf-dash-flow 0.5s linear infinite;
+}
+
+@keyframes wf-dash-flow {
+  to {
+    stroke-dashoffset: -24;
+  }
 }
 
 .wf-guide-v {

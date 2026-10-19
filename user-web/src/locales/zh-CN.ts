@@ -883,6 +883,42 @@ export default {
     validationSelfLoop: '自环连线',
     validationDuplicateEdge: '重复连线',
     validationGoto: '定位',
+    // T3-08 SchemaForm 三段式分组
+    schemaGroupRequired: '必填配置',
+    schemaGroupAdvanced: '高级设置',
+    // T3-09 失败定位与回放
+    nodeFailedLabel: '执行失败',
+    nodeRunningLabel: '执行中',
+    nodeDoneLabel: '执行成功',
+    replayLocate: '定位到节点',
+    replayStatusTip: '正在回放执行链路',
+    // T3-11 节点校验徽标
+    nodeInvalidBadge: '节点未配置完成',
+    nodeInvalidItem: '缺少：{field}',
+    // T3-12 知识检索增强
+    inheritKbLevelTip: '留空则继承知识库级配置',
+    // T3-13 变量穿梭框
+    varTitle: '可用变量',
+    varSearchPlaceholder: '搜索变量',
+    varEmpty: '暂无可用变量（上游无输入或无执行历史）',
+    varInsertTip: '输入连续两个花括号触发变量选择，点选后自动插入',
+    varErrorRootNotFound: '引用的变量不存在（A0077）',
+    varErrorPathNotFound: '引用的字段路径不存在（A0078）',
+    varErrorFallback: '模板校验失败（A0077/A0078）',
+    varTypeError: '变量引用错误',
+    // T3-14 节点文档 / 模板 / 导入
+    nodeDocTitle: '节点说明',
+    nodeDocPurpose: '用途',
+    nodeDocRequired: '必填',
+    nodeDocOutput: '输出结构',
+    nodeDocErrors: '常见错误',
+    presetSection: '节点模板',
+    presetDragTip: '拖入画布一键创建',
+    importBtn: '导入工作流',
+    importSuccess: '导入成功',
+    importFailed: '导入失败',
+    importMissingKbTitle: '导入失败：以下知识包（知识库）在当前环境不存在',
+    importFileInvalid: '文件内容不是合法的工作流 JSON',
     componentTitle: {
       Start: '开始',
       End: '结束',

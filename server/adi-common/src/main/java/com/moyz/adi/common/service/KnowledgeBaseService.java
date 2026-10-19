@@ -554,6 +554,24 @@ public class KnowledgeBaseService extends ServiceImpl<KnowledgeBaseMapper, Knowl
         return resp;
     }
 
+    /**
+     * T3-14（2026-10-19）：工作流导入时按 kbUuid 批量校验知识包是否存在（未删除即视为存在）。
+     * 返回入参中实际存在的 uuid 集合；调用方用差集判定缺失并明确报错（不允许静默丢节点）。
+     */
+    public List<String> filterExistingUuids(Collection<String> uuids) {
+        if (CollectionUtils.isEmpty(uuids)) {
+            return List.of();
+        }
+        return ChainWrappers.lambdaQueryChain(baseMapper)
+                .in(KnowledgeBase::getUuid, uuids)
+                .eq(KnowledgeBase::getIsDeleted, false)
+                .select(KnowledgeBase::getUuid)
+                .list()
+                .stream()
+                .map(KnowledgeBase::getUuid)
+                .toList();
+    }
+
     public boolean softDelete(String uuid) {
         checkWritePrivilege(null, uuid);
         KnowledgeBase kb = getOrThrow(uuid);

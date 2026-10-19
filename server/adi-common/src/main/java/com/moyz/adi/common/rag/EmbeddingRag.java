@@ -1,8 +1,11 @@
 package com.moyz.adi.common.rag;
 
 import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.entity.KnowledgeBase;
 import com.moyz.adi.common.interfaces.IRAGService;
+import com.moyz.adi.common.service.KnowledgeBaseService;
 import com.moyz.adi.common.util.InputAdaptor;
+import org.apache.commons.lang3.StringUtils;
 import com.moyz.adi.common.util.SpringUtil;
 import com.moyz.adi.common.vo.EmbeddingIngestParam;
 import com.moyz.adi.common.vo.InputAdaptorMsg;
@@ -105,13 +108,44 @@ public class EmbeddingRag implements IRAGService {
             // 角色记忆两条通道不设置，行为不变。四个检索入口（流式问答、阻塞问答、工作流、角色聊天KB通道）均经此处自动生效
             builder.contentPostProcessor(getSegmentExpandProcessor());
             // 二开：把知识库级检索配置透传给后置处理器，用于混合检索/RRF/rerank
-            RetrieverContext ctx = param.getContext() == null ? RetrieverContext.none() : param.getContext();
+            // 二开（T3-12，2026-10-19）：调用方未显式携带 context 时（工作流知识检索节点），
+            // 按 kbUuid 回读库级检索配置作为默认值，实现「节点三态为空 = 继承库级」；
+            // 回读失败只 warn 并退回 none()，与改动前行为一致
+            RetrieverContext ctx = param.getContext() == null ? kbLevelContextOrDefault(param) : param.getContext();
+            // T3-12：节点级三态覆盖——非 null 时覆盖库级开关，null 时保持库级（继承语义）
+            if (null != param.getRerankEnabledOverride()) {
+                ctx.setRerankEnabled(param.getRerankEnabledOverride());
+            }
+            if (null != param.getExpandWindowEnabledOverride()) {
+                ctx.setNeighborEnabled(param.getExpandWindowEnabledOverride());
+            }
             // 二开（T1-05，2026-10-16）：开关打开时为未显式携带 ACL 的入口（QA/工作流等单库路径）
             // 补齐检索主体与库级 ACL 快照；开关关闭时是恒等操作，行为与历史版本一致
             KbAclFilterBuilder.enrichAclContext(ctx, param.getKbUuid());
             builder.context(ctx);
         }
         return builder.build();
+    }
+
+    /**
+     * T3-12：未显式携带 {@link RetrieverContext} 的知识库入口（工作流知识检索节点），
+     * 按 kbUuid 回读库级检索配置（混合/RRF/rerank/扩窗），复用
+     * {@link KnowledgeBaseService#buildRetrieverContext} 这唯一的库级配置读取点。
+     * excludedDocUuids 直接复用调用方已算好的停用文档名单，保证关键词路过滤一致。
+     */
+    private RetrieverContext kbLevelContextOrDefault(RetrieverCreateParam param) {
+        if (StringUtils.isBlank(param.getKbUuid())) {
+            return RetrieverContext.none();
+        }
+        try {
+            KnowledgeBaseService kbService = SpringUtil.getBean(KnowledgeBaseService.class);
+            KnowledgeBase kb = kbService.getOrThrow(param.getKbUuid());
+            return kbService.buildRetrieverContext(kb, param.getExcludedItemUuids());
+        } catch (Exception e) {
+            log.warn("Read kb-level retrieve config failed, fallback to none,kbUuid:{},error:{}",
+                    param.getKbUuid(), e.getMessage());
+            return RetrieverContext.none();
+        }
     }
 
     private RetrievedContentProcessor getSegmentExpandProcessor() {

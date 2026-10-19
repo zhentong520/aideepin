@@ -1166,11 +1166,13 @@ create table adi_workflow_runtime
     input_tokens  int          default 0                 not null,
     output_tokens int          default 0                 not null,
     duration      int          default 0                 not null,
+    is_test       boolean      default false             not null,
     create_time   timestamp    default CURRENT_TIMESTAMP not null,
     update_time   timestamp    default CURRENT_TIMESTAMP not null,
     is_deleted    boolean      default false             not null
 );
 COMMENT ON COLUMN adi_workflow_runtime.input IS '{"userInput01":"text01","userInput02":true,"userInput03":10,"userInput04":["selectedA","selectedB"],"userInput05":["https://a.com/a.xlxs","https://a.com/b.png"]}';
+COMMENT ON COLUMN adi_workflow_runtime.is_test IS 'T3-10: true = 单节点试跑记录（不在正式执行记录列表展示）| test run, excluded from formal run list';
 COMMENT ON COLUMN adi_workflow_runtime.status IS 'Execution status: 1=Ready, 2=In progress, 3=Success, 4=Failed';
 COMMENT ON COLUMN adi_workflow_runtime.status_remark IS 'Status remark';
 COMMENT ON COLUMN adi_workflow_runtime.input_tokens IS 'Total input tokens aggregated from LLM-typed nodes (terminal snapshot, written at success / fail / waiting_input)';

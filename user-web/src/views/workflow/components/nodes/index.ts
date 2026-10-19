@@ -41,6 +41,25 @@ import DatabaseNodeProperty from './DatabaseNodeProperty.vue'
 import McpNodeProperty from './McpNodeProperty.vue'
 import SkillNodeProperty from './SkillNodeProperty.vue'
 
+// T5-03：节点描述化 —— 六处硬编码收敛后的"定义源头"（新增节点只需在 descriptor.ts 加一条描述）
+export {
+  wfNodeDescriptors,
+  getWfNodeDescriptor,
+  wfNodePresets,
+  getWfNodePreset,
+} from './descriptor'
+export type {
+  WfNodeDescriptor,
+  WfNodeCategory,
+  WfLocalizedText,
+  WfNodeDoc,
+  WfDescriptorField,
+  WfDescriptorFieldType,
+  WfDescriptorShowWhen,
+  WfNodePreset,
+  WfNodePresetNode,
+} from './descriptor'
+
 export {
   SpecialNode,
   StartNode,

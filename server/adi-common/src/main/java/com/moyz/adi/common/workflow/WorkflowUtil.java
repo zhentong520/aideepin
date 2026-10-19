@@ -1,9 +1,12 @@
 package com.moyz.adi.common.workflow;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.moyz.adi.common.config.AdiProperties;
 import com.moyz.adi.common.entity.LLMCallRecord;
 import com.moyz.adi.common.entity.WorkflowNode;
 import com.moyz.adi.common.enums.LLMCallRecordSourceType;
 import com.moyz.adi.common.enums.WfIODataTypeEnum;
+import com.moyz.adi.common.exception.BaseException;
 import com.moyz.adi.common.helper.LLMContext;
 import com.moyz.adi.common.languagemodel.AbstractLLMService;
 import com.moyz.adi.common.service.LLMCallRecordService;
@@ -30,11 +33,21 @@ import org.bsc.langgraph4j.state.AgentState;
 
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static com.moyz.adi.common.cosntant.AdiConstant.WorkflowConstant.DEFAULT_OUTPUT_PARAM_NAME;
+import static com.moyz.adi.common.enums.ErrorEnum.A_WF_VAR_PATH_NOT_FOUND;
+import static com.moyz.adi.common.enums.ErrorEnum.A_WF_VAR_ROOT_NOT_FOUND;
 
 @Slf4j
 public class WorkflowUtil {
+
+    /**
+     * 字段级变量引用（T3-13）：{@code {{var.path.to.field}}}。
+     * 根变量段为节点输入参数名，后续点路径逐层取 JSON 字段；数值段按数组下标取。
+     */
+    public static final Pattern FIELD_REF_PATTERN = Pattern.compile("\\{\\{\\s*([a-zA-Z0-9_]+(?:\\.[a-zA-Z0-9_]+)*)\\s*\\}\\}");
 
     public static String renderTemplate(String template, List<NodeIOData> values) {
         String result = template;
@@ -123,6 +136,130 @@ public class WorkflowUtil {
             }
         }
         return sb.toString();
+    }
+
+    /**
+     * 字段级变量引用渲染（T3-13，开关 adi.wf.field-ref-enabled，铁律 10）。
+     * <p>
+     * 先严格解析 {@code {{var.path.to.field}}}：根变量在 values 中找不到 → {@link BaseException}
+     * （A_WF_VAR_ROOT_NOT_FOUND）；根变量存在但路径断开 → {@link BaseException}
+     * （A_WF_VAR_PATH_NOT_FOUND，指明断点段）。任务书要求「写错立即提示，不静默跑」。
+     * {@code {{...}}} 解析完成后，再走旧版宽松的 {@code {name}} 文本替换，保持既有行为兼容。
+     * <p>
+     * Render with strict field-level references (T3-13). Missing root variable or a broken
+     * field path throws immediately with the offending segment; after the double-brace pass
+     * the legacy lenient single-brace replacement still applies.
+     */
+    public static String renderTemplateStrict(String template, List<NodeIOData> values) {
+        return renderTemplateStrict(template, values, resolveFieldRefEnabled());
+    }
+
+    public static String renderTemplateStrict(String template, List<NodeIOData> values, boolean fieldRefEnabled) {
+        if (StringUtils.isBlank(template)) {
+            return template;
+        }
+        if (!fieldRefEnabled) {
+            // 开关关闭：回退旧版宽松行为（铁律 10 热回滚位）
+            return renderTemplate(template, values);
+        }
+        Matcher matcher = FIELD_REF_PATTERN.matcher(template);
+        StringBuilder sb = new StringBuilder(template.length() + 16);
+        while (matcher.find()) {
+            String ref = matcher.group(1);
+            String[] segments = ref.split("\\.");
+            JsonNode resolved = resolveFieldRef(segments, values);
+            String replacement = toReplacementText(resolved);
+            matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
+        }
+        matcher.appendTail(sb);
+        return renderTemplate(sb.toString(), values);
+    }
+
+    /**
+     * 读取开关（adi.wf.field-ref-enabled）。Spring 上下文不可用（纯单测）时按开启处理，
+     * 由调用方决定是否走带布尔参数的重载显式控制。
+     */
+    private static boolean resolveFieldRefEnabled() {
+        try {
+            return SpringUtil.getBean(AdiProperties.class).getWf().isFieldRefEnabled();
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
+    /**
+     * 解析点路径引用：segments[0] 为根变量名，其余为 JSON 字段路径。
+     * 根变量缺失 → A_WF_VAR_ROOT_NOT_FOUND；路径断点 → A_WF_VAR_PATH_NOT_FOUND。
+     */
+    public static JsonNode resolveFieldRef(String[] segments, List<NodeIOData> values) {
+        String rootName = segments[0];
+        NodeIOData root = null;
+        if (null != values) {
+            for (NodeIOData item : values) {
+                if (item.getName() != null && item.getName().equalsIgnoreCase(rootName)) {
+                    root = item;
+                    break;
+                }
+            }
+        }
+        if (null == root) {
+            throw new BaseException(A_WF_VAR_ROOT_NOT_FOUND, rootName);
+        }
+        JsonNode current = toJsonNodeForNavigation(root);
+        for (int i = 1; i < segments.length; i++) {
+            String segment = segments[i];
+            JsonNode next = null;
+            if (current.isArray() && segment.matches("\\d+")) {
+                int index = Integer.parseInt(segment);
+                next = index < current.size() ? current.get(index) : null;
+            } else if (current.isObject()) {
+                next = current.get(segment);
+            }
+            if (null == next || next.isMissingNode() || next.isNull()) {
+                throw new BaseException(A_WF_VAR_PATH_NOT_FOUND, rootName, segment);
+            }
+            current = next;
+        }
+        return current;
+    }
+
+    /**
+     * 把变量值转成可导航的 JsonNode。文本值若本身是 JSON（如 HTTP 节点返回的响应体字符串），
+     * 尝试二次解析成对象，让 {@code {{resp.data.id}}} 能直接取字段。
+     */
+    private static JsonNode toJsonNodeForNavigation(NodeIOData data) {
+        Object value = data.getContent().getValue();
+        try {
+            JsonNode node = JsonUtil.getObjectMapper().readTree(JsonUtil.toJson(value));
+            if (node.isTextual()) {
+                String text = node.asText();
+                String trimmed = text.trim();
+                if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+                    try {
+                        JsonNode parsed = JsonUtil.getObjectMapper().readTree(trimmed);
+                        if (parsed.isObject() || parsed.isArray()) {
+                            return parsed;
+                        }
+                    } catch (Exception ignore) {
+                        // 不是合法 JSON 文本，按普通文本处理
+                    }
+                }
+            }
+            return node;
+        } catch (Exception e) {
+            // 兜底：按纯文本处理
+            return JsonUtil.getObjectMapper().getNodeFactory().textNode(String.valueOf(value));
+        }
+    }
+
+    private static String toReplacementText(JsonNode node) {
+        if (node.isTextual()) {
+            return node.asText();
+        }
+        if (node.isNumber() || node.isBoolean()) {
+            return node.asText();
+        }
+        return node.toString();
     }
 
     public static void streamingInvokeLLM(WfState wfState, WfNodeState state, WorkflowNode node, String modelPlatform, String modelName, List<ChatMessage> msgs) {

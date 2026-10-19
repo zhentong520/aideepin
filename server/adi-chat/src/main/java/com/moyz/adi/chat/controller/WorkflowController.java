@@ -6,11 +6,13 @@ import com.moyz.adi.common.dto.workflow.*;
 import com.moyz.adi.common.entity.WorkflowComponent;
 import com.moyz.adi.common.service.WorkflowComponentService;
 import com.moyz.adi.common.service.WorkflowService;
+import com.moyz.adi.common.service.WorkflowVariableService;
 import com.moyz.adi.common.workflow.WorkflowStarter;
 import com.moyz.adi.common.workflow.node.switcher.OperatorEnum;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.http.MediaType;
 import org.springframework.validation.annotation.Validated;
@@ -34,6 +36,9 @@ public class WorkflowController {
 
     @Resource
     private WorkflowComponentService workflowComponentService;
+
+    @Resource
+    private WorkflowVariableService workflowVariableService;
 
     @PostMapping("/add")
     public WorkflowResp add(@RequestBody @Validated WfAddReq addReq) {
@@ -74,6 +79,37 @@ public class WorkflowController {
     @PostMapping(value = "/run/{wfUuid}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter sseAsk(@PathVariable String wfUuid, @RequestBody WorkflowRunReq runReq) {
         return workflowStarter.streaming(ThreadContext.getCurrentUser(), wfUuid, runReq.getInputs());
+    }
+
+    @Operation(summary = "T3-10 单节点试跑：从指定节点起执行（不写正式执行记录） | Single-node test run")
+    @PostMapping(value = "/run-test/{wfUuid}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter sseTestRun(@PathVariable String wfUuid, @RequestBody @Validated WorkflowTestRunReq req) {
+        return workflowStarter.streamingTestRun(ThreadContext.getCurrentUser(), wfUuid, req);
+    }
+
+    @Operation(summary = "T3-13 指定节点的可用变量列表（含类型/示例值，字段级展开 2 层） | Available vars")
+    @GetMapping("/available-vars")
+    public List<WfAvailableVarDto> availableVars(@RequestParam String wfUuid,
+                                                 @RequestParam @NotBlank String nodeUuid) {
+        return workflowVariableService.listAvailableVars(wfUuid, nodeUuid);
+    }
+
+    @Operation(summary = "T3-13 模板表达式校验：{{var.path}} 引用写错立即提示 | Validate template")
+    @PostMapping("/validate-template")
+    public WfTemplateValidateResp validateTemplate(@RequestBody @Validated WfTemplateValidateReq req) {
+        return workflowVariableService.validateTemplate(req.getWfUuid(), req.getNodeUuid(), req.getTemplate());
+    }
+
+    @Operation(summary = "T3-14 导出工作流 JSON | Export workflow")
+    @GetMapping("/{wfUuid}/export")
+    public WfExportResp export(@PathVariable String wfUuid) {
+        return workflowService.export(wfUuid);
+    }
+
+    @Operation(summary = "T3-14 导入工作流 JSON（kbUuid 校验，缺失即报错） | Import workflow")
+    @PostMapping("/import")
+    public WorkflowResp importWorkflow(@RequestBody @Validated WfExportResp req) {
+        return workflowService.importWorkflow(req);
     }
 
     @GetMapping("/mine/search")

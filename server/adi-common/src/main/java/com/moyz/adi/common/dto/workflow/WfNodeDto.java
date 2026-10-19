@@ -18,6 +18,11 @@ public class WfNodeDto {
     private Long workflowId;
     @Min(1)
     private Long workflowComponentId;
+    /**
+     * 二开新增（T3-14）：组件名，仅导出时填充；导入时当 workflowComponentId 在目标环境
+     * 匹配不到（跨环境组件自增 id 不一致）按名称重映射。
+     */
+    private String componentName;
     @NotBlank
     private String title;
     private String remark;

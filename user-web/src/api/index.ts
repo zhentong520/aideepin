@@ -994,6 +994,36 @@ function workflowRuntimeDelete<T = any>(wfRuntimeUuid: string) {
   })
 }
 
+// T3-13：指定节点的可用变量树（字段级展开 2 层）
+function workflowAvailableVars<T = any>(wfUuid: string, nodeUuid: string) {
+  return get<T>({
+    url: `/workflow/available-vars?wfUuid=${wfUuid}&nodeUuid=${nodeUuid}`,
+  })
+}
+
+// T3-13：模板表达式校验（{{var.path}} 引用写错立即提示）
+function workflowValidateTemplate<T = any>(data: { wfUuid: string, nodeUuid: string, template: string }) {
+  return post<T>({
+    url: '/workflow/validate-template',
+    data,
+  })
+}
+
+// T3-14：导出工作流 JSON
+function workflowExport<T = any>(wfUuid: string) {
+  return get<T>({
+    url: `/workflow/${wfUuid}/export`,
+  })
+}
+
+// T3-14：导入工作流 JSON（缺失知识包报 A0079）
+function workflowImport<T = any>(data: any) {
+  return post<T>({
+    url: '/workflow/import',
+    data,
+  })
+}
+
 function mcpSearch<T = any>(keyword: string, currentPage: number, pageSize: number) {
   return get<T>({
     url: `/mcp/public/search?keyword=${keyword}&currentPage=${currentPage}&pageSize=${pageSize}`,
@@ -1260,6 +1290,10 @@ export default {
   workflowOperators,
   workflowRuntimeDelete,
   workflowRuntimeResume,
+  workflowAvailableVars,
+  workflowValidateTemplate,
+  workflowExport,
+  workflowImport,
   mcpSearch,
   userMcpList,
   userMcpSaveOrUpdate,

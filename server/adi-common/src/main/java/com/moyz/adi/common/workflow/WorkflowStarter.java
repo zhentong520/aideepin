@@ -1,13 +1,17 @@
 package com.moyz.adi.common.workflow;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.moyz.adi.common.config.AdiProperties;
+import com.moyz.adi.common.dto.workflow.WorkflowTestRunReq;
 import com.moyz.adi.common.entity.*;
 import com.moyz.adi.common.exception.BaseException;
 import com.moyz.adi.common.helper.SseManager;
 import com.moyz.adi.common.util.SpringUtil;
 import com.moyz.adi.common.service.*;
+import com.moyz.adi.common.workflow.data.NodeIOData;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
@@ -49,6 +53,9 @@ public class WorkflowStarter {
 
     @Resource
     private SseManager sseManager;
+
+    @Resource
+    private AdiProperties adiProperties;
 
 
     public SseEmitter streaming(User user, String workflowUuid, List<ObjectNode> userInputs) {
@@ -152,6 +159,109 @@ public class WorkflowStarter {
             workflowEngine.resume(userInput);
         } catch (Throwable e) {
             log.error("resumeFlow execution exception, runtimeUuid:{}", runtimeUuid, e);
+        }
+    }
+
+    /**
+     * T3-10：单节点试跑——从指定节点起执行，跳过上游。
+     * <p>
+     * 同步阶段（本方法，ThreadContext 可用）完成三件事：开关校验、起始节点定位、
+     * 加载最近一次成功执行的上下文（有上游但无历史 → 明确抛 A_WF_UPSTREAM_CONTEXT_MISSING，
+     * 不静默起跑）。之后异步执行，运行记录打 is_test 标记（选型：is_test 列而非独立通道，
+     * 试跑复用引擎全链路可观测性，正式记录查询按 is_test 过滤）。
+     */
+    public SseEmitter streamingTestRun(User user, String workflowUuid, WorkflowTestRunReq req) {
+        if (!adiProperties.getWf().isSingleNodeTestEnabled()) {
+            throw new BaseException(A_WF_TEST_RUN_DISABLED);
+        }
+        if (null == req || StringUtils.isBlank(req.getStartNodeUuid())) {
+            throw new BaseException(A_PARAMS_ERROR);
+        }
+        Workflow workflow = workflowService.getByUuid(workflowUuid);
+        if (null == workflow) {
+            throw new BaseException(A_WF_NOT_FOUND);
+        } else if (Boolean.FALSE.equals(workflow.getIsEnable())) {
+            throw new BaseException(A_WF_DISABLED);
+        }
+        List<WorkflowNode> nodes = workflowNodeService.lambdaQuery()
+                .eq(WorkflowNode::getWorkflowId, workflow.getId())
+                .eq(WorkflowNode::getIsDeleted, false)
+                .list();
+        List<WorkflowEdge> edges = workflowEdgeService.lambdaQuery()
+                .eq(WorkflowEdge::getWorkflowId, workflow.getId())
+                .eq(WorkflowEdge::getIsDeleted, false)
+                .list();
+        WorkflowNode startNode = nodes.stream()
+                .filter(item -> item.getUuid().equals(req.getStartNodeUuid()))
+                .findFirst()
+                .orElseThrow(() -> new BaseException(A_WF_NODE_NOT_FOUND));
+        //起跑节点有上游时，必须有最近一次成功执行的上下文，否则明确报错（任务书要求，不静默跑）
+        boolean hasUpstream = edges.stream().anyMatch(edge -> edge.getTargetNodeUuid().equals(startNode.getUuid()));
+        Map<String, List<NodeIOData>> upstreamContext;
+        if (hasUpstream) {
+            upstreamContext = requireUpstreamContext(true, startNode,
+                    workflowRuntimeService.loadLastSuccessContext(workflow.getId(), user.getId()));
+        } else {
+            upstreamContext = requireUpstreamContext(false, startNode, Map.of());
+        }
+
+        String sseUuid = com.moyz.adi.common.util.UuidUtil.createShort();
+        SseEmitter sseEmitter = new SseEmitter(SSE_TIMEOUT);
+        if (!sseManager.checkOrComplete(user, sseUuid, sseEmitter)) {
+            return sseEmitter;
+        }
+        sseManager.register(sseUuid, sseEmitter, user.getId());
+        try {
+            self.asyncTestRun(user, workflow, req.getInputs(), sseUuid, req.getStartNodeUuid(), upstreamContext);
+        } catch (RejectedExecutionException e) {
+            log.warn("workflow test run rejected, too many running workflows, workflowUuid:{}", workflowUuid);
+            sseManager.sendErrorAndComplete(user.getId(), sseUuid,
+                    SpringUtil.getMessage(A_WF_TOO_MANY_RUNNING.getInfo()));
+        }
+        return sseEmitter;
+    }
+
+    /**
+     * T3-10：上游上下文门禁（包私有以便单测）。起跑节点有上游但无历史成功上下文 →
+     * 明确抛 A_WF_UPSTREAM_CONTEXT_MISSING（任务书要求：不静默跑）；无上游直接放行空上下文。
+     */
+    static Map<String, List<NodeIOData>> requireUpstreamContext(boolean hasUpstream, WorkflowNode startNode,
+                                                                Map<String, List<NodeIOData>> loaded) {
+        if (!hasUpstream) {
+            return Map.of();
+        }
+        if (null == loaded || loaded.isEmpty()) {
+            throw new BaseException(A_WF_UPSTREAM_CONTEXT_MISSING, startNode.getTitle());
+        }
+        return loaded;
+    }
+
+    @Async("workflowExecutor")
+    public void asyncTestRun(User user, Workflow workflow, List<ObjectNode> userInputs, String sseUuid,
+                             String startNodeUuid, Map<String, List<NodeIOData>> upstreamContext) {
+        log.info("WorkflowEngine test run,userId:{},workflowUuid:{},startNodeUuid:{}",
+                user.getId(), workflow.getUuid(), startNodeUuid);
+        try {
+            List<WorkflowComponent> components = workflowComponentService.getAllEnable();
+            List<WorkflowNode> nodes = workflowNodeService.lambdaQuery()
+                    .eq(WorkflowNode::getWorkflowId, workflow.getId())
+                    .eq(WorkflowNode::getIsDeleted, false)
+                    .list();
+            List<WorkflowEdge> edges = workflowEdgeService.lambdaQuery()
+                    .eq(WorkflowEdge::getWorkflowId, workflow.getId())
+                    .eq(WorkflowEdge::getIsDeleted, false)
+                    .list();
+            WorkflowEngine workflowEngine = new WorkflowEngine(workflow,
+                    sseManager,
+                    components,
+                    nodes,
+                    edges,
+                    workflowRuntimeService,
+                    workflowRuntimeNodeService);
+            workflowEngine.run(user, userInputs, sseUuid, startNodeUuid, upstreamContext, true);
+        } catch (Throwable e) {
+            log.error("asyncTestRun execution exception, workflowUuid:{}", workflow.getUuid(), e);
+            sseManager.sendErrorAndComplete(user.getId(), sseUuid, "Workflow test run error:" + e.getMessage());
         }
     }
 

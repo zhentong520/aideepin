@@ -135,7 +135,17 @@ public enum ErrorEnum {
     /** 注册邮箱验证码发送过于频繁，仍在重发间隔内 */
     A_REGISTER_EMAIL_CODE_TOO_FREQUENTLY("A0073", "A_REGISTER_EMAIL_CODE_TOO_FREQUENTLY"),
 
-    A_NO_ADMIN_PERMISSION("A0074", "A_NO_ADMIN_PERMISSION");
+    A_NO_ADMIN_PERMISSION("A0074", "A_NO_ADMIN_PERMISSION"),
+    /** T3-10：单节点试跑功能被关闭（adi.wf.single-node-test-enabled=false） */
+    A_WF_TEST_RUN_DISABLED("A0075", "A_WF_TEST_RUN_DISABLED"),
+    /** T3-10：从指定节点起执行，但该节点有上游且无历史成功上下文可用。参数：节点标题 */
+    A_WF_UPSTREAM_CONTEXT_MISSING("A0076", "A_WF_UPSTREAM_CONTEXT_MISSING"),
+    /** T3-13：模板引用的根变量不存在。参数：变量名 */
+    A_WF_VAR_ROOT_NOT_FOUND("A0077", "A_WF_VAR_ROOT_NOT_FOUND"),
+    /** T3-13：根变量存在但字段路径断掉。参数：变量名、断点路径段 */
+    A_WF_VAR_PATH_NOT_FOUND("A0078", "A_WF_VAR_PATH_NOT_FOUND"),
+    /** T3-14：工作流导入时知识包不存在（不允许静默丢节点）。参数：缺失 kbUuid 列表 */
+    A_WF_IMPORT_KB_NOT_FOUND("A0079", "A_WF_IMPORT_KB_NOT_FOUND");
 
     private final String code;
     private final String info;

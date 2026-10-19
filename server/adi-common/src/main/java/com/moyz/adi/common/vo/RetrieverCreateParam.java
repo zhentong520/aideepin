@@ -54,4 +54,17 @@ public class RetrieverCreateParam {
      * （此时不缓存，行为与改造前一致）。
      */
     private String kbUuid;
+
+    /**
+     * 二开新增（T3-12，2026-10-19）：节点级 rerank 覆盖。
+     * null = 不覆盖（继承库级 retrieve_rerank_enabled）；非 null 时在
+     * {@code EmbeddingRag.createRetriever} 处覆盖库级配置。
+     */
+    private Boolean rerankEnabledOverride;
+
+    /**
+     * 二开新增（T3-12，2026-10-19）：节点级扩窗覆盖。
+     * null = 不覆盖（继承库级 retrieve_neighbor_enabled）；非 null 时覆盖库级配置。
+     */
+    private Boolean expandWindowEnabledOverride;
 }

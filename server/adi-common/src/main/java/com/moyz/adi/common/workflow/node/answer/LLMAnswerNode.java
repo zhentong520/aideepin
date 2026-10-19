@@ -39,7 +39,8 @@ public class LLMAnswerNode extends AbstractWfNode {
         log.info("LLM answer node config:{}", nodeConfigObj);
         String prompt = inputText;
         if (StringUtils.isNotBlank(nodeConfigObj.getPrompt())) {
-            prompt = WorkflowUtil.renderTemplate(nodeConfigObj.getPrompt(), state.getInputs());
+            //T3-13：字段级变量引用（{{var.path}}），带开关 adi.wf.field-ref-enabled，关闭时回退宽松行为
+            prompt = WorkflowUtil.renderTemplateStrict(nodeConfigObj.getPrompt(), state.getInputs());
         }
         log.info("LLM prompt:{}", prompt);
         String modelName = nodeConfigObj.getModelName();

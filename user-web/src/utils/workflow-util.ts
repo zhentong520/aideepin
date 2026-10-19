@@ -1,8 +1,10 @@
 import { v4 as uuidv4 } from 'uuid'
 import { emptyWorkflowNode } from './functions'
 import { pushWorkflowHistory } from './workflow-history'
+import { getWfNodeDescriptor } from '@/views/workflow/components/nodes/descriptor'
 import { useAppStore } from '@/store'
 import { t } from '@/locales'
+import i18n from '@/locales'
 
 export function createNewNode(
   workflow: Workflow.WorkflowInfo,
@@ -12,7 +14,7 @@ export function createNewNode(
 ) {
   const newWfNode = emptyWorkflowNode()
   newWfNode.uuid = uuidv4().replace(/-/g, '')
-  newWfNode.title = t(`workflow.componentTitle.${component.name}`)
+  newWfNode.title = getComponentTitle(component.name)
   newWfNode.workflowId = workflow.id
   newWfNode.workflowUuid = workflow.uuid
   newWfNode.wfComponent = component
@@ -465,135 +467,38 @@ export function getNameByInputType(type: number) {
   }
 }
 
-export function getIconByComponentName(name: string) {
-  switch (name.toLowerCase()) {
-    case 'answer':
-      return 'carbon:question-answering'
-    case 'classifier':
-      return 'carbon:type-pattern'
-    case 'knowledgeretrieval':
-      return 'carbon:connect-target'
-    case 'documentextractor':
-      return 'carbon:ibm-knowledge-catalog-standard'
-    case 'keywordextractor':
-      return 'carbon:api-key'
-    case 'faqextractor':
-      return 'fluent-mdl2:book-answers'
-    case 'switcher':
-      return 'oui:logstash-if'
-    case 'template':
-      return 'carbon:prompt-template'
-    case 'openaiimage':
-      return 'solar:pallete-2-linear'
-    case 'tongyiwanx':
-      return 'solar:pallete-2-linear'
-    case 'google':
-      return 'ri:google-line'
-    case 'humanfeedback':
-      return 'covid:transmission-virus-human-transmit-2'
-    case 'mailsend':
-      return 'carbon:mail-all'
-    case 'httprequest':
-      return 'carbon:http'
-    case 'agent':
-      return 'carbon:bot'
-    case 'database':
-      return 'carbon:data-base'
-    case 'mcp':
-      return 'carbon:tool-kit'
-    case 'skill':
-      return 'tabler:puzzle'
-    case 'end':
-      return 'carbon:closed-caption'
-    case 'start':
-      return 'carbon:play-outline'
-    default:
-      return ''
+/**
+ * T5-03：组件标题从节点描述文件取（单一来源）；locales componentTitle key 保留作兜底
+ */
+export function getComponentTitle(name: string): string {
+  const descriptor = getWfNodeDescriptor(name)
+  if (descriptor) {
+    const locale = (i18n.global.locale as unknown as { value: string })?.value || 'zh-CN'
+    return locale.startsWith('en') ? descriptor.componentTitle.en : descriptor.componentTitle.zh
   }
-}
-
-export function getIconClassByComponentName(name: string) {
-  switch (name.toLowerCase()) {
-    case 'answer':
-      return 'text-green-800'
-    case 'classifier':
-      return 'text-violet-900'
-    case 'knowledgeretrieval':
-      return 'text-stone-900'
-    case 'documentextractor':
-      return 'text-rose-900'
-    case 'keywordextractor':
-      return 'text-cyan-900'
-    case 'faqextractor':
-      return 'text-teal-600'
-    case 'switcher':
-      return 'text-yellow-900'
-    case 'template':
-      return 'text-sky-800'
-    case 'openaiimage':
-      return 'text-fuchsia-700'
-    case 'tongyiwanx':
-      return 'text-fuchsia-700'
-    case 'google':
-      return 'text-emerald-900'
-    case 'humanfeedback':
-      return 'text-zinc-800'
-    case 'mailsend':
-      return 'text-amber-800'
-    case 'httprequest':
-      return 'text-slate-800'
-    case 'agent':
-      return 'text-indigo-800'
-    case 'database':
-      return 'text-indigo-800'
-    case 'mcp':
-      return 'text-teal-700'
-    case 'skill':
-      return 'text-orange-700'
-    case 'end':
-      return 'text-orange-800'
-    case 'start':
-      return 'text-blue-900'
-    default:
-      return ''
-  }
+  return t(`workflow.componentTitle.${name}`)
 }
 
 /**
- * T3-02：按 7 类节点类型返回色条颜色
+ * T5-03：图标从节点描述文件取（原 switch 硬编码收敛到 descriptor.ts）
+ */
+export function getIconByComponentName(name: string) {
+  return getWfNodeDescriptor(name)?.icon || ''
+}
+
+/**
+ * T5-03：图标颜色 class 从节点描述文件取
+ */
+export function getIconClassByComponentName(name: string) {
+  return getWfNodeDescriptor(name)?.iconClass || ''
+}
+
+/**
+ * T5-03：按 7 类节点类型返回色条颜色 —— 从节点描述文件读取（原 switch 硬编码收敛到 descriptor.ts）
  * 开始 / LLM / 知识库 / 条件 / 输出(结束) / 插件 / 其他
  */
 export function getNodeColorByComponentName(name: string) {
-  switch (name.toLowerCase()) {
-    case 'start':
-      return '#3b82f6' // 开始：蓝
-    case 'answer':
-    case 'classifier':
-    case 'keywordextractor':
-    case 'faqextractor':
-    case 'template':
-      return '#8b5cf6' // LLM：紫
-    case 'knowledgeretrieval':
-    case 'documentextractor':
-      return '#14b8a6' // 知识库：青
-    case 'switcher':
-      return '#f59e0b' // 条件：琥珀
-    case 'end':
-      return '#f43f5e' // 输出/结束：玫红
-    case 'httprequest':
-    case 'mailsend':
-    case 'google':
-    case 'agent':
-    case 'database':
-    case 'mcp':
-    case 'skill':
-    case 'humanfeedback':
-    case 'openaiimage':
-    case 'tongyiwanx':
-      return '#64748b' // 插件/工具：石板灰
-    default:
-      return '#94a3b8'
-  }
+  return getWfNodeDescriptor(name)?.color || '#94a3b8'
 }
 
 /**
