@@ -91,7 +91,8 @@ public class KnowledgeRetrievalNode extends AbstractWfNode {
             //记录检索指标 | Record retrieval metrics
             ((KnowledgeRetrievalMetrics) state.getMetrics()).setRetrievalCount(contents.size());
             for (Content content : contents) {
-                resp.append(content.textSegment().text());
+                // T6-05：检索内容进 prompt 前做注入检测 + 隔离包装（工作流节点与聊天链路同防护）
+                resp.append(com.moyz.adi.common.util.PromptInjectionDefense.isolateRetrieval(content.textSegment().text()));
             }
         } catch (BaseException e) {
             if (B_BREAK_SEARCH.getCode().equals(e.getCode())) {

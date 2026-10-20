@@ -35,6 +35,14 @@ const routes: Array<RouteRecordRaw> = [
         },
         component: () => import('@/views/token-monitor/index.vue'),
       },
+      {
+        path: 'dashboard',
+        name: 'TokenMonitorDashboard',
+        meta: {
+          title: 'route.tokenMonitorDashboard',
+        },
+        component: () => import('@/views/token-monitor/dashboard.vue'),
+      },
     ],
   },
 ]

@@ -8,6 +8,7 @@ import com.moyz.adi.common.dto.RefEmbeddingDto;
 import com.moyz.adi.common.dto.RefGraphDto;
 import com.moyz.adi.common.entity.KbDocument;
 import com.moyz.adi.common.entity.AdiFile;
+import com.moyz.adi.common.entity.AgentTraceSpan;
 import com.moyz.adi.common.entity.AiModel;
 import com.moyz.adi.common.entity.Character;
 import com.moyz.adi.common.entity.CharacterMessage;
@@ -54,6 +55,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import ws.schild.jave.info.MultimediaInfo;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -111,6 +113,9 @@ public class CharacterChatService {
 
     @Resource
     private LLMCallRecordService llmCallRecordService;
+
+    @Resource
+    private AgentTraceSpanService agentTraceSpanService;
 
     @Resource
     private ICharacterMemoryEmbeddingService characterMemoryEmbeddingService;
@@ -261,6 +266,19 @@ public class CharacterChatService {
 
     @Async
     public void asyncCheckAndChat(String sseUuid, User user, AskReq askReq) {
+        // T6-14（2026-10-20）：一次对话调用一个 traceId，贯穿入口→检索→LLM→回复。
+        // 异步线程执行，结束时必须清 MDC，防线程池复用串链路。
+        boolean traceCreated = StringUtils.isBlank(TraceUtil.getTraceId());
+        String traceId = TraceUtil.ensureTraceId();
+        AgentTraceSpan entrySpan = new AgentTraceSpan();
+        entrySpan.setTraceId(traceId);
+        entrySpan.setSpanId(UuidUtil.createShort());
+        entrySpan.setName("chat.ask");
+        entrySpan.setSpanType("entry");
+        entrySpan.setStatus("OK");
+        entrySpan.setStartTime(LocalDateTime.now());
+        entrySpan.setDetail(JsonUtil.toJsonNode("{\"sseUuid\":\"" + sseUuid + "\",\"characterUuid\":\""
+                + StringUtils.defaultString(askReq.getCharacterUuid()) + "\"}"));
         // 整个方法体都必须被兜住。本方法是 @Async，方法内抛出的异常不会回灌到 SSE 流：
         // 客户端既收不到 [ERROR] 也收不到 [DONE]（前端状态永远停在「回复中」），
         // 且 unregister 不会被调用，Redis 并发计数 user:active-sse:{id} 就此泄漏；
@@ -275,9 +293,15 @@ public class CharacterChatService {
             doAsyncCheckAndChat(sseUuid, user, askReq);
         } catch (Exception e) {
             log.error("asyncCheckAndChat failed, userId:{}, sseUuid:{}", user.getId(), sseUuid, e);
+            entrySpan.setStatus("ERROR");
             sseManager.sendErrorAndComplete(user.getId(), sseUuid,
                     StringUtils.defaultIfBlank(e.getMessage(),
                             SpringUtil.getMessage(ErrorEnum.B_UNCAUGHT_ERROR.getInfo())));
+        } finally {
+            entrySpan.setEndTime(LocalDateTime.now());
+            entrySpan.setDurationMs(java.time.Duration.between(entrySpan.getStartTime(), entrySpan.getEndTime()).toMillis());
+            agentTraceSpanService.saveAsync(entrySpan);
+            TraceUtil.clearIfCreated(traceCreated);
         }
     }
 
@@ -588,6 +612,8 @@ public class CharacterChatService {
         callRecord.setUuid(UuidUtil.createShort());
         callRecord.setSourceType(LLMCallRecordSourceType.CHARACTER_CHAT.getValue());
         callRecord.setSourceId(aiAnswer.getId());
+        callRecord.setSourceAgent(StringUtils.defaultIfBlank(character.getTitle(), character.getUuid()));
+        callRecord.setTraceId(TraceUtil.getTraceId());
         callRecord.setUserId(user.getId());
         callRecord.setModelPlatform(modelPlatform);
         callRecord.setModelName(modelName);

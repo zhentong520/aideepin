@@ -69,6 +69,14 @@ VALUES ('tts_setting', '{"synthesizer_side":"client","model_name":"","platform":
 -- INSERT INTO adi_sys_config (name, value)
 -- VALUES ('tts_setting', '{"synthesizer_side":"server","model_name":"FunAudioLLM/CosyVoice2-0.5B","platform":"siliconflow"}');
 
+-- LLM streaming timeout (T6-08, 2026-10-20): hot-configurable via admin system config page.
+-- Unset/absent row falls back to the built-in default of 60s.
+INSERT INTO adi_sys_config (name, value)
+SELECT 'llm_streaming_timeout_seconds', '60'
+WHERE NOT EXISTS (
+    SELECT 1 FROM adi_sys_config WHERE name = 'llm_streaming_timeout_seconds' AND is_deleted = false
+);
+
 -- 模型平台
 insert into adi_model_platform (name, title, base_url)
 values ('openai', 'OpenAI', 'https://api.openai.com/v1');

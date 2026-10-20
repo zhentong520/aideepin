@@ -40,4 +40,11 @@ public class SseAskParam {
      * 进行http请求时最终提交给LLM的信息，必填
      */
     private ChatModelRequest httpRequestParams;
+
+    /**
+     * 二开新增（T6-09，2026-10-20）：同步 chat() 的降级路由守卫。
+     * true 表示本请求已经过一次降级重试，禁止再级联降级（防 A→B→C→… 无限链）。
+     */
+    @Builder.Default
+    private boolean fallbackTried = false;
 }

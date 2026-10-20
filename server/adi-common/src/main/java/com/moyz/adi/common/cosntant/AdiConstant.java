@@ -331,6 +331,21 @@ public class AdiConstant {
         public static final String ASR_SETTING = "asr_setting";
         public static final String TTS_SETTING = "tts_setting";
         public static final String DEFAULT_LOCALE = "default_locale";
+
+        /**
+         * T6-13（铁律 10 开关）：Agent 渠道 LLM 调用记录写入开关，缺省开，
+         * 置为 false 可热停用（不写记录，成本看板 Agent 维度随之无新数据）。
+         */
+        public static final String LLM_COST_RECORD_ENABLED = "llm_cost_record_enabled";
+
+        /**
+         * 二开新增（T6-08，2026-10-20）：LLM streaming 请求超时（秒）。
+         * 走 adi_sys_config 热配置（管理端保存后立即生效），替换各 LLM Service 里
+         * 硬编码的 60s 超时。删除该配置项即回退默认 60s（铁律 10 热回滚位）。
+         * <p>
+         * LLM streaming timeout in seconds (T6-08), hot-configurable via adi_sys_config.
+         */
+        public static final String LLM_STREAMING_TIMEOUT_SECONDS = "llm_streaming_timeout_seconds";
     }
 
     public static final String[] POI_DOC_TYPES = {"doc", "docx", "ppt", "pptx", "xls", "xlsx"};

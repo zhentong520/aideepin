@@ -24,7 +24,10 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static com.moyz.adi.common.util.LogSanitizer.sanitize;
 
 /**
  * Agent Skills 内置工具：read_skill / read_skill_file / run_skill_script / create_skill。
@@ -61,7 +64,28 @@ public class SkillToolService {
     public record SkillBundle(String manifest, List<ToolSpecification> toolSpecifications, Map<String, Skill> skills) {
     }
 
+    /**
+     * 兼容旧签名：全量注入（不按任务相关性过滤）。
+     */
     public SkillBundle prepare(List<Skill> skills) {
+        return prepare(skills, null);
+    }
+
+    /**
+     * 二开新增（T6-07，2026-10-20）：技能描述按需注入。
+     * <p>
+     * 绑定技能较多时，全量描述进 prompt 会浪费 token 且稀释模型注意力。
+     * 开关 adi.skill.on-demand-injection-enabled（默认 true）开启时：
+     * 按当前任务文本（query）与技能 name/title/description 的关键词重合度打分，
+     * 只注入 top-k（adi.skill.injection-top-k，默认 8）条描述。
+     * 所有分数为 0（无任何相关性信号）时保守回退为全量注入，避免误伤召回。
+     * 绑定技能数不超过 top-k 时行为与全量注入一致。
+     */
+    public SkillBundle prepare(List<Skill> skills, String query) {
+        return prepareInternal(selectRelevantSkills(skills, query));
+    }
+
+    private SkillBundle prepareInternal(List<Skill> skills) {
         List<ToolSpecification> specs = new ArrayList<>();
         Map<String, Skill> skillMap = new LinkedHashMap<>();
         String manifest = "";
@@ -86,6 +110,104 @@ public class SkillToolService {
         manifest = sb.toString();
         specs = buildToolSpecifications();
         return new SkillBundle(manifest, specs, skillMap);
+    }
+
+    /**
+     * T6-07：按任务相关性选择注入的技能。开关关闭 / query 为空 / 数量未超 top-k /
+     * 全部分数为 0 时原样返回（全量注入）。
+     */
+    public List<Skill> selectRelevantSkills(List<Skill> skills, String query) {
+        if (null == skills || skills.isEmpty()) {
+            return skills;
+        }
+        boolean enabled = true;
+        int topK = 8;
+        try {
+            com.moyz.adi.common.config.AdiProperties props = SpringUtil.getBean(com.moyz.adi.common.config.AdiProperties.class);
+            enabled = props.getSkill().isOnDemandInjectionEnabled();
+            topK = props.getSkill().getInjectionTopK();
+        } catch (Exception ignored) {
+            // 无 Spring 上下文，走默认值
+        }
+        if (!enabled || StringUtils.isBlank(query) || skills.size() <= topK) {
+            return skills;
+        }
+        List<String> tokens = tokenize(query);
+        if (tokens.isEmpty()) {
+            return skills;
+        }
+        List<Skill> selected = new ArrayList<>();
+        for (Skill skill : skills) {
+            if (selected.size() < topK) {
+                selected.add(skill);
+            }
+        }
+        // 打分排序（稳定排序：同分保持原顺序，保证行为可预期可测试）
+        List<Skill> ranked = new ArrayList<>(skills);
+        ranked.sort((a, b) -> Integer.compare(scoreRelevance(b, tokens), scoreRelevance(a, tokens)));
+        int maxScore = scoreRelevance(ranked.get(0), tokens);
+        if (maxScore <= 0) {
+            // 无任何相关性信号 → 保守回退全量注入（防误伤召回）
+            return skills;
+        }
+        List<Skill> result = new ArrayList<>();
+        for (Skill skill : ranked) {
+            if (result.size() >= topK) {
+                break;
+            }
+            result.add(skill);
+        }
+        log.info("skill on-demand injection, total:{}, selected:{}, topK:{}, queryTokens:{}",
+                skills.size(), result.size(), topK, tokens.size());
+        return result;
+    }
+
+    /**
+     * T6-07：单个技能与查询 token 的相关度打分（公开便于单测）。
+     * name 命中权重 5、title 3、description 1。
+     */
+    public static int scoreRelevance(Skill skill, List<String> queryTokens) {
+        if (null == skill || null == queryTokens || queryTokens.isEmpty()) {
+            return 0;
+        }
+        String name = StringUtils.defaultString(skill.getName()).toLowerCase();
+        String title = StringUtils.defaultString(skill.getTitle()).toLowerCase();
+        String desc = StringUtils.defaultString(skill.getDescription()).toLowerCase();
+        int score = 0;
+        for (String token : queryTokens) {
+            if (name.contains(token)) {
+                score += 5;
+            }
+            if (title.contains(token)) {
+                score += 3;
+            }
+            if (desc.contains(token)) {
+                score += 1;
+            }
+        }
+        return score;
+    }
+
+    /**
+     * T6-07：查询分词——英文/数字词（>=2 位）+ 中文 2-gram。
+     */
+    public static List<String> tokenize(String query) {
+        List<String> tokens = new ArrayList<>();
+        if (StringUtils.isBlank(query)) {
+            return tokens;
+        }
+        Matcher word = Pattern.compile("[a-zA-Z0-9]{2,}").matcher(query);
+        while (word.find()) {
+            tokens.add(word.group().toLowerCase());
+        }
+        Matcher zh = Pattern.compile("[\\u4e00-\\u9fa5]+").matcher(query);
+        while (zh.find()) {
+            String seg = zh.group();
+            for (int i = 0; i < seg.length() - 1; i++) {
+                tokens.add(seg.substring(i, i + 2));
+            }
+        }
+        return tokens;
     }
 
     public List<ToolSpecification> buildToolSpecifications() {
@@ -154,7 +276,8 @@ public class SkillToolService {
         try {
             args = MAPPER.readTree(StringUtils.defaultIfBlank(request.arguments(), "{}"));
         } catch (IOException e) {
-            log.warn("create_skill arguments parse failed:{}", request.arguments());
+            // T6-12：参数可能含密钥/长文本，日志统一脱敏+截断
+            log.warn("create_skill arguments parse failed:{}", sanitize(request.arguments()));
             return "ERROR: invalid arguments";
         }
         String name = args.path("name").asText("").trim();
@@ -189,7 +312,8 @@ public class SkillToolService {
         try {
             args = MAPPER.readTree(StringUtils.defaultIfBlank(request.arguments(), "{}"));
         } catch (IOException e) {
-            log.warn("Skill tool arguments parse failed:{}", request.arguments());
+            // T6-12：参数可能含密钥/长文本，日志统一脱敏+截断
+            log.warn("Skill tool arguments parse failed:{}", sanitize(request.arguments()));
             return "ERROR: invalid arguments";
         }
         String name = args.path("name").asText("");

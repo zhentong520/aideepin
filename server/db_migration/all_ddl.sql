@@ -423,6 +423,8 @@ CREATE TABLE adi_llm_call_record
     output_tokens  integer      not null default 0,
     duration       integer      not null default 0,
     request_time   timestamp    not null default CURRENT_TIMESTAMP,
+    source_agent   varchar(200) not null default '',
+    trace_id       varchar(64)  not null default '',
     create_time    timestamp    not null default CURRENT_TIMESTAMP,
     update_time    timestamp    not null default CURRENT_TIMESTAMP,
     is_deleted     boolean      not null default false
@@ -442,6 +444,69 @@ COMMENT ON COLUMN adi_llm_call_record.input_tokens IS 'Input token count';
 COMMENT ON COLUMN adi_llm_call_record.output_tokens IS 'Output token count';
 COMMENT ON COLUMN adi_llm_call_record.duration IS 'Call duration in ms';
 COMMENT ON COLUMN adi_llm_call_record.request_time IS 'Request start time';
+COMMENT ON COLUMN adi_llm_call_record.source_agent IS 'Source agent/channel name (agent title, blank for non-agent sources)';
+COMMENT ON COLUMN adi_llm_call_record.trace_id IS 'Full-chain trace id shared by all spans of one conversation call';
+CREATE INDEX idx_llm_call_record_trace ON adi_llm_call_record(trace_id);
+CREATE INDEX idx_llm_call_record_source_agent ON adi_llm_call_record(source_agent);
+
+-- ============================================================
+-- Observability: model price + agent trace span (T6-13/T6-14)
+-- ============================================================
+
+CREATE TABLE adi_model_price
+(
+    id            bigserial primary key,
+    model_name    varchar(100)   not null,
+    model_platform varchar(50)   not null default '',
+    input_price   numeric(12,6)  not null default 0,
+    output_price  numeric(12,6)  not null default 0,
+    currency      varchar(10)    not null default 'CNY',
+    price_unit    varchar(20)    not null default '1k_tokens',
+    create_time   timestamp      not null default CURRENT_TIMESTAMP,
+    update_time   timestamp      not null default CURRENT_TIMESTAMP,
+    is_deleted    boolean        not null default false
+);
+
+CREATE UNIQUE INDEX uk_model_price_model ON adi_model_price(model_name, model_platform) WHERE is_deleted = false;
+
+COMMENT ON TABLE adi_model_price IS 'Model unit price for cost dashboard: cost = tokens * price';
+COMMENT ON COLUMN adi_model_price.model_name IS 'Model name, joins adi_llm_call_record.model_name';
+COMMENT ON COLUMN adi_model_price.model_platform IS 'Model platform name (blank matches all platforms)';
+COMMENT ON COLUMN adi_model_price.input_price IS 'Price per unit of input tokens';
+COMMENT ON COLUMN adi_model_price.output_price IS 'Price per unit of output tokens';
+COMMENT ON COLUMN adi_model_price.currency IS 'Currency code, e.g. CNY / USD';
+COMMENT ON COLUMN adi_model_price.price_unit IS 'Price unit: 1k_tokens or 1m_tokens';
+
+CREATE TABLE adi_agent_trace_span
+(
+    id              bigserial primary key,
+    trace_id        varchar(64)  not null default '',
+    span_id         varchar(64)  not null default '',
+    parent_span_id  varchar(64)  not null default '',
+    name            varchar(128) not null default '',
+    span_type       varchar(32)  not null default '',
+    status          varchar(16)  not null default 'OK',
+    start_time      timestamp    not null default CURRENT_TIMESTAMP,
+    end_time        timestamp    null,
+    duration_ms     bigint       not null default 0,
+    detail          jsonb        not null default '{}'::jsonb,
+    create_time     timestamp    not null default CURRENT_TIMESTAMP,
+    update_time     timestamp    not null default CURRENT_TIMESTAMP,
+    is_deleted      boolean      not null default false
+);
+
+CREATE INDEX idx_agent_trace_span_trace ON adi_agent_trace_span(trace_id);
+CREATE INDEX idx_agent_trace_span_time ON adi_agent_trace_span(start_time);
+
+COMMENT ON TABLE adi_agent_trace_span IS 'Lightweight agent trace span: one conversation call = one trace_id with ordered spans';
+COMMENT ON COLUMN adi_agent_trace_span.trace_id IS 'Trace id shared by all spans of one conversation call';
+COMMENT ON COLUMN adi_agent_trace_span.span_id IS 'Span unique id in this trace';
+COMMENT ON COLUMN adi_agent_trace_span.parent_span_id IS 'Parent span id, empty for root';
+COMMENT ON COLUMN adi_agent_trace_span.name IS 'Span name, e.g. agent.invoke / rag.retrieve / llm.chat / tools.attach';
+COMMENT ON COLUMN adi_agent_trace_span.span_type IS 'Span type: entry/retrieval/llm/tool/other';
+COMMENT ON COLUMN adi_agent_trace_span.status IS 'OK or ERROR';
+COMMENT ON COLUMN adi_agent_trace_span.duration_ms IS 'Span duration in ms';
+COMMENT ON COLUMN adi_agent_trace_span.detail IS 'Extra detail json, e.g. token counts, model name';
 
 -- ============================================================
 -- File & Prompt: file storage and prompt templates

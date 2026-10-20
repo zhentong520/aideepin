@@ -11,6 +11,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * ARCH-01（2026-10-16）：启动期配置校验。
  * 此前 40+ 字段无校验，写错（如 embeddingBatchSize 超平台上限、cooldown 为 0）
@@ -100,6 +106,30 @@ public class AdiProperties {
     private Wf wf = new Wf();
 
     /**
+     * 二开新增（T6-05/T6-06，2026-10-20）：聊天/Agent 行为配置（铁律 10：行为改动必须带开关，可热回滚）。
+     */
+    @Valid
+    private Chat chat = new Chat();
+
+    /**
+     * 二开新增（T6-07，2026-10-20）：技能注入配置。
+     */
+    @Valid
+    private Skill skill = new Skill();
+
+    /**
+     * 二开新增（T6-08/T6-09，2026-10-20）：LLM 容错与降级路由配置。
+     */
+    @Valid
+    private Llm llm = new Llm();
+
+    /**
+     * 二开新增（T6-10，2026-10-20）：Agent/工具循环预算配置。
+     */
+    @Valid
+    private Agent agent = new Agent();
+
+    /**
      * 工作流行为开关配置（adi.wf.*，T3-10/T3-13）。
      */
     @Data
@@ -129,6 +159,124 @@ public class AdiProperties {
          * rendering keeps the legacy lenient behavior.
          */
         private boolean fieldRefEnabled = true;
+    }
+
+    /**
+     * 聊天/Agent 行为配置（adi.chat.*，T6-05/T6-06）。
+     */
+    @Data
+    public static class Chat {
+
+        /**
+         * 提示注入防御开关（adi.chat.prompt-injection-defense-enabled，默认 true）。
+         * false 时检索内容不做隔离包装、不做注入检测，行为与历史版本一致（铁律 10 热回滚位）。
+         * <p>
+         * Prompt-injection defense switch (semantic layer, T6-05). When off, retrieved
+         * content is injected into prompts verbatim as before.
+         */
+        private boolean promptInjectionDefenseEnabled = true;
+
+        /**
+         * 长对话摘要压缩开关（adi.chat.summarize-enabled，默认 true）。
+         * 历史消息估算 token 超过阈值时自动摘要压缩；⚠️ 系统提示词永远保留原样，
+         * 只压缩历史轮次（identity-guard 教训：压缩绝不能吃掉系统提示词）。
+         * <p>
+         * Long-conversation summarize-compression switch (T6-06). The system message is
+         * always kept verbatim; only history turns are compressed.
+         */
+        private boolean summarizeEnabled = true;
+
+        /**
+         * 摘要压缩触发阈值（adi.chat.summarize-token-threshold，默认 8000 token）。
+         * 历史消息（不含系统提示词）估算 token 超过该值时触发压缩。
+         */
+        @Min(value = 1000, message = "adi.chat.summarize-token-threshold 必须 >= 1000")
+        private int summarizeTokenThreshold = 8000;
+
+        /**
+         * 压缩时保留不压缩的最近消息条数（adi.chat.summarize-keep-recent-messages，默认 4）。
+         */
+        @Min(value = 2, message = "adi.chat.summarize-keep-recent-messages 至少保留 2 条")
+        private int summarizeKeepRecentMessages = 4;
+    }
+
+    /**
+     * 技能注入配置（adi.skill.*，T6-07）。
+     */
+    @Data
+    public static class Skill {
+
+        /**
+         * 技能描述按需注入开关（adi.skill.on-demand-injection-enabled，默认 true）。
+         * true 时技能清单按当前任务相关性检索后只注入 top-k 条描述，不再全量进 prompt；
+         * false 时全量注入（历史行为）。
+         * <p>
+         * On-demand skill injection switch (T6-07). When on, only the top-k most
+         * task-relevant skill descriptions are injected into the prompt.
+         */
+        private boolean onDemandInjectionEnabled = true;
+
+        /**
+         * 按需注入的最大技能条数（adi.skill.injection-top-k，默认 8）。
+         * 绑定技能数不超过该值时全量注入（不改变小场景行为）。
+         */
+        @Min(value = 1, message = "adi.skill.injection-top-k 必须 >= 1")
+        private int injectionTopK = 8;
+    }
+
+    /**
+     * LLM 容错与降级路由配置（adi.llm.*，T6-08/T6-09）。
+     */
+    @Data
+    public static class Llm {
+
+        /**
+         * 模型降级路由开关（adi.llm.fallback-enabled，默认 true）。
+         * RETRIABLE 错误按降级链重试备用模型；PERMANENT 错误直接报错不浪费额度（T6-09）。
+         * <p>
+         * LLM fallback routing switch (T6-09). RETRIABLE errors walk the fallback chain;
+         * PERMANENT errors (401/403/400/config) fail fast without burning quota.
+         */
+        private boolean fallbackEnabled = true;
+
+        /**
+         * 降级模型链（adi.llm.fallback-models，按顺序尝试的备用模型名列表）。
+         * 留空表示未配置降级链（只做同模型重试，不跨模型降级）。
+         */
+        private List<String> fallbackModels = new ArrayList<>();
+
+        /**
+         * streaming 首 token 前的同模型重试次数（adi.llm.stream-same-model-retries，默认 1）。
+         * ⚠️ 首 token 输出后绝不重试（会产生重复输出），此值只作用于首 token 之前（T6-08）。
+         */
+        @Min(value = 0, message = "adi.llm.stream-same-model-retries 必须 >= 0")
+        private int streamSameModelRetries = 1;
+    }
+
+    /**
+     * Agent/工具循环预算配置（adi.agent.*，T6-10）。
+     */
+    @Data
+    public static class Agent {
+
+        /**
+         * 工具循环最大深度（次）（adi.agent.tool-loop-max-depth，默认 5，与历史硬编码一致）。
+         */
+        @Min(value = 1, message = "adi.agent.tool-loop-max-depth 必须 >= 1")
+        private int toolLoopMaxDepth = 5;
+
+        /**
+         * 工具循环墙钟时间上限（秒）（adi.agent.tool-loop-max-seconds，默认 300）。
+         */
+        @Min(value = 10, message = "adi.agent.tool-loop-max-seconds 必须 >= 10")
+        private int toolLoopMaxSeconds = 300;
+
+        /**
+         * 工具循环 token 累计上限（adi.agent.tool-loop-max-tokens，默认 200000）。
+         * 覆盖循环内所有 LLM 调用（含中间工具调用步骤）的 input+output token 之和。
+         */
+        @Min(value = 1000, message = "adi.agent.tool-loop-max-tokens 必须 >= 1000")
+        private int toolLoopMaxTokens = 200000;
     }
 
     /**
@@ -204,6 +352,21 @@ public class AdiProperties {
      */
     @Data
     public static class Kb {
+
+        /**
+         * 入库分块统一开关（adi.kb.unified-chunking，默认 true，T6-03）。
+         * <p>
+         * true 时所有知识库入库入口统一使用 025 实测参数：sentence_cn / 512 / overlap=0
+         * （此前 qa 生成路径自用 1500 token 分块，与其余入口不一致）；
+         * false 时保留历史行为（qa 生成按库策略 + 1500 token），用于回滚对照。
+         * 只影响新索引；已生成的块与向量不受影响，无需重建即可回滚。
+         * <p>
+         * Unified chunking switch. When on, every KB ingestion entry shares the measured
+         * 025 parameters (sentence_cn / 512 / overlap=0); the QA-generation path used to
+         * chunk at 1500 tokens on its own. Turning it off restores the legacy behaviour
+         * without rebuilding any index.
+         */
+        private boolean unifiedChunking = true;
 
         /**
          * ACL 过滤开关（adi.kb.acl.enabled，默认 false）。

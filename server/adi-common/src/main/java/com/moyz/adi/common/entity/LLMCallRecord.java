@@ -53,4 +53,12 @@ public class LLMCallRecord extends BaseEntity {
     @Schema(title = "请求发起时间 | Request start time")
     @TableField("request_time")
     private java.time.LocalDateTime requestTime;
+
+    @Schema(title = "来源Agent/渠道名，非Agent来源为空（T6-13） | Source agent/channel name")
+    @TableField("source_agent")
+    private String sourceAgent;
+
+    @Schema(title = "全链路traceId（T6-14） | Full-chain trace id")
+    @TableField("trace_id")
+    private String traceId;
 }

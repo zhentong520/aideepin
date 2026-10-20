@@ -6,6 +6,7 @@ import com.moyz.adi.common.entity.AiModel;
 import com.moyz.adi.common.entity.ModelPlatform;
 import com.moyz.adi.common.enums.ErrorEnum;
 import com.moyz.adi.common.exception.BaseException;
+import com.moyz.adi.common.util.StreamingTimeout;
 import com.moyz.adi.common.vo.ChatModelBuilderProperties;
 import com.moyz.adi.common.languagemodel.data.LLMException;
 import dev.langchain4j.http.client.jdk.JdkHttpClient;
@@ -79,7 +80,7 @@ public class OpenAiLLMService extends AbstractLLMService {
                 .modelName(aiModel.getName())
                 .temperature(temperature)
                 .apiKey(platform.getApiKey())
-                .timeout(Duration.of(60, ChronoUnit.SECONDS));
+                .timeout(StreamingTimeout.get()); // T6-08：超时热配置化（adi_sys_config: llm_streaming_timeout_seconds，默认 60s）
         if (null != proxyAddress && platform.getIsProxyEnable()) {
             HttpClient.Builder httpClientBuilder = HttpClient.newBuilder().proxy(ProxySelector.of(proxyAddress));
             builder.httpClientBuilder(JdkHttpClient.builder().httpClientBuilder(httpClientBuilder));

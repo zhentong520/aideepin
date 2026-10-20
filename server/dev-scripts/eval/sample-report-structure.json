@@ -1,0 +1,78 @@
+{
+  "_comment": "T6-01 评测报告结构示例（仅展示 schema，数字为占位符，不是任何真实跑分结果）。真实报告由 EvalReportWriter 落盘到 reports/eval-<时间戳>.json。",
+  "meta": {
+    "runId": "20261020-143000",
+    "startedAt": "2026-10-20T14:30:00",
+    "finishedAt": "2026-10-20T14:32:11",
+    "datasetSize": 34,
+    "config": {
+      "kbUuid": "<被评测知识库 uuid>",
+      "topK": 0,
+      "withGeneration": false,
+      "overlapOverride": -1,
+      "segmentSizeOverride": -1,
+      "hybridOverride": null,
+      "rerankOverride": null,
+      "notes": "sentence_cn/512/overlap=0 baseline"
+    },
+    "env": {
+      "runner": "QaEvalMain",
+      "embeddingModel": "<平台:模型名>",
+      "backend": "live"
+    }
+  },
+  "metrics": {
+    "accuracy": 0.0,
+    "recall": 0.0,
+    "refusalAccuracy": 0.0,
+    "factCount": 18,
+    "multiHopCount": 7,
+    "refusalCount": 9,
+    "perType": {
+      "fact": {"count": 18, "accuracy": 0.0, "recall": 0.0, "refusalAccuracy": 0.0, "errored": 0},
+      "multi_hop": {"count": 7, "accuracy": 0.0, "recall": 0.0, "refusalAccuracy": 0.0, "errored": 0},
+      "refusal": {"count": 9, "accuracy": 0.0, "recall": 0.0, "refusalAccuracy": 0.0, "errored": 0}
+    }
+  },
+  "items": [
+    {
+      "id": "f01",
+      "type": "fact",
+      "question": "重新切分子块会有什么后果？",
+      "snippetCovered": [true],
+      "contextRecall": 1.0,
+      "sourceHit": true,
+      "refused": false,
+      "refusalCorrect": true,
+      "refusalExpected": false,
+      "retrievedCount": 5,
+      "detail": ""
+    },
+    {
+      "id": "h01",
+      "type": "multi_hop",
+      "question": "知识库的向量索引和图谱索引各自擅长什么？知识图谱适合回答哪类问题？",
+      "snippetCovered": [true, false],
+      "contextRecall": 0.5,
+      "sourceHit": false,
+      "refused": false,
+      "refusalCorrect": true,
+      "refusalExpected": false,
+      "retrievedCount": 6,
+      "detail": "missing: [1]适合多跳关联类问题"
+    },
+    {
+      "id": "r04",
+      "type": "refusal",
+      "question": "法国的首都是哪座城市？",
+      "snippetCovered": [],
+      "contextRecall": null,
+      "sourceHit": null,
+      "refused": true,
+      "refusalCorrect": true,
+      "refusalExpected": true,
+      "retrievedCount": 0,
+      "detail": ""
+    }
+  ]
+}

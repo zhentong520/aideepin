@@ -93,7 +93,14 @@ public class DocumentQaModeService {
             + "Generate at most 5 pairs.\n"
             + "Text:\n{input_text}";
 
-    private static final int GENERATE_CHUNK_SIZE = 1500;
+    static final int GENERATE_CHUNK_SIZE = 1500;
+
+    /**
+     * T6-03：统一分块开关打开时 qa 生成路径使用的段大小，与 025 实测参数（sentence_cn/512/overlap=0）
+     * 及普通文档路径的默认值保持一致。此前本路径自用 {@link #GENERATE_CHUNK_SIZE}=1500，
+     * 是全部知识库入库入口里唯一另立参数的一个。
+     */
+    static final int UNIFIED_CHUNK_SIZE = 512;
 
     @Resource
     private DocumentSegmentService documentSegmentService;
@@ -115,6 +122,9 @@ public class DocumentQaModeService {
 
     @Resource
     private KnowledgeBaseMapper knowledgeBaseMapper;
+
+    @Resource
+    private com.moyz.adi.common.config.AdiProperties adiProperties;
 
     // @Lazy: indexTaskService's dependency graph may point back at this service's callers
     // (KbDocumentService); lazy injection breaks the cycle
@@ -399,18 +409,29 @@ public class DocumentQaModeService {
                     .temperature(kb.getQueryLlmTemperature())
                     .build());
 
-            DocumentSplitter splitter = DocumentSplitterFactory.create(
-                    kb.getIngestSplitStrategy(),
-                    GENERATE_CHUNK_SIZE,
-                    kb.getIngestMaxOverlap(),
-                    kb.getIngestCustomSeparator(),
-                    TokenEstimatorFactory.create(kb.getIngestTokenEstimator()));
+            // T6-03：qa 生成路径的分块统一。入库入口审计（grep 全部切分调用点）：
+            //   1) 普通文档 TEXT/PARENT_CHILD/子块 → SegmentIndexService，走库配置
+            //      （DocumentSplitterFactory.create(kb,…)），025 已把默认收敛 sentence_cn/512/0；
+            //   2) graph 路径 → IndexTaskService.executeDocumentGraphical 经 ensureSegments
+            //      复用上面的段行，不自行切分；
+            //   3) qa 生成路径 → 本方法，历史上自用 1500 token + 库策略，是唯一另立参数的入口；
+            //   4) 角色记忆（SemanticMemoryService）不是知识库入库路径，参数刻意保留不动。
+            // 开关打开时本路径与其余入口统一为 025 实测参数；关闭时保留旧行为作回滚对照。
+            boolean unifiedChunking = adiProperties.getKb().isUnifiedChunking();
+            DocumentSplitter splitter = resolveQaGenerateSplitter(unifiedChunking, kb);
             Metadata metadata = new Metadata();
             metadata.put(AdiConstant.MetadataKey.KB_UUID, kb.getUuid());
             metadata.put(AdiConstant.MetadataKey.KB_ITEM_UUID, doc.getUuid());
             // 二开（T1-04，2026-10-16）：QA 问题向量化同样固化库级 ACL，规则与 SegmentIndexService 一致
             KbAclMetadata.inject(metadata, kb);
-            List<TextSegment> chunks = splitter.split(new DefaultDocument(doc.getRemark(), metadata));
+            // 切分器异常降级为字符窗口硬切，与 SegmentIndexService 同口径：宁可切得丑也要跑出块
+            DocumentSplitterFactory.SplitOutcome outcome = DocumentSplitterFactory.splitSafely(
+                    new DefaultDocument(doc.getRemark(), metadata), splitter,
+                    unifiedChunking ? UNIFIED_CHUNK_SIZE : GENERATE_CHUNK_SIZE);
+            if (null != outcome.warning()) {
+                log.warn("QA generate split degraded, docUuid:{}, reason:{}", doc.getUuid(), outcome.warning());
+            }
+            List<TextSegment> chunks = outcome.segments();
 
             List<QaPair> pairs = new ArrayList<>();
             for (TextSegment chunk : chunks) {
@@ -490,6 +511,25 @@ public class DocumentQaModeService {
                 .set(KbDocument::getEmbeddingStatusChangeTime, java.time.LocalDateTime.now())
                 .set(KbDocument::getFailReason, StringUtils.abbreviate("qa_generate: " + reason, 500))
                 .update();
+    }
+
+    /**
+     * qa 生成路径的切分器解析（T6-03，静态以便单测离线断言）：
+     * <ul>
+     *   <li>统一开关开：sentence_cn / 512 / overlap=0（025 实测参数，与普通文档路径默认一致），
+     *       token 估算器仍取库配置（嵌入口径随库）；</li>
+     *   <li>统一开关关（回滚对照）：历史行为 = 库策略 / 1500 token / 库 overlap / 库自定义分隔符。</li>
+     * </ul>
+     */
+    static DocumentSplitter resolveQaGenerateSplitter(boolean unifiedChunking, KnowledgeBase kb) {
+        if (unifiedChunking) {
+            return DocumentSplitterFactory.create(AdiConstant.SplitStrategy.SENTENCE_CN,
+                    UNIFIED_CHUNK_SIZE, 0, null,
+                    TokenEstimatorFactory.create(kb.getIngestTokenEstimator()));
+        }
+        return DocumentSplitterFactory.create(kb.getIngestSplitStrategy(),
+                GENERATE_CHUNK_SIZE, kb.getIngestMaxOverlap(), kb.getIngestCustomSeparator(),
+                TokenEstimatorFactory.create(kb.getIngestTokenEstimator()));
     }
 
     /**

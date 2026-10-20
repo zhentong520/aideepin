@@ -234,15 +234,18 @@ public class CharacterChatHelper {
             }
             if (AdiConstant.RetrieveContentFrom.CHARACTER_MEMORY.equals(retrieveType)) {
                 for (Content content : response) {
-                    semanticMemory.append("- ").append(content.textSegment().text()).append("\n");
+                    // T6-05：检索内容（含记忆）进 prompt 前做注入检测 + 隔离包装
+                    semanticMemory.append("- ").append(PromptInjectionDefense.isolateRetrieval(content.textSegment().text())).append("\n");
                 }
             } else if (AdiConstant.RetrieveContentFrom.CHARACTER_MEMORY_EPISODIC.equals(retrieveType)) {
                 for (Content content : response) {
-                    episodicMemory.append("- ").append(content.textSegment().text()).append("\n");
+                    // T6-05：同上
+                    episodicMemory.append("- ").append(PromptInjectionDefense.isolateRetrieval(content.textSegment().text())).append("\n");
                 }
             } else if (AdiConstant.RetrieveContentFrom.KNOWLEDGE_BASE.equals(retrieveType)) {
                 for (Content content : response) {
-                    knowledge.append(content.textSegment().text()).append("\n");
+                    // T6-05：知识库检索内容是注入风险最高的通道（外部文档），强制隔离包装
+                    knowledge.append(PromptInjectionDefense.isolateRetrieval(content.textSegment().text())).append("\n");
                 }
             }
         });
@@ -301,6 +304,8 @@ public class CharacterChatHelper {
         }
 
         //User message
+        // T6-05：用户输入侧做注入检测（只记日志+告警计数，不改写用户语义）
+        PromptInjectionDefense.detectAndReportUserInput(userPrompt);
         builder.userMessage(userPrompt);
 
         //Image URLs (multimodal)
@@ -326,7 +331,8 @@ public class CharacterChatHelper {
             SkillService skillService = SpringUtil.getBean(SkillService.class);
             List<Long> skillIds = AdiStringUtil.stringToList(character.getSkillIds(), ",", Long::parseLong);
             List<Skill> skills = skillService.listEnabledByIds(skillIds);
-            SkillToolService.SkillBundle bundle = skillToolService.prepare(skills);
+            // T6-07：技能描述按当前任务（userPrompt）相关性按需注入，不再全量进 prompt
+            SkillToolService.SkillBundle bundle = skillToolService.prepare(skills, userPrompt);
             if (StringUtils.isNotBlank(bundle.manifest())) {
                 skillManifest = bundle.manifest();
                 builder.skillBundle(bundle);

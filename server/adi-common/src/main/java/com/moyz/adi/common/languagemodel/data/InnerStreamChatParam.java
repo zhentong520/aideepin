@@ -39,4 +39,44 @@ public class InnerStreamChatParam {
     private User user;
     @Builder.Default
     private int toolCallDepth = 0;
+
+    // ==================== T6-08/T6-09/T6-10 二开新增（2026-10-20） ====================
+
+    /**
+     * T6-08：是否已向客户端输出首 token（含 thinking 片段）。
+     * ⚠️ 一旦为 true，超时/错误后只中止不重试——重试会产生重复输出。
+     */
+    @Builder.Default
+    private java.util.concurrent.atomic.AtomicBoolean firstTokenSent = new java.util.concurrent.atomic.AtomicBoolean(false);
+
+    /**
+     * T6-08/T6-09：streaming 已尝试次数（首次失败后 = 1），供 StreamingRetryPolicy 决策。
+     */
+    @Builder.Default
+    private int streamAttempt = 0;
+
+    /**
+     * T6-09：本次请求已尝试过的模型名（含主模型），降级链选下一个备用模型时排除。
+     */
+    @Builder.Default
+    private java.util.Set<String> triedModels = new java.util.LinkedHashSet<>();
+
+    /**
+     * T6-08/T6-09：构建 StreamingChatModel 用的模型属性（降级切换时重建模型需要）。
+     */
+    private com.moyz.adi.common.vo.ChatModelBuilderProperties modelProperties;
+
+    /**
+     * T6-10：工具循环三重预算（深度 + 墙钟时间 + token 累计）。
+     */
+    @Builder.Default
+    private ToolLoopBudget toolLoopBudget = ToolLoopBudget.fromConfig();
+
+    public void markFirstToken() {
+        firstTokenSent.set(true);
+    }
+
+    public boolean isFirstTokenSent() {
+        return firstTokenSent.get();
+    }
 }

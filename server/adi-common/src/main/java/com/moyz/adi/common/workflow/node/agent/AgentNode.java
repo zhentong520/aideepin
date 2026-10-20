@@ -100,6 +100,16 @@ public class AgentNode extends AbstractWfNode {
         if (config.getModelPlatform() != null) {
             metrics.setModelPlatform(config.getModelPlatform());
         }
+        // T6-14 指标补全
+        metrics.setLlmCallCount(result.getLlmCallCount() == null ? 1 : result.getLlmCallCount());
+        metrics.setTotalTokens(result.getTotalTokens() == null
+                ? (result.getInputTokens() == null ? 0 : result.getInputTokens())
+                + (result.getOutputTokens() == null ? 0 : result.getOutputTokens())
+                : result.getTotalTokens());
+        metrics.setToolCallCount(result.getToolCallCount() == null ? 0 : result.getToolCallCount());
+        metrics.setLlmDurationMs(result.getLlmDurationMs() == null ? 0L : result.getLlmDurationMs());
+        metrics.setDegradedCount(result.getDegradedCount() == null ? 0 : result.getDegradedCount());
+        metrics.setBudgetAbortCount(result.getBudgetAbortCount() == null ? 0 : result.getBudgetAbortCount());
 
         return NodeProcessResult.builder()
                 .content(List.of(NodeIOData.createByText(DEFAULT_OUTPUT_PARAM_NAME, "", result.getAnswer())))

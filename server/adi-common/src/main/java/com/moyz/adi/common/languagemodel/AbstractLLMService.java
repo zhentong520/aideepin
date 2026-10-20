@@ -11,6 +11,7 @@ import com.moyz.adi.common.helper.SseManager;
 import com.moyz.adi.common.helper.TtsModelContext;
 import com.moyz.adi.common.interfaces.TriConsumer;
 import com.moyz.adi.common.languagemodel.data.InnerStreamChatParam;
+import com.moyz.adi.common.languagemodel.data.ToolLoopBudget;
 import com.moyz.adi.common.languagemodel.data.LLMException;
 import com.moyz.adi.common.languagemodel.data.LLMResponseContent;
 import com.moyz.adi.common.memory.shortterm.MapDBChatMemoryStore;
@@ -125,7 +126,11 @@ public abstract class AbstractLLMService extends CommonModelService {
             tmpProperties.setTemperature(0.7);
             log.info("llmBuilderProperties is null, set default temperature:{}", tmpProperties.getTemperature());
         }
-        if (null == tmpProperties.getTemperature() || tmpProperties.getTemperature() <= 0 || tmpProperties.getTemperature() > 1) {
+        // 二开（T6-11，2026-10-20）语义修复：temperature == 0 是合法且常用的取值（确定性输出），
+        // 原判断 `<= 0` 会把 0 静默覆盖成 0.7，导致同步链路（Agent 节点/QA 等 chat() 路径）
+        // 与流式链路（getTemperatureWithDefault 允许 0）行为不一致——配置 0 实际采样 0.7。
+        // 修复后：仅 null / <0 / >1 视为非法，两条链路对 0 的语义一致。
+        if (null == tmpProperties.getTemperature() || tmpProperties.getTemperature() < 0 || tmpProperties.getTemperature() > 1) {
             tmpProperties.setTemperature(0.7);
             log.info("llmBuilderProperties temperature is invalid, set default temperature:{}", tmpProperties.getTemperature());
         }
@@ -203,6 +208,9 @@ public abstract class AbstractLLMService extends CommonModelService {
                 .characterUuid(httpRequestParams.getCharacterUuid())
                 .answerContentType(params.getAnswerContentType())
                 .consumer(consumer)
+                // T6-08/T6-09：降级切换时需要用同一份 modelProperties 重建备用模型的 StreamingChatModel
+                .modelProperties(modelProperties)
+                // T6-10：三重预算（深度+墙钟+token），InnerStreamChatParam 字段默认 fromConfig()
                 .build();
         try {
 
@@ -243,31 +251,61 @@ public abstract class AbstractLLMService extends CommonModelService {
      *
      * @param params 参数对象，包含流式聊天所需的所有信息 / Parameter object containing all info needed for streaming chat
      */
-    private static final int MAX_TOOL_CALL_DEPTH = 5;
-
     private void innerStreamingChat(InnerStreamChatParam params) {
-        if (params.getToolCallDepth() >= MAX_TOOL_CALL_DEPTH) {
-            log.error("Tool call recursion depth exceeded {} times, terminating execution", MAX_TOOL_CALL_DEPTH);
-            SseManager.errorAndShutdown(new RuntimeException("Tool call count exceeded limit"), params.getSseUuid());
+        // T6-10：工具循环三重预算（深度 + 墙钟时间 + token 累计），任一超限中止。
+        // 原 MAX_TOOL_CALL_DEPTH=5 硬编码由 budget.maxDepth（adi.agent.tool-loop-max-depth，默认 5）接管。
+        ToolLoopBudget budget = params.getToolLoopBudget();
+        if (!budget.consumeDepth()) {
+            String reason = budget.checkExceeded().orElse(ToolLoopBudget.REASON_DEPTH);
+            log.error("Tool call loop aborted by budget, reason:{}, depthUsed:{}, tokensUsed:{}",
+                    reason, budget.getDepthUsed(), budget.getTokensUsed());
+            SseManager.errorAndShutdown(new RuntimeException("Tool call loop aborted: budget exceeded (" + reason + ")"), params.getSseUuid());
+            closeMcpClients(params.getMcpClients());
+            return;
+        }
+        String exceeded = budget.checkExceeded().orElse(null);
+        if (null != exceeded) {
+            log.error("Tool call loop aborted by budget, reason:{}, tokensUsed:{}, depthUsed:{}",
+                    exceeded, budget.getTokensUsed(), budget.getDepthUsed());
+            SseManager.errorAndShutdown(new RuntimeException("Tool call loop aborted: budget exceeded (" + exceeded + ")"), params.getSseUuid());
             closeMcpClients(params.getMcpClients());
             return;
         }
         Map<ToolSpecification, ToolExecutor> toolExecutorMap = getRequestTools(params.getMcpClients(), params.getSkillBundle(),
                 null == params.getUser() ? null : params.getUser().getId(), params.getCharacterUuid());
+        dispatchStreamingChat(params, toolExecutorMap);
+    }
+
+    /**
+     * T6-08/T6-09：发起一次 streaming 调用。错误时由 {@link #handleStreamingError}
+     * 决策：首 token 前可重试（同模型 → 降级链），首 token 后只中止不重试。
+     */
+    private void dispatchStreamingChat(InnerStreamChatParam params, Map<ToolSpecification, ToolExecutor> toolExecutorMap) {
         params.getStreamingChatModel().chat(params.getChatRequest(), new StreamingChatResponseHandler() {
             @Override
             public void onPartialResponse(String partialResponse) {
+                // T6-08：首 token 已输出，此后错误只中止不重试（防重复输出）
+                params.markFirstToken();
                 SseManager.parseAndSendPartialMsg(params.getSseUuid(), partialResponse);
                 ttsOnPartialMessage(params, partialResponse);
             }
 
             @Override
             public void onPartialThinking(PartialThinking partialThinking) {
+                // T6-08：thinking 片段同样对客户端可见，视为"已输出首 token"
+                params.markFirstToken();
                 SseManager.sendThinking(params.getSseUuid(), partialThinking.text());
             }
 
             @Override
             public void onCompleteResponse(ChatResponse response) {
+                // T6-10：累计本步 LLM 调用的 token（含中间工具调用步骤），供 token 预算判定
+                if (null != response.metadata() && null != response.metadata().tokenUsage()) {
+                    TokenUsage usage = response.metadata().tokenUsage();
+                    long in = null == usage.inputTokenCount() ? 0 : usage.inputTokenCount();
+                    long out = null == usage.outputTokenCount() ? 0 : usage.outputTokenCount();
+                    params.getToolLoopBudget().accumulateTokens(in + out);
+                }
                 AiMessage responseAiMessage = response.aiMessage();
                 if (responseAiMessage.hasToolExecutionRequests()) {
                     // 如果有工具执行请求
@@ -303,10 +341,68 @@ public abstract class AbstractLLMService extends CommonModelService {
             @Override
             public void onError(Throwable error) {
                 recordInvocationFailure(error);
+                handleStreamingError(params, toolExecutorMap, error);
+            }
+        });
+    }
+
+    /**
+     * T6-08/T6-09：streaming 错误处理——决策重试 / 降级 / 中止。
+     * ⚠️ firstTokenSent 后一律 ABORT（重试会产生重复输出）；
+     * PERMANENT 错误（鉴权/参数/配置）直接报错不浪费额度；
+     * RETRIABLE 且未出首 token：先同模型重试（adi.llm.stream-same-model-retries，默认 1 次），
+     * 再按 adi.llm.fallback-models 降级链逐个尝试。
+     */
+    private void handleStreamingError(InnerStreamChatParam params, Map<ToolSpecification, ToolExecutor> toolExecutorMap, Throwable error) {
+        LLMErrorType type = LLMErrorClassifier.classify(error);
+        LLMFallbackMetrics.get().recordDetected(type, aiModel.getName(), error.getMessage());
+
+        int sameModelRetries = 1;
+        try {
+            sameModelRetries = SpringUtil.getBean(com.moyz.adi.common.config.AdiProperties.class).getLlm().getStreamSameModelRetries();
+        } catch (Exception ignored) {
+        }
+        int fallbackCount = LLMFallbackRouter.effectiveChain(this).size();
+        StreamingRetryPolicy.StreamingDecision decision = StreamingRetryPolicy.decide(
+                type, params.isFirstTokenSent(), params.getStreamAttempt() + 1, sameModelRetries, fallbackCount);
+
+        switch (decision) {
+            case RETRY_SAME -> {
+                LLMFallbackMetrics.get().recordSameModelRetry(aiModel.getName(), params.getStreamAttempt() + 1);
+                params.setStreamAttempt(params.getStreamAttempt() + 1);
+                dispatchStreamingChat(params, toolExecutorMap);
+            }
+            case RETRY_FALLBACK -> {
+                AbstractLLMService fallback = LLMFallbackRouter.nextFallback(this, params.getTriedModels());
+                if (null == fallback) {
+                    LLMFallbackMetrics.get().recordFallbackExhausted(aiModel.getName(), error.getMessage());
+                    SseManager.errorAndShutdown(error, params.getSseUuid());
+                    closeMcpClients(params.getMcpClients());
+                    return;
+                }
+                params.setStreamAttempt(params.getStreamAttempt() + 1);
+                params.getTriedModels().add(fallback.getAiModel().getName());
+                LLMFallbackMetrics.get().recordFallbackAttempt(aiModel.getName(), fallback.getAiModel().getName());
+                try {
+                    params.setStreamingChatModel(fallback.buildStreamingChatModel(params.getModelProperties()));
+                } catch (Exception e) {
+                    log.error("build fallback streaming model failed, model:{}", fallback.getAiModel().getName(), e);
+                    SseManager.errorAndShutdown(error, params.getSseUuid());
+                    closeMcpClients(params.getMcpClients());
+                    return;
+                }
+                // 备用模型也要重建工具执行器（MCP/Skill executor 与模型无关，可复用；此处保守重建）
+                dispatchStreamingChat(params, toolExecutorMap);
+            }
+            case ABORT -> {
+                if (params.isFirstTokenSent()) {
+                    log.warn("streaming aborted after first token (no retry to avoid duplicate output), model:{}, error:{}",
+                            aiModel.getName(), error.getMessage());
+                }
                 SseManager.errorAndShutdown(error, params.getSseUuid());
                 closeMcpClients(params.getMcpClients());
             }
-        });
+        }
     }
 
     public ChatResponse chat(SseAskParam params) {
@@ -334,7 +430,46 @@ public abstract class AbstractLLMService extends CommonModelService {
             return chatResponse;
         } catch (Exception e) {
             recordInvocationFailure(e);
-            throw e;
+            // T6-09：同步链路模型降级路由（PERMANENT 直接抛出；RETRIABLE 按降级链重试备用模型）
+            return chatWithFallback(params, e);
+        }
+    }
+
+    /**
+     * T6-09（2026-10-20）：同步 chat 的模型降级路由。
+     * <p>
+     * LLMErrorClassifier 把错误分为 RETRIABLE（网络/超时/429/5xx）与 PERMANENT（401/403/400/配置错）：
+     * - PERMANENT：直接抛出——降级也没用，不浪费备用模型额度；
+     * - RETRIABLE：按 adi.llm.fallback-models 降级链逐个尝试备用模型（开关 adi.llm.fallback-enabled，默认 true）；
+     * - 降级链耗尽：抛出最后一个错误并记 metrics（fallbackExhausted）；
+     * - 防级联：params.fallbackTried 守卫，备用模型的 chat() 不再二次降级（A→B 后 B 失败不会 C→D→…）。
+     */
+    private ChatResponse chatWithFallback(SseAskParam params, Exception primaryError) {
+        LLMErrorType type = LLMErrorClassifier.classify(primaryError);
+        LLMFallbackMetrics.get().recordDetected(type, aiModel.getName(), primaryError.getMessage());
+        if (type == LLMErrorType.PERMANENT || params.isFallbackTried() || !LLMFallbackRouter.fallbackEnabled()) {
+            throw (primaryError instanceof RuntimeException re) ? re : new RuntimeException(primaryError);
+        }
+        Exception lastError = primaryError;
+        java.util.Set<String> tried = new java.util.LinkedHashSet<>();
+        tried.add(aiModel.getName());
+        while (true) {
+            AbstractLLMService fallback = LLMFallbackRouter.nextFallback(this, tried);
+            if (null == fallback) {
+                LLMFallbackMetrics.get().recordFallbackExhausted(aiModel.getName(), lastError.getMessage());
+                throw (lastError instanceof RuntimeException re) ? re : new RuntimeException(lastError);
+            }
+            tried.add(fallback.getAiModel().getName());
+            LLMFallbackMetrics.get().recordFallbackAttempt(aiModel.getName(), fallback.getAiModel().getName());
+            try {
+                params.setFallbackTried(true);
+                ChatResponse resp = fallback.chat(params);
+                LLMFallbackMetrics.get().recordFallbackSuccess(fallback.getAiModel().getName());
+                return resp;
+            } catch (Exception e) {
+                log.warn("llm-fallback attempt failed, model:{}, error:{}", fallback.getAiModel().getName(), e.getMessage());
+                lastError = e;
+            }
         }
     }
 
@@ -349,16 +484,31 @@ public abstract class AbstractLLMService extends CommonModelService {
      * @return ChatResponse 聊天响应 / Chat response
      */
     private ChatResponse innerChat(String uuid, ChatModel chatModel, ChatModelRequest chatModelRequest, ChatRequest chatRequest) {
-        return innerChatWithDepth(uuid, chatModel, chatModelRequest, chatRequest, 0);
+        // T6-10：同步工具循环的三重预算（深度+墙钟+token），一次请求一个预算实例
+        return innerChatWithDepth(uuid, chatModel, chatModelRequest, chatRequest, 0, ToolLoopBudget.fromConfig());
     }
 
-    private ChatResponse innerChatWithDepth(String uuid, ChatModel chatModel, ChatModelRequest chatModelRequest, ChatRequest chatRequest, int depth) {
-        if (depth >= MAX_TOOL_CALL_DEPTH) {
-            log.error("Tool call recursion depth exceeded {} times, terminating execution", MAX_TOOL_CALL_DEPTH);
-            throw new BaseException(ErrorEnum.B_LLM_SERVICE_DISABLED);
+    private ChatResponse innerChatWithDepth(String uuid, ChatModel chatModel, ChatModelRequest chatModelRequest, ChatRequest chatRequest, int depth, ToolLoopBudget budget) {
+        // T6-10：三重预算替代 MAX_TOOL_CALL_DEPTH 硬编码；中止异常信息带具体超限原因
+        if (!budget.consumeDepth()) {
+            String reason = budget.checkExceeded().orElse(ToolLoopBudget.REASON_DEPTH);
+            log.error("Tool call loop aborted by budget, reason:{}, depthUsed:{}, tokensUsed:{}", reason, budget.getDepthUsed(), budget.getTokensUsed());
+            throw new BaseException(ErrorEnum.B_LLM_SERVICE_DISABLED.getCode(), "Tool call loop aborted: budget exceeded (" + reason + ")");
+        }
+        String exceeded = budget.checkExceeded().orElse(null);
+        if (null != exceeded) {
+            log.error("Tool call loop aborted by budget, reason:{}, tokensUsed:{}, depthUsed:{}", exceeded, budget.getTokensUsed(), budget.getDepthUsed());
+            throw new BaseException(ErrorEnum.B_LLM_SERVICE_DISABLED.getCode(), "Tool call loop aborted: budget exceeded (" + exceeded + ")");
         }
         try {
             ChatResponse chatResponse = chatModel.chat(chatRequest);
+            // T6-10：累计本步 LLM 调用 token（input+output，含中间工具调用步骤）
+            if (null != chatResponse.metadata() && null != chatResponse.metadata().tokenUsage()) {
+                TokenUsage usage = chatResponse.metadata().tokenUsage();
+                long in = null == usage.inputTokenCount() ? 0 : usage.inputTokenCount();
+                long out = null == usage.outputTokenCount() ? 0 : usage.outputTokenCount();
+                budget.accumulateTokens(in + out);
+            }
             AiMessage responseAiMessage = chatResponse.aiMessage();
             if (responseAiMessage.hasToolExecutionRequests()) {
                 Map<ToolSpecification, ToolExecutor> toolExecutorMap = getRequestTools(chatModelRequest.getMcpClients(), chatModelRequest.getSkillBundle(),
@@ -375,7 +525,7 @@ public abstract class AbstractLLMService extends CommonModelService {
                 return innerChatWithDepth(uuid, chatModel, chatModelRequest, ChatRequest.builder()
                         .messages(messages)
                         .parameters(chatRequest.parameters())
-                        .build(), depth + 1);
+                        .build(), depth + 1, budget);
             }
             cacheTokenUsage(uuid, chatResponse);
             return chatResponse;
@@ -455,6 +605,16 @@ public abstract class AbstractLLMService extends CommonModelService {
             //把系统提示词统一归位：剔除历史里残留的 SystemMessage，再把本次的放到最前面。
             //保证①提示词始终在首位 ②每轮都生效（改人设/追加护栏对老会话立即生效）③不污染历史记忆。
             normalizeSystemMessage(chatMessages, chatModelRequest.getSystemMessage());
+
+            // 二开（T6-06，2026-10-20）：长对话摘要压缩。历史消息估算 token 超过阈值
+            // （adi.chat.summarize-token-threshold，默认 8000）时自动摘要压缩。
+            // ⚠️ 必须在 normalizeSystemMessage 之后调用：系统提示词（index 0）永远保留原样，
+            // 只压缩历史轮次（identity-guard 教训：压缩绝不能吃掉系统提示词）；
+            // 压缩产物以 [CONVERSATION_SUMMARY] 标记为 SystemMessage 插在 index 1。
+            // 压缩请求走现有 LLM 通道（buildChatLLM），低温 0.3 保证摘要稳定。
+            chatMessages = ConversationCompressor.compressWithConfig(chatMessages,
+                    buildChatLLM(ChatModelBuilderProperties.builder().temperature(0.3).build()),
+                    tokenCountEstimator);
 
             //AI services currently do not support multimodality, use the low-level API for this. https://docs.langchain4j.dev/tutorials/ai-services#multimodality
             //重新组装用户消息及追加图片消息到chatMessage
@@ -602,7 +762,8 @@ public abstract class AbstractLLMService extends CommonModelService {
     private List<ToolExecutionResultMessage> createToolExecutionMessages(AiMessage aiMessage, Map<ToolSpecification, ToolExecutor> toolExecutorMap, String sseUuid) {
         List<ToolExecutionResultMessage> toolExecutionMessages = new ArrayList<>();
         aiMessage.toolExecutionRequests().forEach(req -> {
-            log.warn("tool exec request:{},", req);
+            // T6-12：工具入参可能含密钥（HTTP/MCP/DB 节点配置），日志统一脱敏+截断
+            log.warn("tool exec request, name:{}, arguments:{}", req.name(), LogSanitizer.sanitize(req.arguments()));
             req = parseToolRequest(req);
             ToolExecutor selectedExecutor = null;
             for (Map.Entry<ToolSpecification, ToolExecutor> entry : toolExecutorMap.entrySet()) {
@@ -619,12 +780,13 @@ public abstract class AbstractLLMService extends CommonModelService {
             try {
                 final String result = selectedExecutor.execute(req, null);
                 long toolDuration = System.currentTimeMillis() - toolStart;
-                log.info("tool execute result:{},duration:{}ms", result, toolDuration);
+                // T6-12：工具出参（页面抓取/脚本输出/DB 结果）同样脱敏+截断，日志体积可控
+                log.info("tool execute result:{},duration:{}ms", LogSanitizer.sanitize(result), toolDuration);
                 SseManager.sendToolCall(sseUuid, req.name(), toolDuration, true);
                 toolExecutionMessages.add(ToolExecutionResultMessage.from(req, result));
             } catch (Exception e) {
                 long toolDuration = System.currentTimeMillis() - toolStart;
-                log.debug("Error executing tool {},duration:{}ms,req:{}", req.name(), toolDuration, req, e);
+                log.debug("Error executing tool {},duration:{}ms,req:{}", req.name(), toolDuration, LogSanitizer.sanitize(req.arguments()), e);
                 SseManager.sendToolCall(sseUuid, req.name(), toolDuration, false);
                 toolExecutionMessages.add(ToolExecutionResultMessage.from(req, e.getMessage()));
             }
