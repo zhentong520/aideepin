@@ -43,6 +43,7 @@
         :row-key="(row: any) => row.traceId"
         :bordered="false"
         size="small"
+        :scroll-x="1000"
         :row-props="rowProps"
       />
       <div class="mt-2 text-gray-400 text-xs">{{ t('agentTrace.recentTip') }}</div>

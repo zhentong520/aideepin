@@ -385,6 +385,45 @@ public class AdiConstant {
          * adi.agent.orchestrator-enabled.
          */
         public static final String AGENT_ORCHESTRATOR_ENABLED = "agent_orchestrator_enabled";
+
+        /**
+         * T9-02（铁律 10 开关）：Loop/Each 循环节点热开关，缺省开。
+         * sys_config 优先于 adi.wf.loop-enabled，任一关闭即拒绝执行循环节点。
+         * <p>
+         * T9-02 Loop/Each node hot switch (default on). sys_config takes precedence
+         * over adi.wf.loop-enabled.
+         */
+        public static final String WF_LOOP_ENABLED = "wf_loop_enabled";
+
+        /**
+         * T9-03（铁律 10 开关）：Parallel 并行节点热开关，缺省开。
+         * <p>
+         * T9-03 Parallel node hot switch (default on).
+         */
+        public static final String WF_PARALLEL_ENABLED = "wf_parallel_enabled";
+
+        /**
+         * T9-04（铁律 10 开关）：Code 代码节点热开关，缺省开（复用 Skill 脚本沙箱）。
+         * <p>
+         * T9-04 Code node hot switch (default on; reuses the Skill script sandbox).
+         */
+        public static final String WF_CODE_ENABLED = "wf_code_enabled";
+
+        /**
+         * T9-07（铁律 10 开关）：SubWorkflow 子工作流节点热开关，缺省开。
+         * <p>
+         * T9-07 SubWorkflow node hot switch (default on).
+         */
+        public static final String WF_SUB_WORKFLOW_ENABLED = "wf_sub_workflow_enabled";
+
+        /**
+         * T9-07（铁律 10 开关）：节点 onError 错误分支热开关，缺省开。
+         * 关闭后节点失败一律中断整个工作流（回到 fail-fast 历史行为）。
+         * <p>
+         * T9-07 node onError branch hot switch (default on). When off, node failure
+         * always aborts the workflow (legacy fail-fast behavior).
+         */
+        public static final String WF_ERROR_BRANCH_ENABLED = "wf_error_branch_enabled";
     }
 
     public static final String[] POI_DOC_TYPES = {"doc", "docx", "ppt", "pptx", "xls", "xlsx"};

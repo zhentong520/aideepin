@@ -143,6 +143,64 @@ function workflowImport<T>(data: unknown) {
   })
 }
 
+// T9-05：版本历史（versionNo 降序 + diff 概要）
+function workflowVersionList<T>(wfUuid: string, currentPage: number, pageSize: number) {
+  return get<T>({
+    url: `/workflow/version/list?wfUuid=${wfUuid}&currentPage=${currentPage}&pageSize=${pageSize}`,
+  })
+}
+
+// T9-05：一键回滚（回滚本身生成新版本）
+function workflowVersionRollback<T>(wfUuid: string, versionNo: number) {
+  return post<T>({
+    url: `/workflow/version/rollback/${wfUuid}?versionNo=${versionNo}`,
+  })
+}
+
+// T9-01：触发器列表（归属校验）
+function workflowTriggerList<T>(wfUuid: string) {
+  return get<T>({
+    url: `/workflow/trigger/list?wfUuid=${wfUuid}`,
+  })
+}
+
+// T9-01：保存触发器（新建/更新；schedule 校验 cron）
+function workflowTriggerSave<T>(data: Workflow.WfTriggerSaveReq) {
+  return post<T>({
+    url: '/workflow/trigger/save',
+    data,
+  })
+}
+
+// T9-01：启用/停用触发器
+function workflowTriggerEnable<T>(uuid: string, enable: boolean) {
+  return post<T>({
+    url: `/workflow/trigger/enable/${uuid}?enable=${enable}`,
+  })
+}
+
+// T9-01：删除触发器（软删）
+function workflowTriggerDel<T>(uuid: string) {
+  return post<T>({
+    url: `/workflow/trigger/del/${uuid}`,
+  })
+}
+
+// T9-06：内置官方模板清单
+function workflowTemplateList<T>() {
+  return get<T>({
+    url: '/workflow/template/list',
+  })
+}
+
+// T9-06：从模板新建工作流（名字冲突自动加后缀）
+function workflowTemplateCreate<T>(data: { templateId: string; title: string; remark?: string }) {
+  return post<T>({
+    url: '/workflow/template/create',
+    data,
+  })
+}
+
 export default {
   workflowAdd,
   workflowCopy,
@@ -164,4 +222,12 @@ export default {
   workflowValidateTemplate,
   workflowExport,
   workflowImport,
+  workflowVersionList,
+  workflowVersionRollback,
+  workflowTriggerList,
+  workflowTriggerSave,
+  workflowTriggerEnable,
+  workflowTriggerDel,
+  workflowTemplateList,
+  workflowTemplateCreate,
 }

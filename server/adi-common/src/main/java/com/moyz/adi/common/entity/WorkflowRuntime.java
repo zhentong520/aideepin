@@ -65,4 +65,11 @@ public class WorkflowRuntime extends BaseEntity {
      */
     @TableField("is_test")
     private Boolean isTest;
+
+    /**
+     * 二开新增（T9-01，2026-10-20）：触发来源 manual/schedule/webhook/api。
+     * 触发记录（来源/参数/结果）进运行历史：来源=本列，参数=input，结果=output+status。
+     */
+    @TableField("trigger_source")
+    private String triggerSource;
 }

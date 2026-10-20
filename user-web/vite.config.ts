@@ -31,18 +31,33 @@ function manualChunks(id: string) {
   return 'vendor'
 }
 
+// T9-11：PWA 缓存策略——构建产物静态资源由 workbox precache 接管（cache-first，文件名带 hash，安全）；
+// /api 一律 network-only——不缓存 API 响应，避免数据陈旧。开关：VITE_GLOB_APP_PWA（生产构建生效，开发环境始终关闭）
 function setupPlugins(env: ImportMetaEnv): PluginOption[] {
   return [
     vue(),
     env.VITE_GLOB_APP_PWA === 'true' && VitePWA({
       injectRegister: 'auto',
+      registerType: 'autoUpdate',
       manifest: {
-        name: 'chatGPT',
-        short_name: 'chatGPT',
+        name: 'AISelf',
+        short_name: 'AISelf',
+        start_url: '.',
+        display: 'standalone',
+        theme_color: '#2d8cf0',
+        background_color: '#ffffff',
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
         ],
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+        navigateFallback: 'index.html',
+        // 导航回退只服务前端路由；API 请求绝不能落到 index.html，也不做任何缓存
+        navigateFallbackDenylist: [/^\/api\//],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
       },
     }),
   ]

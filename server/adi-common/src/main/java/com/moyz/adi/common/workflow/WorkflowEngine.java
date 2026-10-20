@@ -13,6 +13,7 @@ import com.moyz.adi.common.service.WorkflowRuntimeService;
 import com.moyz.adi.common.util.JsonUtil;
 import com.moyz.adi.common.util.SpringUtil;
 import com.moyz.adi.common.workflow.NodeExecutionMetrics;
+import com.moyz.adi.common.workflow.WfFeatureGate;
 import com.moyz.adi.common.workflow.WfNodeIODataUtil;
 import com.moyz.adi.common.workflow.data.NodeIOData;
 import com.moyz.adi.common.workflow.def.WfNodeIO;
@@ -59,11 +60,20 @@ public class WorkflowEngine {
     private final Map<String, List<StateGraph<WfNodeState>>> stateGraphEdges = new HashMap<>();
     private final Map<String, String> rootToSubGraph = new HashMap<>();
     private final Map<String, GraphCompileNode> nodeToParallelBranch = new HashMap<>();
+    /**
+     * T9-07：节点 uuid → onError 分支目标节点 uuid（构图阶段由 on_error 边登记）。
+     * runNode 失败时按此路由错误分支，而不是中断整个工作流。
+     */
+    private final Map<String, String> nodeToErrorBranch = new HashMap<>();
 
     private String sseUuid;
     private User user;
     private WfState wfState;
     private WfRuntimeResp wfRuntimeResp;
+    /**
+     * T9-01：触发来源 manual/schedule/webhook/api，落运行记录 trigger_source 列。
+     */
+    private String triggerSource = "manual";
     /**
      * Wall-clock start of this run (epoch millis), captured once on entry. Used to compute total
      * runtime duration at terminal status — sum-of-node durations would inflate when parallel
@@ -86,6 +96,15 @@ public class WorkflowEngine {
         this.wfEdges = wfEdges;
         this.workflowRuntimeService = workflowRuntimeService;
         this.workflowRuntimeNodeService = workflowRuntimeNodeService;
+    }
+
+    /**
+     * T9-01：设置触发来源（manual/schedule/webhook/api），落运行记录 trigger_source 列。
+     */
+    public void setTriggerSource(String triggerSource) {
+        if (null != triggerSource && !triggerSource.isBlank()) {
+            this.triggerSource = triggerSource;
+        }
     }
 
     public void run(User user, List<ObjectNode> userInputs, String sseUuid) {
@@ -117,7 +136,7 @@ public class WorkflowEngine {
         }
 
         Long workflowId = this.workflow.getId();
-        this.wfRuntimeResp = workflowRuntimeService.create(user, workflowId, isTest);
+        this.wfRuntimeResp = workflowRuntimeService.create(user, workflowId, isTest, triggerSource);
         //试跑同样发送 START 事件（携带 runtime uuid），前端需要它查询试跑明细/结果
         this.sseManager.startSse(user, sseUuid, JsonUtil.toJson(wfRuntimeResp));
 
@@ -409,22 +428,27 @@ public class WorkflowEngine {
 
     private Map<String, Object> runNode(WorkflowNode wfNode, WfNodeState nodeState) {
         Map<String, Object> resultMap = new HashMap<>();
+        //T9-07：错误分支接管需要节点实例/运行记录引用，声明提升到 try 外（工厂失败时为 null → 不接管，直接失败）
+        AbstractWfNode abstractWfNode = null;
+        WfRuntimeNodeDto runtimeNodeDto = null;
         try {
             WorkflowComponent wfComponent = components.stream().filter(item -> item.getId().equals(wfNode.getWorkflowComponentId())).findFirst().orElseThrow();
-            AbstractWfNode abstractWfNode = WfNodeFactory.create(wfComponent, wfNode, wfState, nodeState);
+            abstractWfNode = WfNodeFactory.create(wfComponent, wfNode, wfState, nodeState);
             //节点实例
-            WfRuntimeNodeDto runtimeNodeDto = workflowRuntimeNodeService.createByState(user, wfNode.getId(), wfRuntimeResp.getId(), nodeState);
-            wfState.getRuntimeNodes().add(runtimeNodeDto);
+            runtimeNodeDto = workflowRuntimeNodeService.createByState(user, wfNode.getId(), wfRuntimeResp.getId(), nodeState);
+            //lambda 捕获要求实际最终变量：catch 路径复用的可变引用在 try 内定稿后以 final 别名交给回调
+            final WfRuntimeNodeDto runtimeNodeDtoRef = runtimeNodeDto;
+            wfState.getRuntimeNodes().add(runtimeNodeDtoRef);
 
-            SseManager.parseAndSendPartialMsg(sseUuid, "[NODE_RUN_" + wfNode.getUuid() + "]", JsonUtil.toJson(runtimeNodeDto));
+            SseManager.parseAndSendPartialMsg(sseUuid, "[NODE_RUN_" + wfNode.getUuid() + "]", JsonUtil.toJson(runtimeNodeDtoRef));
 
             NodeProcessResult processResult = abstractWfNode.process((is) -> {
-                workflowRuntimeNodeService.updateInput(runtimeNodeDto.getId(), nodeState);
+                workflowRuntimeNodeService.updateInput(runtimeNodeDtoRef.getId(), nodeState);
                 for (NodeIOData input : nodeState.getInputs()) {
                     SseManager.parseAndSendPartialMsg(sseUuid, "[NODE_INPUT_" + wfNode.getUuid() + "]", JsonUtil.toJson(input));
                 }
             }, (is) -> {
-                workflowRuntimeNodeService.updateOutput(runtimeNodeDto.getId(), nodeState);
+                workflowRuntimeNodeService.updateOutput(runtimeNodeDtoRef.getId(), nodeState);
 
                 //并行节点内部的节点执行结束后，需要主动向客户端发送输出结果
                 String nodeUuid = wfNode.getUuid();
@@ -442,8 +466,21 @@ public class WorkflowEngine {
             });
             if (StringUtils.isNotBlank(processResult.getNextNodeUuid())) {
                 resultMap.put("next", processResult.getNextNodeUuid());
+            } else if (nodeToErrorBranch.containsKey(wfNode.getUuid())) {
+                //T9-07：配置了 on_error 边的节点被编译为条件路由（普通下游 + 错误分支），
+                //langgraph 的条件边读取 state.next——普通节点不产出 next，这里补默认路由（正常下游）
+                resultMap.put("next", getNormalDownstreamUuid(wfNode.getUuid()));
             }
         } catch (Exception e) {
+            //T9-07：onError 错误分支接管——节点失败时若配置了 on_error 边且未被 fail-fast/开关禁用，
+            //构造错误对象（节点/错误信息/输入）作为该节点输出，路由到错误分支而非中断整个工作流
+            String errorTarget = nodeToErrorBranch.get(wfNode.getUuid());
+            boolean failFast = null != wfNode.getNodeConfig() && wfNode.getNodeConfig().path("fail_fast").asBoolean(false);
+            if (null != errorTarget && WfFeatureGate.errorBranchEnabled() && !failFast) {
+                log.warn("Node {} failed, taking onError branch -> {}", wfNode.getUuid(), errorTarget, e);
+                resultMap.putAll(takeOnErrorBranch(wfNode, abstractWfNode, nodeState, runtimeNodeDto, e));
+                return resultMap;
+            }
             log.error("Node run error", e);
             throw new BaseException(ErrorEnum.B_WF_RUN_ERROR);
         }
@@ -456,6 +493,69 @@ public class WorkflowEngine {
             return resultMap;
         }
         return resultMap;
+    }
+
+    /**
+     * T9-07：onError 分支接管。失败节点不抛出中断，而是：
+     * <ol>
+     *   <li>在失败节点 state 上写错误输出：{@code error}（JSON 对象：node_uuid/node_title/
+     *       error_message/inputs）与 {@code error_msg}（原始错误文本，沿用既有默认错误参数名）；</li>
+     *   <li>把失败节点补进 completedNodes（带失败状态），错误分支节点的 refInput /
+     *       getLatestOutputs 才能解析到错误对象；</li>
+     *   <li>恢复 wfState 流程状态为执行中（AbstractWfNode.process 失败时已置 FAIL）；</li>
+     *   <li>持久化失败节点输出并推送 SSE（运行明细能看到失败节点的错误对象）；</li>
+     *   <li>路由到错误分支目标节点（langgraph 条件边读取 state.next）。</li>
+     * </ol>
+     */
+    private Map<String, Object> takeOnErrorBranch(WorkflowNode wfNode, AbstractWfNode failedNode,
+                                                  WfNodeState nodeState, WfRuntimeNodeDto runtimeNodeDto, Exception cause) {
+        String errorMessage = rootMessage(cause);
+        //错误对象：字段完整（节点标识/标题/错误信息/原始输入），下游可直接引用
+        ObjectNode errorObj = JsonUtil.createObjectNode();
+        errorObj.put("node_uuid", wfNode.getUuid());
+        errorObj.put("node_title", wfNode.getTitle());
+        errorObj.put("error_message", errorMessage);
+        errorObj.put("inputs", JsonUtil.toJson(nodeState.getInputs()));
+        List<NodeIOData> errorOutputs = List.of(
+                NodeIOData.createByText("error", "错误对象", JsonUtil.toJson(errorObj)),
+                NodeIOData.createByText(DEFAULT_ERROR_OUTPUT_PARAM_NAME, "错误信息", errorMessage));
+        nodeState.getOutputs().clear();
+        nodeState.getOutputs().addAll(errorOutputs);
+        if (null != failedNode) {
+            failedNode.getState().setOutputs(new ArrayList<>(errorOutputs));
+            wfState.getCompletedNodes().add(failedNode);
+        }
+        wfState.setProcessStatus(WORKFLOW_PROCESS_STATUS_DOING);
+        if (null != runtimeNodeDto) {
+            try {
+                workflowRuntimeNodeService.updateOutput(runtimeNodeDto.getId(), nodeState);
+            } catch (Exception persistEx) {
+                log.warn("onError branch: persist failed node output error:{}", persistEx.getMessage());
+            }
+            SseManager.parseAndSendPartialMsg(sseUuid, "[NODE_OUTPUT_" + wfNode.getUuid() + "]", JsonUtil.toJson(errorObj));
+        }
+        Map<String, Object> result = new HashMap<>();
+        result.put("name", wfNode.getTitle());
+        result.put("next", nodeToErrorBranch.get(wfNode.getUuid()));
+        return result;
+    }
+
+    /** 取配置了 on_error 边的节点的唯一普通下游（构图阶段已校验恰好 1 条） */
+    private String getNormalDownstreamUuid(String nodeUuid) {
+        return wfEdges.stream()
+                .filter(edge -> edge.getSourceNodeUuid().equals(nodeUuid) && !ON_ERROR_HANDLE.equals(edge.getSourceHandle()))
+                .map(WorkflowEdge::getTargetNodeUuid)
+                .findFirst()
+                .orElse("");
+    }
+
+    /** 穿透包装异常取根因消息（AbstractWfNode.process 抛 RuntimeException(e)，message 为 toString） */
+    private static String rootMessage(Throwable e) {
+        Throwable cur = e;
+        while (null != cur.getCause() && cur.getCause() != cur) {
+            cur = cur.getCause();
+        }
+        return StringUtils.defaultIfBlank(cur.getMessage(), String.valueOf(cur));
     }
 
     /**
@@ -582,6 +682,9 @@ public class WorkflowEngine {
 
     private static final int MAX_NODE_VISITS = 10;
 
+    /** T9-07：onError 错误分支边的 sourceHandle 约定值 */
+    public static final String ON_ERROR_HANDLE = "on_error";
+
     private void buildCompileNode(
             CompileNode parentNode,
             WorkflowNode node,
@@ -590,6 +693,27 @@ public class WorkflowEngine {
         if (visits > MAX_NODE_VISITS) {
             log.error("Node {} visited more than {} times, possible infinite loop in workflow graph", node.getUuid(), MAX_NODE_VISITS);
             throw new BaseException(ErrorEnum.B_WF_RUN_ERROR);
+        }
+        //T9-07：登记 onError 分支。约束：配置了 on_error 边的节点必须有且只有一条普通出边
+        //（错误分支与并行扇出不兼容——条件边会破坏并行扇出语义），不满足时显式报错而非静默忽略
+        List<String> errorTargets = wfEdges.stream()
+                .filter(edge -> edge.getSourceNodeUuid().equals(node.getUuid()) && ON_ERROR_HANDLE.equals(edge.getSourceHandle()))
+                .map(WorkflowEdge::getTargetNodeUuid)
+                .toList();
+        if (!errorTargets.isEmpty()) {
+            long normalOutCount = wfEdges.stream()
+                    .filter(edge -> edge.getSourceNodeUuid().equals(node.getUuid()) && !ON_ERROR_HANDLE.equals(edge.getSourceHandle()))
+                    .count();
+            if (normalOutCount != 1) {
+                throw new BaseException(ErrorEnum.A_PARAMS_INVALID_BY_,
+                        "node '" + node.getTitle() + "' has an on_error branch but " + normalOutCount
+                                + " normal outgoing edges; exactly 1 is required (error branch is incompatible with parallel fan-out)");
+            }
+            nodeToErrorBranch.put(node.getUuid(), errorTargets.get(0));
+            if (errorTargets.size() > 1) {
+                log.warn("node '{}' has {} on_error edges, only the first target {} is used",
+                        node.getTitle(), errorTargets.size(), errorTargets.get(0));
+            }
         }
         log.info("buildByNode, parentNode:{}, node:{},title:{}", parentNode.getId(), node.getUuid(), node.getTitle());
         CompileNode newNode;

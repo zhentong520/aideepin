@@ -88,6 +88,7 @@
   import { useDesignSetting } from '@/hooks/setting/useDesignSetting'
   import { useRoute } from 'vue-router'
   import { useProjectSettingStore } from '@/store/modules/projectSetting'
+  import { breakpoints } from 'aideepin-tokens'
 
   const { getDarkTheme } = useDesignSetting()
   const {
@@ -172,16 +173,16 @@
   }
 
   const watchWidth = () => {
-    const Width = document.body.clientWidth
-    if (Width <= 950) {
-      collapsed.value = true
-    } else collapsed.value = false
-
+    // 先判定移动端模式（内部会重置 collapsed），再按断点收起，避免被覆盖
     checkMobileMode()
+    // T9-10：≤1280px（断点 xl，与 breakpoints.less/@adi-bp-xl 同源）自动收起侧栏，保证主内容区不破；
+    // 移动端模式不自动展开抽屉（collapsed 由顶栏按钮控制）
+    if (!isMobile.value) collapsed.value = document.body.clientWidth <= parseInt(breakpoints.xl)
   }
 
   onMounted(() => {
-    checkMobileMode()
+    // T9-10：首屏也走断点判定（内部含 checkMobileMode）
+    watchWidth()
     window.addEventListener('resize', watchWidth)
   })
 </script>

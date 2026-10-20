@@ -27,20 +27,30 @@ public class SkillScriptRunner {
             pb.redirectErrorStream(true);
             Process process = pb.start();
             StringBuilder output = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    if (output.length() < MAX_OUTPUT_CHARS) {
-                        output.append(line).append('\n');
+            //读输出放独立线程：若在主线程读到 EOF，进程不结束读循环就不结束，
+            //waitFor(timeout) 永远轮不到——超时长跑脚本（死循环/长 sleep）会一直占住调用线程
+            Thread reader = new Thread(() -> {
+                try (BufferedReader lineReader = new BufferedReader(
+                        new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = lineReader.readLine()) != null) {
+                        if (output.length() < MAX_OUTPUT_CHARS) {
+                            output.append(line).append('\n');
+                        }
                     }
+                } catch (Exception ignored) {
+                    //进程被强杀时流会异常关闭，输出以已读到内容为准
                 }
-            }
+            });
+            reader.setDaemon(true);
+            reader.start();
             boolean finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS);
             if (!finished) {
                 process.destroyForcibly();
+                reader.join(1000);
                 return "ERROR: script timeout after " + timeoutSeconds + "s";
             }
+            reader.join(2000);
             int code = process.exitValue();
             String text = output.length() > MAX_OUTPUT_CHARS ? output.substring(0, MAX_OUTPUT_CHARS) : output.toString();
             return "exit_code: " + code + "\n" + (text.isBlank() ? "(no output)" : text.strip());

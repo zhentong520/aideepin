@@ -2,6 +2,7 @@
 import { computed, nextTick } from 'vue'
 import { SvgIcon } from '@/wf/components'
 import { useAppStore, useKbStore } from '@/wf/stores'
+import { t } from '@/locales'
 
 const appStore = useAppStore()
 const kbStore = useKbStore()
@@ -26,7 +27,7 @@ function onScrollToTop() {
   >
     <div class="relative flex items-center justify-between min-w-0 overflow-hidden h-14">
       <div class="flex items-center">
-        <button class="flex items-center justify-center w-11 h-11" @click="handleUpdateCollapsed">
+        <button class="flex items-center justify-center w-11 h-11" :aria-label="t('common.toggleSider')" @click="handleUpdateCollapsed">
           <SvgIcon v-if="collapsed" class="text-2xl" icon="ri:align-justify" />
           <SvgIcon v-else class="text-2xl" icon="ri:align-right" />
         </button>

@@ -151,7 +151,7 @@ function openFileInNewTab(filelUrl: string) {
             trigger="click" :placement="!inversion ? 'right' : 'left'" :options="options"
             @select="handleSelect"
           >
-            <button class="transition text-neutral-300 hover:text-neutral-800 dark:hover:text-neutral-200">
+            <button class="transition text-neutral-300 hover:text-neutral-800 dark:hover:text-neutral-200" :aria-label="t('common.more')">
               <SvgIcon icon="ri:more-2-fill" />
             </button>
           </NDropdown>

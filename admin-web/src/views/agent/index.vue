@@ -25,6 +25,7 @@
         :data="filteredList"
         :loading="loading"
         :row-key="(row: AgentRow) => row.uuid"
+        :scroll-x="1100"
         style="margin-top: 12px"
       />
     </n-card>

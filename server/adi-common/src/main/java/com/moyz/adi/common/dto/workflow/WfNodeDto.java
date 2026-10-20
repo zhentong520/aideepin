@@ -38,4 +38,10 @@ public class WfNodeDto {
     private Double positionX;
     @NotNull
     private Double positionY;
+
+    /**
+     * 二开新增（T9-08）：画布布局元数据（Container 分组/折叠标记等纯布局信息），
+     * 必须能读回（铁律 3），否则分组保存一次即丢失。引擎侧不解析、不影响执行语义。
+     */
+    private ObjectNode layout;
 }

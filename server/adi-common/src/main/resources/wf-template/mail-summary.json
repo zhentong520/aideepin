@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "title": "邮件摘要",
+  "remark": "官方模板：用户粘贴邮件原文 → LLM 生成结构化摘要（要点/行动项/截止时间）。导入后请选择模型。",
+  "nodes": [
+    {
+      "uuid": "t9tplmail00000000000000000000001",
+      "componentName": "Start",
+      "title": "开始",
+      "remark": "邮件原文",
+      "inputConfig": {
+        "user_inputs": [
+          {
+            "uuid": "t9tplmail00000000000000000000002",
+            "name": "var_user_input",
+            "title": "邮件原文",
+            "type": 1,
+            "required": true,
+            "max_length": 20000
+          }
+        ],
+        "ref_inputs": []
+      },
+      "nodeConfig": {},
+      "positionX": 100,
+      "positionY": 200
+    },
+    {
+      "uuid": "t9tplmail00000000000000000000003",
+      "componentName": "Answer",
+      "title": "生成摘要",
+      "remark": "导入后请选择模型",
+      "inputConfig": {
+        "user_inputs": [],
+        "ref_inputs": []
+      },
+      "nodeConfig": {
+        "model_platform": "",
+        "model_name": "",
+        "prompt": "请对下面的邮件原文生成中文摘要，包含三部分：1) 一句话总结；2) 关键要点（列表）；3) 需要行动的事项与截止时间（如无则写\"无\"）。\n\n邮件原文：{{var_user_input}}"
+      },
+      "positionX": 400,
+      "positionY": 200
+    }
+  ],
+  "edges": [
+    {
+      "uuid": "t9tplmail00000000000000000000004",
+      "sourceNodeUuid": "t9tplmail00000000000000000000001",
+      "sourceHandle": "t9tplmail00000000000000000000001",
+      "targetNodeUuid": "t9tplmail00000000000000000000003"
+    }
+  ]
+}

@@ -177,7 +177,48 @@ public enum ErrorEnum {
      * T7-06：知识包格式非法（缺 pack.json / 版本不受支持 / ZIP 结构损坏）。
      * 参数：具体原因
      */
-    A_KB_PACK_FORMAT_INVALID("A0085", "A_KB_PACK_FORMAT_INVALID");
+    A_KB_PACK_FORMAT_INVALID("A0085", "A_KB_PACK_FORMAT_INVALID"),
+    /**
+     * T9-07：子工作流引用链出现重复工作流（自引用或环 A→B→A）。参数：目标工作流、当前引用链
+     */
+    A_WF_SUB_WORKFLOW_RECURSIVE("A0087", "A_WF_SUB_WORKFLOW_RECURSIVE"),
+    /**
+     * T9-07：子工作流嵌套深度超过上限（默认 3）。参数：当前深度、最大深度
+     */
+    A_WF_SUB_WORKFLOW_DEPTH_EXCEEDED("A0088", "A_WF_SUB_WORKFLOW_DEPTH_EXCEEDED"),
+    /**
+     * T9-03：Parallel 节点 join=all 语义下存在失败分支。参数：失败分支明细
+     */
+    A_WF_PARALLEL_JOIN_FAILED("A0089", "A_WF_PARALLEL_JOIN_FAILED"),
+    /**
+     * T9-01：工作流自动触发被总开关停用（adi.wf.trigger-enabled=false）。
+     * 参数：无
+     */
+    A_WF_TRIGGER_DISABLED("A0090", "A_WF_TRIGGER_DISABLED"),
+    /**
+     * T9-01：触发配置非法（cron 表达式解析失败 / 类型未知）。参数：具体原因
+     */
+    A_WF_TRIGGER_INVALID("A0091", "A_WF_TRIGGER_INVALID"),
+    /**
+     * T9-01：webhook token 无效或触发器/工作流已停用 → HTTP 403。参数：无
+     */
+    A_WF_WEBHOOK_INVALID("A0092", "A_WF_WEBHOOK_INVALID"),
+    /**
+     * T9-01：webhook 匿名限流超限 → HTTP 429。参数：无
+     */
+    A_WF_WEBHOOK_RATE_LIMITED("A0093", "A_WF_WEBHOOK_RATE_LIMITED"),
+    /**
+     * T9-05：工作流版本快照功能被开关停用（adi.wf.version-enabled=false）。参数：无
+     */
+    A_WF_VERSION_DISABLED("A0094", "A_WF_VERSION_DISABLED"),
+    /**
+     * T9-05：指定的版本号不存在。参数：版本号
+     */
+    A_WF_VERSION_NOT_FOUND("A0095", "A_WF_VERSION_NOT_FOUND"),
+    /**
+     * T9-06：模板 id 不存在（内置模板清单中无匹配）。参数：模板 id
+     */
+    A_WF_TEMPLATE_NOT_FOUND("A0096", "A_WF_TEMPLATE_NOT_FOUND");
 
     private final String code;
     private final String info;

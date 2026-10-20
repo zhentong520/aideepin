@@ -124,6 +124,7 @@
         :row-key="(row: any) => row.rank"
         :bordered="false"
         size="small"
+        :scroll-x="1100"
         style="margin-top: 12px"
       />
     </template>

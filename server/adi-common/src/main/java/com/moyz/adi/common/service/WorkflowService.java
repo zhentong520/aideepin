@@ -68,6 +68,14 @@ public class WorkflowService extends ServiceImpl<WorkflowMapper, Workflow> {
     @Resource
     private KnowledgeBaseService knowledgeBaseService;
 
+    /**
+     * 二开新增（T9-05，2026-10-20）：版本快照服务。@Lazy 打断
+     * WorkflowService ↔ WorkflowVersionService 的构造环。
+     */
+    @Lazy
+    @Resource
+    private WorkflowVersionService workflowVersionService;
+
     @Transactional
     public WorkflowResp add(String title, String remark, Boolean isPublic) {
         String uuid = UuidUtil.createShort();
@@ -203,6 +211,9 @@ public class WorkflowService extends ServiceImpl<WorkflowMapper, Workflow> {
         workflowEdgeService.createOrUpdateEdges(workflowId, req.getEdges());
         workflowNodeService.deleteNodes(workflowId, req.getDeleteNodes());
         workflowEdgeService.deleteEdges(workflowId, req.getDeleteEdges());
+        //T9-05：每次保存生成版本快照（版本号+时间+修改人+完整定义 JSON）；
+        //开关 adi.wf.version-enabled=false 时内部静默跳过
+        workflowVersionService.snapshot(workflowId, ThreadContext.getCurrentUserId(), "");
 
         Workflow workflow2 = getOrThrow(req.getUuid());
         return changeWorkflowToDTO(workflow2);
@@ -296,6 +307,8 @@ public class WorkflowService extends ServiceImpl<WorkflowMapper, Workflow> {
     /**
      * T3-14：导出工作流为 JSON。知识检索节点引用的 kbUuid 位于 nodeConfig.knowledge_base_uuid，
      * 随 nodeConfig 原样导出； componentName 仅导出时填充，供跨环境导入按名称重映射组件。
+     * T9-06：导出前脱敏——api key/password/secret/token/authorization 类字段递归剥离，
+     * credentialUuid 置空（凭据库引用跨环境无意义且不应外泄）。
      */
     public WfExportResp export(String wfUuid) {
         Workflow workflow = PrivilegeUtil.checkAndGetByUuid(wfUuid, this.query(), ErrorEnum.A_WF_NOT_FOUND);
@@ -309,6 +322,8 @@ public class WorkflowService extends ServiceImpl<WorkflowMapper, Workflow> {
         nodes.forEach(node -> node.setComponentName(componentIdToName.get(node.getWorkflowComponentId())));
         resp.setNodes(nodes);
         resp.setEdges(workflowEdgeService.listDtoByWfId(workflow.getId()));
+        //T9-06：⚠️ 导出脱敏（剥离敏感凭据类字段），导出 JSON 不含任何可复用的机密
+        WorkflowExportSanitizer.sanitize(resp);
         return resp;
     }
 
@@ -387,12 +402,20 @@ public class WorkflowService extends ServiceImpl<WorkflowMapper, Workflow> {
 
     /**
      * 组件重映射：workflowComponentId 在目标环境查不到（跨环境自增 id 不一致）时，
-     * 按导出的 componentName 重映射；仍找不到则报错（不静默跳过）。
+     * 按导出的 componentName 重映射；仍找不到时 T9-06 兼容处理——<b>标记未知节点</b>：
+     * <ul>
+     *   <li>workflowComponentId 重映射为 START 组件（StartNode 为纯透传实现，
+     *       引擎可加载、运行时该节点退化为直通，不阻断整条链路）；</li>
+     *   <li>nodeConfig 写入 {@code _wf_unknown_component = <组件名>}，title 加
+     *       {@code [未知组件]} 前缀——画布与导出 JSON 均可识别，人工修复后重新保存即可。</li>
+     * </ul>
      */
     private void remapComponentIds(List<WfNodeDto> nodes) {
         List<WorkflowComponent> allComponents = workflowComponentService.getAllEnable();
+        WorkflowComponent startComponent = workflowComponentService.getStartComponent();
         for (WfNodeDto node : nodes) {
-            boolean idHit = allComponents.stream().anyMatch(item -> item.getId().equals(node.getWorkflowComponentId()));
+            boolean idHit = null != node.getWorkflowComponentId()
+                    && allComponents.stream().anyMatch(item -> item.getId().equals(node.getWorkflowComponentId()));
             if (idHit) {
                 continue;
             }
@@ -400,12 +423,27 @@ public class WorkflowService extends ServiceImpl<WorkflowMapper, Workflow> {
                     ? allComponents.stream().filter(item -> item.getName().equals(node.getComponentName())).findFirst().orElse(null)
                     : null;
             if (null == byName) {
-                log.error("Workflow import aborted, component not found, componentName:{}, componentId:{}",
-                        node.getComponentName(), node.getWorkflowComponentId());
-                throw new BaseException(ErrorEnum.A_WF_COMPONENT_NOT_FOUND);
+                markUnknownNode(node, startComponent);
+                continue;
             }
             node.setWorkflowComponentId(byName.getId());
         }
+    }
+
+    /**
+     * T9-06：未知节点标记（兼容处理，不阻断导入）。见 {@link #remapComponentIds}。
+     */
+    private void markUnknownNode(WfNodeDto node, WorkflowComponent startComponent) {
+        String missing = StringUtils.defaultIfBlank(node.getComponentName(), String.valueOf(node.getWorkflowComponentId()));
+        log.warn("Import: unknown component, node marked as pass-through, componentName:{}, nodeUuid:{}", missing, node.getUuid());
+        if (null != startComponent) {
+            node.setWorkflowComponentId(startComponent.getId());
+        }
+        if (null == node.getNodeConfig()) {
+            node.setNodeConfig(JsonUtil.createObjectNode());
+        }
+        node.getNodeConfig().put("_wf_unknown_component", missing);
+        node.setTitle("[未知组件] " + StringUtils.defaultString(node.getTitle()));
     }
 
     /**

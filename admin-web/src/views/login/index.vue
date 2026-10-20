@@ -4,7 +4,7 @@
     <div class="view-account-container">
       <div class="view-account-top">
         <div class="view-account-top-logo">
-          <img :src="websiteConfig.loginImage" alt="" />
+          <img :src="websiteConfig.loginImage" :alt="websiteConfig.title" />
         </div>
         <div class="view-account-top-desc">{{ websiteConfig.loginDesc }}</div>
       </div>
@@ -17,7 +17,11 @@
           :rules="rules"
         >
           <n-form-item path="username">
-            <n-input v-model:value="formInline.email" :placeholder="t('login.emailPlaceholder')">
+            <n-input
+              v-model:value="formInline.email"
+              :placeholder="t('login.emailPlaceholder')"
+              :input-props="{ 'aria-label': t('login.emailPlaceholder') }"
+            >
               <template #prefix>
                 <n-icon size="18" color="#808695">
                   <PersonOutline />
@@ -31,6 +35,7 @@
               type="password"
               showPasswordOn="click"
               :placeholder="t('login.passwordPlaceholder')"
+              :input-props="{ 'aria-label': t('login.passwordPlaceholder') }"
             >
               <template #prefix>
                 <n-icon size="18" color="#808695">
@@ -44,6 +49,7 @@
               v-model:value="loginCaptchaCode"
               style="flex: 1; height: 40px"
               :placeholder="t('login.captchaPlaceholder')"
+              :input-props="{ 'aria-label': t('login.captchaPlaceholder') }"
             />
             <n-image
               :src="`/api/auth/login/captcha?captchaId=${loginCaptchaId}&t_${captchaTimestamp}`"

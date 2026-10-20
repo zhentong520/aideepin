@@ -39,6 +39,7 @@
         :data="list"
         :loading="loading"
         :pagination="pagination"
+        :scroll-x="1200"
         :row-key="(row: any) => row.id"
         :checked-row-keys="checkedIds"
         remote

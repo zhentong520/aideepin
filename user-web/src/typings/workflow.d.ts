@@ -567,4 +567,52 @@ declare namespace Workflow {
     nodes: Array<Record<string, unknown>>
     edges: Array<Record<string, unknown>>
   }
+
+  // ==================== T9-01 触发器 / T9-05 版本 / T9-06 模板 ====================
+
+  /** 触发器配置（GET /workflow/trigger/list） */
+  interface WfTrigger {
+    id: number
+    uuid: string
+    workflowUuid: string
+    triggerType: 'schedule' | 'webhook'
+    cronExpr: string
+    webhookUrl: string
+    inputParams: unknown[]
+    isEnable: boolean
+    lastFireTime: string | null
+    lastFireStatus: number
+    createTime: string
+  }
+
+  interface WfTriggerSaveReq {
+    workflowUuid?: string
+    uuid?: string
+    triggerType: 'schedule' | 'webhook'
+    cronExpr?: string
+    inputParams?: unknown[]
+    isEnable?: boolean
+  }
+
+  /** 版本快照（GET /workflow/version/list）；nodeDiff/edgeDiff 为与上一版本的变化 */
+  interface WfVersion {
+    versionNo: number
+    title: string
+    remark: string
+    modifierUserId: number
+    modifierUserName: string
+    nodeCount: number
+    edgeCount: number
+    nodeDiff: number
+    edgeDiff: number
+    rollback: boolean
+    createTime: string
+  }
+
+  /** 内置官方模板（GET /workflow/template/list） */
+  interface WfTemplateInfo {
+    id: string
+    title: string
+    remark: string
+  }
 }

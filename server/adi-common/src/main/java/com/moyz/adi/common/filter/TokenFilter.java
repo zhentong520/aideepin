@@ -38,6 +38,9 @@ public class TokenFilter extends OncePerRequestFilter {
             "/draw/comment/list",
             "/knowledge-base/public/",
             "/workflow/public",
+            // 二开（T9-01，2026-10-20）：工作流 webhook 匿名触发端点，鉴权由
+            // WorkflowWebhookController 做（token 精确匹配 + 匿名限流，无效 403/超限 429）
+            "/workflow/webhook/",
             "/mcp/public",
             "/sys/config/public/",
             "/ext/v1/",

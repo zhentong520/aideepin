@@ -41,6 +41,8 @@ export default {  common: {
     positiveText: '确定',
     negativeText: '取消',
     more: '更多',
+    // T9-12 a11y：图标按钮无可见文字，需 aria-label
+    toggleSider: '收起/展开侧栏',
   },
   layout: {
     tabsView: {

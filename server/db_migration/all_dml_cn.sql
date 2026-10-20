@@ -545,3 +545,34 @@ values (replace(gen_random_uuid()::text, '-', ''), 'Parallel Search', 'streamabl
 - **web_search**：搜索网页上的最新信息。
 - **web_fetch**：从指定网址提取简洁的 Markdown 内容。',
         true);
+
+-- 工作流 P3 节点注册与热开关（T9-02/03/04/07，2026-10-20）：Loop 循环 / Parallel 并行 / Code 代码 / SubWorkflow 子工作流。
+-- 管理端系统配置页可直接改值；未配置时代码回退 application.yml 默认值（缺省开）。
+-- T9-08 Container 是画布组织，不是运行时节点，不注册组件。
+INSERT INTO adi_workflow_component(uuid, name, title, remark, display_order, is_enable)
+SELECT replace(gen_random_uuid()::text, '-', ''), 'Loop', '循环节点',
+       '对数组输入逐项执行子链（Each，并行可选）或按条件循环（Loop），带最大次数熔断', 21, true
+WHERE NOT EXISTS (SELECT 1 FROM adi_workflow_component WHERE name = 'Loop');
+INSERT INTO adi_workflow_component(uuid, name, title, remark, display_order, is_enable)
+SELECT replace(gen_random_uuid()::text, '-', ''), 'Parallel', '并行节点',
+       '多分支并行执行，全部完成后按 join 语义（全成功/任一成功）汇合', 22, true
+WHERE NOT EXISTS (SELECT 1 FROM adi_workflow_component WHERE name = 'Parallel');
+INSERT INTO adi_workflow_component(uuid, name, title, remark, display_order, is_enable)
+SELECT replace(gen_random_uuid()::text, '-', ''), 'Code', '代码节点',
+       '把一段代码作为 Skill 沙箱任务执行，输入经 SKILL_SCRIPT_ARGS 注入，stdout 为输出', 23, true
+WHERE NOT EXISTS (SELECT 1 FROM adi_workflow_component WHERE name = 'Code');
+INSERT INTO adi_workflow_component(uuid, name, title, remark, display_order, is_enable)
+SELECT replace(gen_random_uuid()::text, '-', ''), 'SubWorkflow', '子工作流',
+       '引用另一个工作流作为子流程执行（引用链去重，深度上限 3）', 24, true
+WHERE NOT EXISTS (SELECT 1 FROM adi_workflow_component WHERE name = 'SubWorkflow');
+
+INSERT INTO adi_sys_config (name, value) SELECT 'wf_loop_enabled', 'true'
+WHERE NOT EXISTS (SELECT 1 FROM adi_sys_config WHERE name = 'wf_loop_enabled' AND is_deleted = false);
+INSERT INTO adi_sys_config (name, value) SELECT 'wf_parallel_enabled', 'true'
+WHERE NOT EXISTS (SELECT 1 FROM adi_sys_config WHERE name = 'wf_parallel_enabled' AND is_deleted = false);
+INSERT INTO adi_sys_config (name, value) SELECT 'wf_code_enabled', 'true'
+WHERE NOT EXISTS (SELECT 1 FROM adi_sys_config WHERE name = 'wf_code_enabled' AND is_deleted = false);
+INSERT INTO adi_sys_config (name, value) SELECT 'wf_sub_workflow_enabled', 'true'
+WHERE NOT EXISTS (SELECT 1 FROM adi_sys_config WHERE name = 'wf_sub_workflow_enabled' AND is_deleted = false);
+INSERT INTO adi_sys_config (name, value) SELECT 'wf_error_branch_enabled', 'true'
+WHERE NOT EXISTS (SELECT 1 FROM adi_sys_config WHERE name = 'wf_error_branch_enabled' AND is_deleted = false);

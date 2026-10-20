@@ -138,7 +138,7 @@ function extApiKey() {
           </div>
         </HoverButton>
         <NDropdown :options="options" class="mr-2" @select="handleSelect">
-          <NButton quaternary circle size="small">
+          <NButton quaternary circle size="small" :aria-label="t('common.more')">
             <template #icon>
               <SvgIcon icon="ri:more-fill" />
             </template>

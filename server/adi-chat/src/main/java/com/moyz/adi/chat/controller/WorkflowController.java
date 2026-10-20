@@ -6,6 +6,7 @@ import com.moyz.adi.common.dto.workflow.*;
 import com.moyz.adi.common.entity.WorkflowComponent;
 import com.moyz.adi.common.service.WorkflowComponentService;
 import com.moyz.adi.common.service.WorkflowService;
+import com.moyz.adi.common.service.WorkflowTemplateService;
 import com.moyz.adi.common.service.WorkflowVariableService;
 import com.moyz.adi.common.workflow.WorkflowStarter;
 import com.moyz.adi.common.workflow.node.switcher.OperatorEnum;
@@ -39,6 +40,9 @@ public class WorkflowController {
 
     @Resource
     private WorkflowVariableService workflowVariableService;
+
+    @Resource
+    private WorkflowTemplateService workflowTemplateService;
 
     @PostMapping("/add")
     public WorkflowResp add(@RequestBody @Validated WfAddReq addReq) {
@@ -110,6 +114,18 @@ public class WorkflowController {
     @PostMapping("/import")
     public WorkflowResp importWorkflow(@RequestBody @Validated WfExportResp req) {
         return workflowService.importWorkflow(req);
+    }
+
+    @Operation(summary = "T9-06 内置官方模板清单 | Template list")
+    @GetMapping("/template/list")
+    public List<WorkflowTemplateService.WfTemplateInfo> templateList() {
+        return workflowTemplateService.list();
+    }
+
+    @Operation(summary = "T9-06 从内置模板新建工作流（名字冲突自动加后缀） | Create from template")
+    @PostMapping("/template/create")
+    public WorkflowResp createFromTemplate(@RequestBody @Validated WfTemplateCreateReq req) {
+        return workflowTemplateService.createFromTemplate(req.getTemplateId(), req.getTitle(), req.getRemark());
     }
 
     @GetMapping("/mine/search")

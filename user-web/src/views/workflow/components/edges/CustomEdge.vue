@@ -3,6 +3,7 @@ import type { EdgeProps, Position } from '@vue-flow/core'
 import { EdgeLabelRenderer, getBezierPath, useVueFlow } from '@vue-flow/core'
 import type { CSSProperties } from 'vue'
 import { computed } from 'vue'
+import { t } from '@/locales'
 
 interface CustomEdgeProps<T = any> extends EdgeProps<T> {
   id: string
@@ -42,7 +43,7 @@ export default {
       }"
       class="nodrag nopan"
     >
-      <button class="edgebutton" @click="removeEdges(id)">
+      <button class="edgebutton" :aria-label="t('common.delete')" @click="removeEdges(id)">
         ×
       </button>
     </div>

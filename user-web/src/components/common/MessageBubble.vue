@@ -186,6 +186,7 @@ defineExpose({ messageRef })
             <button
               v-if="regenerate"
               class="mb-2 transition text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-300"
+              :aria-label="t('common.regenerate')"
               @click="handleRegenerate"
             >
               <SvgIcon icon="ri:restart-line" />
@@ -194,7 +195,7 @@ defineExpose({ messageRef })
               :trigger="(isMobile || dropdownTrigger === 'click') ? 'click' : 'hover'"
               :placement="!inversion ? 'right' : 'left'" :options="dropdownOptions" @select="handleSelect"
             >
-              <button class="transition text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200">
+              <button class="transition text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200" :aria-label="t('common.more')">
                 <SvgIcon icon="ri:more-2-fill" />
               </button>
             </NDropdown>

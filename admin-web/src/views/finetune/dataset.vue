@@ -8,7 +8,7 @@
           <n-button type="info" @click="uploadVisible = true">{{ t('finetune.uploadDataset') }}</n-button>
         </n-space>
       </n-space>
-      <n-data-table :columns="columns" :data="list" :loading="loading" :pagination="pagination" remote @update:page="onPage" />
+      <n-data-table :columns="columns" :data="list" :loading="loading" :pagination="pagination" :scroll-x="1800" remote @update:page="onPage" />
     </n-card>
 
     <n-modal v-model:show="uploadVisible" preset="dialog" :title="t('finetune.uploadDataset')" style="width: 520px">

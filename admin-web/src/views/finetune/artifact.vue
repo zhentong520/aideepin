@@ -18,7 +18,7 @@
         </n-space>
       </n-alert>
 
-      <n-data-table :columns="columns" :data="list" :loading="loading" :pagination="pagination" remote @update:page="onPage" />
+      <n-data-table :columns="columns" :data="list" :loading="loading" :pagination="pagination" :scroll-x="1400" remote @update:page="onPage" />
     </n-card>
 
     <n-modal v-model:show="registerVisible" preset="dialog" :title="t('finetune.registerTitle')" style="width: 560px">

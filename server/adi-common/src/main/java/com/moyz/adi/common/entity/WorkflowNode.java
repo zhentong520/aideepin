@@ -54,4 +54,16 @@ public class WorkflowNode extends BaseEntity {
 
     @TableField("position_y")
     private Double positionY;
+
+    /**
+     * 二开新增（T9-08）：画布布局元数据（纯布局，不参与执行语义）。
+     * <p>
+     * Container 分组节点的引擎侧最小实现：分组归属（container uuid）、折叠标记等
+     * 画布组织信息以 JSON 存本字段，引擎构图/执行完全忽略它。
+     * <p>
+     * T9-08: canvas layout metadata (pure layout, no execution semantics).
+     * Container grouping info lives here as opaque JSON; the engine ignores it entirely.
+     */
+    @TableField(value = "layout", jdbcType = JdbcType.JAVA_OBJECT, typeHandler = JsonNodeTypeHandler.class)
+    private ObjectNode layout;
 }

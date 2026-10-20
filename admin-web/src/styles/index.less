@@ -1,4 +1,20 @@
 @import url('./transition/index.less');
+@import url('./breakpoints.less');
+
+/* T9-12 a11y：键盘焦点可见（focus-visible），主色 token 来自 aideepin-tokens/tokens.css（--adi-primary） */
+:focus-visible {
+	outline: 2px solid var(--adi-primary);
+	outline-offset: 2px;
+}
+
+/* T9-10 响应式基础适配：≤1280px（@adi-bp-xl）时弹窗/抽屉宽度自适应，防横向溢出 */
+@media (max-width: (@adi-bp-xl - 1)) {
+	.n-modal,
+	.n-card.n-modal,
+	.n-drawer .n-drawer-content {
+		max-width: calc(100vw - 32px) !important;
+	}
+}
 
 /* T3-01：节点/面板内容行统一样式（与 user-web/src/styles/global.less 保持一致）
    注意：仅增强不破坏 —— 画布节点内的 .vue-flow__node .content_line 规则优先级更高，仍按原样渲染 */

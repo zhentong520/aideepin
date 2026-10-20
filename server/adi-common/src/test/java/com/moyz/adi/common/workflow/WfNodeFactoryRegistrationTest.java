@@ -135,6 +135,33 @@ class WfNodeFactoryRegistrationTest {
     }
 
     @Test
+    @DisplayName("P3 新节点（Loop/Parallel/Code/SubWorkflow）组件名必须在枚举中登记（T9-02/03/04/07）")
+    void enumRegistersP3NodeTypes() {
+        assertEquals(WfComponentNameEnum.LOOP, WfComponentNameEnum.getByName("Loop"));
+        assertEquals(WfComponentNameEnum.PARALLEL, WfComponentNameEnum.getByName("Parallel"));
+        assertEquals(WfComponentNameEnum.CODE, WfComponentNameEnum.getByName("Code"));
+        assertEquals(WfComponentNameEnum.SUB_WORKFLOW, WfComponentNameEnum.getByName("SubWorkflow"));
+    }
+
+    @Test
+    @DisplayName("工厂能为 P3 新节点造出对应节点实例")
+    void factoryCreatesP3NodeTypes() {
+        assertInstanceOf(com.moyz.adi.common.workflow.node.loop.LoopNode.class, create("Loop"));
+        assertInstanceOf(com.moyz.adi.common.workflow.node.parallel.ParallelNode.class, create("Parallel"));
+        assertInstanceOf(com.moyz.adi.common.workflow.node.code.CodeNode.class, create("Code"));
+        assertInstanceOf(com.moyz.adi.common.workflow.node.subworkflow.SubWorkflowNode.class, create("SubWorkflow"));
+    }
+
+    @Test
+    @DisplayName("P3 新节点必须带上自己的指标类型（防止漏写 setMetrics 导致可观测性静默缺失）")
+    void p3NodesCarryTheirOwnMetricsType() {
+        assertInstanceOf(com.moyz.adi.common.workflow.metrics.LoopMetrics.class, create("Loop").getState().getMetrics());
+        assertInstanceOf(com.moyz.adi.common.workflow.metrics.ParallelMetrics.class, create("Parallel").getState().getMetrics());
+        assertInstanceOf(com.moyz.adi.common.workflow.metrics.CodeMetrics.class, create("Code").getState().getMetrics());
+        assertInstanceOf(com.moyz.adi.common.workflow.metrics.SubWorkflowMetrics.class, create("SubWorkflow").getState().getMetrics());
+    }
+
+    @Test
     @DisplayName("未知组件必须显式报错并带上组件名，不能静默返回 null")
     void unknownComponentFailsLoudly() {
         BaseException ex = assertThrows(BaseException.class, () -> create("NotARealNode"));

@@ -30,4 +30,15 @@ public class RedisTemplateUtil {
         return result != null && result > 0;
     }
 
+    /**
+     * 自增计数并给首个计数设置过期（固定窗口限流用）。返回自增后的值；Redis 异常时由调用方处理 null。
+     */
+    public Long increment(String key, long expireSeconds) {
+        Long count = stringRedisTemplate.opsForValue().increment(key);
+        if (count != null && count == 1) {
+            stringRedisTemplate.expire(key, expireSeconds, TimeUnit.SECONDS);
+        }
+        return count;
+    }
+
 }

@@ -13,10 +13,11 @@
  * T3-11：CommonNodeHeader 按必填字段实时显示未配置徽标
  * T3-14：节点卡 hover 显示 doc 文档；wfNodePresets 内置模板可拖入画布
  *
- * 与后端 WfNodeFactory 的 21 个 case 一一对应（START/LLM_ANSWER/CLASSIFIER/
+ * 与后端 WfNodeFactory 的 25 个 case 一一对应（START/LLM_ANSWER/CLASSIFIER/
  * SWITCHER/TEMPLATE/KEYWORD_EXTRACTOR/DOCUMENT_EXTRACTOR/FAQ_EXTRACTOR/
  * KNOWLEDGE_RETRIEVER/GOOGLE_SEARCH/OPENAI_IMAGE/TONGYI_WANX/HUMAN_FEEDBACK/
- * MAIL_SEND/HTTP_REQUEST/AGENT/DATABASE/MCP/SKILL/ORCHESTRATOR/END）。
+ * MAIL_SEND/HTTP_REQUEST/AGENT/DATABASE/MCP/SKILL/ORCHESTRATOR/
+ * LOOP/PARALLEL/CODE/SUB_WORKFLOW/END）。
  */
 import type { Component } from 'vue'
 
@@ -41,6 +42,10 @@ import DatabaseNode from './DatabaseNode.vue'
 import McpNode from './McpNode.vue'
 import SkillNode from './SkillNode.vue'
 import OrchestratorNode from './OrchestratorNode.vue'
+import LoopNode from './LoopNode.vue'
+import ParallelNode from './ParallelNode.vue'
+import CodeNode from './CodeNode.vue'
+import SubWorkflowNode from './SubWorkflowNode.vue'
 
 import StartNodeProperty from './StartNodeProperty.vue'
 import EndNodeProperty from './EndNodeProperty.vue'
@@ -63,6 +68,7 @@ import DatabaseNodeProperty from './DatabaseNodeProperty.vue'
 import McpNodeProperty from './McpNodeProperty.vue'
 import SkillNodeProperty from './SkillNodeProperty.vue'
 import OrchestratorNodeProperty from './OrchestratorNodeProperty.vue'
+import P3NodeProperty from './P3NodeProperty.vue'
 
 export type WfNodeCategory = 'trigger' | 'llm' | 'retrieval' | 'transform' | 'action' | 'flow'
 
@@ -174,6 +180,20 @@ const METRIC_TOKENS = ['inputTokens', 'outputTokens', 'modelName']
 const TIP_EMPTY_USE_PREVIOUS: WfLocalizedText = {
   zh: '为空则使用上一个节点的输出',
   en: 'Leave empty to use the previous node output',
+}
+
+// T9-02/03 专用提示
+const TIP_EMPTY_USE_PREVIOUS_ITEM: WfLocalizedText = {
+  zh: '支持 {item}（当前项）、{index}（下标）与上游变量；留空则逐项输出数组元素',
+  en: 'Supports {item}, {index} and upstream vars; empty = output each item verbatim',
+}
+const TIP_INHERIT_ARRAY_PARAM: WfLocalizedText = {
+  zh: '承载 JSON 数组的输入参数名，留空使用默认输入',
+  en: 'Input param holding the JSON array; empty = default input',
+}
+const TIP_BRANCHES_JSON: WfLocalizedText = {
+  zh: 'JSON 数组，如 [{{"name":"a","template":"处理:{input}","delay_ms":0}}]',
+  en: 'JSON array, e.g. [{{"name":"a","template":"process:{input}","delay_ms":0}}]',
 }
 
 const RERANK_OPTIONS: WfDescriptorFieldOption[] = [
@@ -959,6 +979,160 @@ export const wfNodeDescriptors: WfNodeDescriptor[] = [
         required: 'At least one sub-agent; task id defaults to the agent uuid.',
         output: 'Summary text (with each subtask success/failure record by default).',
         errors: 'Empty sub-agent list; orchestration switch off; fail_fast with failed subtasks.',
+      },
+    },
+    hasInput: true,
+    hasOutput: true,
+  },
+  {
+    // T9-02 循环节点：metrics 与后端 LoopMetrics 字段一一对应（第六处指标 chip 自动生效）
+    type: 'Loop',
+    icon: 'carbon:repeat',
+    iconClass: 'text-amber-800',
+    category: 'flow',
+    color: COLOR_FLOW,
+    component: LoopNode,
+    propertyComponent: P3NodeProperty,
+    componentTitle: { zh: '循环节点', en: 'Loop' },
+    metrics: ['iterations', 'itemCount', 'resultCount', 'stopReason'],
+    configSchema: [
+      {
+        name: 'mode',
+        label: { zh: '执行模式', en: 'Mode' },
+        type: 'select',
+        required: true,
+        group: 'required',
+        options: [
+          { label: { zh: '数组逐项 (Each)', en: 'Each (array)' }, value: 'each' },
+          { label: { zh: '条件循环 (While)', en: 'While (condition)' }, value: 'while' },
+        ],
+      },
+      { name: 'body_template', label: { zh: '子链体模板', en: 'Body template' }, type: 'textarea', group: 'required', tip: TIP_EMPTY_USE_PREVIOUS_ITEM },
+      { name: 'condition_template', label: { zh: '条件模板', en: 'Condition template' }, type: 'textarea', group: 'advanced', showWhen: [{ field: 'mode', equals: 'while' }] },
+      { name: 'items_param', label: { zh: '数组入参名', en: 'Array param' }, type: 'input', group: 'advanced', showWhen: [{ field: 'mode', equals: 'each' }], tip: TIP_INHERIT_ARRAY_PARAM },
+      { name: 'item_param_name', label: { zh: '当前项变量名', en: 'Item variable' }, type: 'input', group: 'advanced', showWhen: [{ field: 'mode', equals: 'each' }] },
+      { name: 'max_iterations', label: { zh: '最大次数', en: 'Max iterations' }, type: 'number', group: 'advanced' },
+      { name: 'parallel', label: { zh: '并行逐项', en: 'Parallel items' }, type: 'switch', group: 'advanced', showWhen: [{ field: 'mode', equals: 'each' }] },
+      { name: 'max_parallel', label: { zh: '并行度', en: 'Max parallel' }, type: 'number', group: 'advanced', showWhen: [{ field: 'mode', equals: 'each' }] },
+    ],
+    doc: {
+      zh: {
+        purpose: '对数组输入逐项执行子链（Each，可选并行）或按条件循环（Loop），结束后聚合输出。',
+        required: '执行模式；each 需要数组入参（缺省用默认输入），while 需要条件模板。',
+        output: '默认参数 output 为聚合 JSON 数组；另有 results_text / stop_reason / iterations。',
+        errors: '数组入参不存在或不可解析；while 条件恒真触达 max_iterations 熔断（部分结果仍输出）。',
+      },
+      en: {
+        purpose: 'Iterates an array input item by item (Each, parallel optional) or loops by condition (Loop), then aggregates.',
+        required: 'Mode; Each needs an array param (default input fallback), While needs a condition template.',
+        output: 'Default param "output": aggregated JSON array; plus results_text / stop_reason / iterations.',
+        errors: 'Array param missing or unparseable; always-true while condition hits the max-iteration fuse (partial results still emitted).',
+      },
+    },
+    hasInput: true,
+    hasOutput: true,
+  },
+  {
+    // T9-03 并行节点：metrics 与后端 ParallelMetrics 字段一一对应
+    type: 'Parallel',
+    icon: 'carbon:branch',
+    iconClass: 'text-amber-800',
+    category: 'flow',
+    color: COLOR_FLOW,
+    component: ParallelNode,
+    propertyComponent: P3NodeProperty,
+    componentTitle: { zh: '并行节点', en: 'Parallel' },
+    metrics: ['branchCount', 'successCount', 'failCount', 'parallelElapsedMs'],
+    configSchema: [
+      { name: 'branches', label: { zh: '并行分支', en: 'Branches' }, type: 'textarea', required: true, group: 'required', tip: TIP_BRANCHES_JSON },
+      {
+        name: 'join',
+        label: { zh: '汇合语义', en: 'Join semantics' },
+        type: 'select',
+        group: 'required',
+        options: [
+          { label: { zh: '全成功 (all)', en: 'All succeed' }, value: 'all' },
+          { label: { zh: '任一成功 (any)', en: 'Any succeeds' }, value: 'any' },
+        ],
+      },
+      { name: 'timeout_seconds', label: { zh: '分支超时(秒)', en: 'Timeout (s)' }, type: 'number', group: 'advanced' },
+      { name: 'max_parallel', label: { zh: '并行度', en: 'Max parallel' }, type: 'number', group: 'advanced' },
+    ],
+    doc: {
+      zh: {
+        purpose: '多分支并行执行，全部完成后按 join 语义汇合（all=全成功 / any=任一成功）。',
+        required: '至少一个分支（branches JSON 数组：name/template，可选 delay_ms 模拟慢分支）。',
+        output: '每个成功分支一条同名输出；默认参数 output 为各分支结果拼接。',
+        errors: 'join=all 下存在失败/超时分支；join=any 下全部分支失败。',
+      },
+      en: {
+        purpose: 'Runs branches in parallel and joins with configurable semantics (all / any).',
+        required: 'At least one branch (branches JSON array: name/template, optional delay_ms to simulate slow ones).',
+        output: 'One output per succeeded branch (by name); default param "output" joins them.',
+        errors: 'join=all with a failed/timed-out branch; join=any with all branches failed.',
+      },
+    },
+    hasInput: true,
+    hasOutput: true,
+  },
+  {
+    // T9-04 代码节点：metrics 与后端 CodeMetrics 字段一一对应（复用 Skill 沙箱）
+    type: 'Code',
+    icon: 'carbon:code',
+    iconClass: 'text-slate-700',
+    category: 'action',
+    color: COLOR_ACTION,
+    component: CodeNode,
+    propertyComponent: P3NodeProperty,
+    componentTitle: { zh: '代码节点', en: 'Code' },
+    metrics: ['language', 'timeoutSeconds', 'resultLength', 'exitCode'],
+    configSchema: [
+      { name: 'code', label: { zh: '代码', en: 'Code' }, type: 'textarea', required: true, group: 'required' },
+      { name: 'timeout_seconds', label: { zh: '超时(秒)', en: 'Timeout (s)' }, type: 'number', group: 'advanced' },
+    ],
+    doc: {
+      zh: {
+        purpose: '把一段代码作为 Skill 沙箱任务执行（python，固定参数列表、超时强杀、输出截断）。',
+        required: '代码正文；上游输入经 SKILL_SCRIPT_ARGS 环境变量（JSON）注入。',
+        output: '脚本 stdout 作为默认参数 output；另有 exit_code。',
+        errors: '语言非 python 被拒；脚本超时；非零退出码视为节点失败。',
+      },
+      en: {
+        purpose: 'Runs a code snippet as a Skill sandbox task (python, fixed arg list, timeout kill, output truncation).',
+        required: 'Code body; upstream inputs are injected as the SKILL_SCRIPT_ARGS env var (JSON).',
+        output: 'Script stdout as default param "output"; plus exit_code.',
+        errors: 'Non-python language rejected; script timeout; non-zero exit code fails the node.',
+      },
+    },
+    hasInput: true,
+    hasOutput: true,
+  },
+  {
+    // T9-07 子工作流节点：metrics 与后端 SubWorkflowMetrics 字段一一对应
+    type: 'SubWorkflow',
+    icon: 'carbon:flow-connection',
+    iconClass: 'text-amber-800',
+    category: 'flow',
+    color: COLOR_FLOW,
+    component: SubWorkflowNode,
+    propertyComponent: P3NodeProperty,
+    componentTitle: { zh: '子工作流', en: 'SubWorkflow' },
+    metrics: ['subWorkflowUuid', 'chainDepth', 'chainPath'],
+    configSchema: [
+      { name: 'workflow_uuid', label: { zh: '子工作流', en: 'Sub-workflow' }, type: 'input', required: true, group: 'required' },
+    ],
+    doc: {
+      zh: {
+        purpose: '引用另一个工作流作为子流程执行（子流程有自己的运行记录）。',
+        required: '目标工作流 uuid（须启用且公开或归属运行用户）。',
+        output: '子工作流最终 outputs（JSON 文本）；另有 sub_workflow_uuid。',
+        errors: '递归引用（链上已存在）被拒；嵌套深度超过 3 被拒；目标工作流不存在或已停用。',
+      },
+      en: {
+        purpose: 'Runs another workflow as a sub-process (with its own run record).',
+        required: 'Target workflow uuid (enabled, public or owned by the runner).',
+        output: 'The sub-workflow final outputs (JSON text); plus sub_workflow_uuid.',
+        errors: 'Recursive reference rejected; nesting depth over 3 rejected; target missing or disabled.',
       },
     },
     hasInput: true,

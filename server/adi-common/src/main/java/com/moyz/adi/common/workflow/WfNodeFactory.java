@@ -9,9 +9,13 @@ import com.moyz.adi.common.workflow.node.EndNode;
 import com.moyz.adi.common.workflow.node.agent.AgentNode;
 import com.moyz.adi.common.workflow.node.answer.LLMAnswerNode;
 import com.moyz.adi.common.workflow.node.classifier.ClassifierNode;
+import com.moyz.adi.common.workflow.node.code.CodeNode;
 import com.moyz.adi.common.workflow.node.database.DatabaseNode;
+import com.moyz.adi.common.workflow.node.loop.LoopNode;
 import com.moyz.adi.common.workflow.node.mcp.McpNode;
 import com.moyz.adi.common.workflow.node.openaiimage.OpenAiImageNode;
+import com.moyz.adi.common.workflow.node.parallel.ParallelNode;
+import com.moyz.adi.common.workflow.node.subworkflow.SubWorkflowNode;
 import com.moyz.adi.common.workflow.node.documentextractor.DocumentExtractorNode;
 import com.moyz.adi.common.workflow.node.faqextractor.FaqExtractorNode;
 import com.moyz.adi.common.workflow.node.google.GoogleNode;
@@ -99,6 +103,18 @@ public class WfNodeFactory {
                 break;
             case ORCHESTRATOR:
                 wfNode = new OrchestratorNode(wfComponent, nodeDefinition, wfState, nodeState);
+                break;
+            case LOOP:
+                wfNode = new LoopNode(wfComponent, nodeDefinition, wfState, nodeState);
+                break;
+            case PARALLEL:
+                wfNode = new ParallelNode(wfComponent, nodeDefinition, wfState, nodeState);
+                break;
+            case CODE:
+                wfNode = new CodeNode(wfComponent, nodeDefinition, wfState, nodeState);
+                break;
+            case SUB_WORKFLOW:
+                wfNode = new SubWorkflowNode(wfComponent, nodeDefinition, wfState, nodeState);
                 break;
             case END:
                 wfNode = new EndNode(wfComponent, nodeDefinition, wfState, nodeState);

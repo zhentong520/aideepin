@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "title": "知识库问答",
+  "remark": "官方模板：用户输入问题 → 知识库检索 → LLM 结合检索内容作答。导入后请选择知识库与模型。",
+  "nodes": [
+    {
+      "uuid": "t9tplkbqa00000000000000000000001",
+      "componentName": "Start",
+      "title": "开始",
+      "remark": "用户输入",
+      "inputConfig": {
+        "user_inputs": [
+          {
+            "uuid": "t9tplkbqa00000000000000000000002",
+            "name": "var_user_input",
+            "title": "用户问题",
+            "type": 1,
+            "required": true,
+            "max_length": 2000
+          }
+        ],
+        "ref_inputs": []
+      },
+      "nodeConfig": {},
+      "positionX": 100,
+      "positionY": 200
+    },
+    {
+      "uuid": "t9tplkbqa00000000000000000000003",
+      "componentName": "KnowledgeRetrieval",
+      "title": "知识检索",
+      "remark": "导入后请选择知识库",
+      "inputConfig": {
+        "user_inputs": [],
+        "ref_inputs": []
+      },
+      "nodeConfig": {
+        "knowledge_base_uuid": "",
+        "top_n": 5,
+        "is_strict": false,
+        "default_response": "抱歉，知识库中没有找到相关内容。"
+      },
+      "positionX": 400,
+      "positionY": 200
+    },
+    {
+      "uuid": "t9tplkbqa00000000000000000000004",
+      "componentName": "Answer",
+      "title": "LLM 回答",
+      "remark": "导入后请选择模型",
+      "inputConfig": {
+        "user_inputs": [],
+        "ref_inputs": []
+      },
+      "nodeConfig": {
+        "model_platform": "",
+        "model_name": "",
+        "prompt": "你是知识库问答助手。请只依据检索到的知识内容回答用户问题；检索内容没有覆盖时明确说明。"
+      },
+      "positionX": 700,
+      "positionY": 200
+    }
+  ],
+  "edges": [
+    {
+      "uuid": "t9tplkbqa00000000000000000000005",
+      "sourceNodeUuid": "t9tplkbqa00000000000000000000001",
+      "sourceHandle": "t9tplkbqa00000000000000000000001",
+      "targetNodeUuid": "t9tplkbqa00000000000000000000003"
+    },
+    {
+      "uuid": "t9tplkbqa00000000000000000000006",
+      "sourceNodeUuid": "t9tplkbqa00000000000000000000003",
+      "sourceHandle": "t9tplkbqa00000000000000000000003",
+      "targetNodeUuid": "t9tplkbqa00000000000000000000004"
+    }
+  ]
+}

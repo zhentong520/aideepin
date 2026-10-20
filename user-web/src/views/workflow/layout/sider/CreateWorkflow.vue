@@ -1,6 +1,6 @@
 <script setup lang='ts'>
 import { computed, onMounted, ref, watch } from 'vue'
-import { NAvatar, NButton, NDivider, NFlex, NForm, NFormItem, NInput, NModal, NPopconfirm, NSwitch, NTag, NTooltip, useMessage } from 'naive-ui'
+import { NAvatar, NButton, NDivider, NFlex, NForm, NFormItem, NInput, NModal, NPopconfirm, NSelect, NSwitch, NTag, NTooltip, useMessage } from 'naive-ui'
 import type { FormInst } from 'naive-ui'
 import { SvgIcon } from '@/components/common'
 import defaultAvatar from '@/assets/avatar.jpg'
@@ -15,6 +15,9 @@ const tmpWorkflow = ref<Workflow.WorkflowInfo>(emptyWorkflowInfo())
 const formRef = ref<FormInst | null>(null)
 // 与后端一致：标题必填（@NotBlank），长度上限为前端防御性约束
 const wfRules = { title: titleRules(t('common.title')) }
+// T9-06：内置官方模板，新建时可选；空串 = 空白工作流
+const templates = ref<Workflow.WfTemplateInfo[]>([])
+const selectedTemplateId = ref<string>('')
 
 const wfStore = useWfStore()
 const userStore = useUserStore()
@@ -35,7 +38,14 @@ async function handleSave(event?: KeyboardEvent) {
   const params = { uuid: tmpWorkflow.value.uuid, title: tmpWorkflow.value.title, remark: tmpWorkflow.value.remark, isPublic: tmpWorkflow.value.isPublic }
   try {
     if (!tmpWorkflow.value.uuid) {
-      const { data: wf } = await api.workflowAdd<Workflow.WorkflowInfo>(params)
+      // T9-06：选择模板时走 create-from-template（名字冲突由后端加后缀）
+      const { data: wf } = selectedTemplateId.value
+        ? await api.workflowTemplateCreate<Workflow.WorkflowInfo>({
+            templateId: selectedTemplateId.value,
+            title: tmpWorkflow.value.title,
+            remark: tmpWorkflow.value.remark,
+          })
+        : await api.workflowAdd<Workflow.WorkflowInfo>(params)
       wfStore.addWorkflowAndActive(wf)
     } else {
       const { data: wf } = await api.workflowBaseInfoUpdate<Workflow.WorkflowInfo>(params)
@@ -86,7 +96,17 @@ const title = computed(() => {
     return t('common.view')
 })
 
+// T9-06：模板下拉项（首项「空白工作流」= 不选模板；NSelect 不接受 null，用空串表示不选）
+const templateOptions = computed(() => [
+  { label: t('workflow.templateBlank'), value: '' },
+  ...templates.value.map(tpl => ({ label: tpl.title, value: tpl.id })),
+])
+
 onMounted(() => {
+  // T9-06：拉取内置模板清单（失败静默——模板是增强项，不阻断新建）
+  api.workflowTemplateList<Workflow.WfTemplateInfo[]>().then(({ data }) => {
+    templates.value = data ?? []
+  }).catch(() => {})
 })
 
 watch(() => wfStore.createOrEditWfUuid, (val) => {
@@ -103,6 +123,7 @@ watch(() => wfStore.createOrEditWfUuid, (val) => {
     }
   } else {
     tmpWorkflow.value = emptyWorkflowInfo()
+    selectedTemplateId.value = ''
   }
 })
 </script>
@@ -148,6 +169,10 @@ watch(() => wfStore.createOrEditWfUuid, (val) => {
           </NForm>
           <NFormItem :label="t('workflow.remarkLabel')" :show-feedback="false">
             <NInput v-model:value="tmpWorkflow.remark" type="text" size="large" />
+          </NFormItem>
+          <!-- T9-06：新建时可选官方模板（编辑已有工作流时不显示） -->
+          <NFormItem v-if="viewStyle === 'create' && templates.length" :label="t('workflow.templateLabel')" :show-feedback="false">
+            <NSelect v-model:value="selectedTemplateId" clearable size="large" :options="templateOptions" />
           </NFormItem>
           <NFormItem :label="t('workflow.isPublicLabel')" :show-feedback="false">
             <NSwitch v-model:value="tmpWorkflow.isPublic">

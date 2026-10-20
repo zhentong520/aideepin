@@ -121,6 +121,14 @@ public class WorkflowStarter {
      * Run a workflow in blocking mode, wait for completion and return the result.
      */
     public Map<String, Object> blocking(User user, String workflowUuid, List<ObjectNode> userInputs) {
+        return blocking(user, workflowUuid, userInputs, "manual");
+    }
+
+    /**
+     * T9-01：带触发来源的阻塞运行（定时/webhook/API 触发走本入口）。
+     * triggerSource 落运行记录 trigger_source 列（manual/schedule/webhook/api）。
+     */
+    public Map<String, Object> blocking(User user, String workflowUuid, List<ObjectNode> userInputs, String triggerSource) {
         Workflow workflow = workflowService.getByUuid(workflowUuid);
         if (null == workflow) {
             throw new BaseException(A_WF_NOT_FOUND);
@@ -145,6 +153,7 @@ public class WorkflowStarter {
                 edges,
                 workflowRuntimeService,
                 workflowRuntimeNodeService);
+        workflowEngine.setTriggerSource(triggerSource);
         return workflowEngine.blockingRun(user, userInputs);
     }
 

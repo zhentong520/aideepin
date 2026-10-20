@@ -46,7 +46,19 @@ public enum WfComponentNameEnum {
 
     SKILL("Skill"),
 
-    ORCHESTRATOR("Orchestrator");
+    ORCHESTRATOR("Orchestrator"),
+
+    /** T9-02：循环节点（Each 逐项 / While 条件循环） */
+    LOOP("Loop"),
+
+    /** T9-03：并行节点（多分支并行 + join 汇合） */
+    PARALLEL("Parallel"),
+
+    /** T9-04：代码节点（复用 Skill 脚本沙箱） */
+    CODE("Code"),
+
+    /** T9-07：子工作流节点（引用链去重 + 深度上限） */
+    SUB_WORKFLOW("SubWorkflow");
 
     private final String name;
 

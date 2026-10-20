@@ -1243,9 +1243,72 @@ COMMENT ON COLUMN adi_workflow_runtime.status_remark IS 'Status remark';
 COMMENT ON COLUMN adi_workflow_runtime.input_tokens IS 'Total input tokens aggregated from LLM-typed nodes (terminal snapshot, written at success / fail / waiting_input)';
 COMMENT ON COLUMN adi_workflow_runtime.output_tokens IS 'Total output tokens aggregated from LLM-typed nodes (terminal snapshot)';
 COMMENT ON COLUMN adi_workflow_runtime.duration IS 'Total run duration in milliseconds aggregated from all nodes (terminal snapshot)';
+COMMENT ON COLUMN adi_workflow_runtime.trigger_source IS 'T9-01: manual / schedule / webhook / api | 触发来源：手动/定时/webhook/内部API';
 create trigger trigger_workflow_runtime
     before update
     on adi_workflow_runtime
+    for each row
+execute procedure update_modified_column();
+
+-- Workflow Trigger Config (T9-01: schedule cron / webhook token)
+create table adi_workflow_trigger
+(
+    id               bigserial primary key,
+    uuid             varchar(32)  default ''                not null,
+    workflow_id      bigint       default 0                 not null,
+    user_id          bigint       default 0                 not null,
+    trigger_type     varchar(16)  default ''                not null,
+    cron_expr        varchar(64)  default ''                not null,
+    webhook_token    varchar(64)  default ''                not null,
+    input_params     jsonb        default '[]'              not null,
+    is_enable        boolean      default true              not null,
+    last_fire_time   timestamp,
+    last_fire_status smallint     default 0                 not null,
+    create_time      timestamp    default CURRENT_TIMESTAMP not null,
+    update_time      timestamp    default CURRENT_TIMESTAMP not null,
+    is_deleted       boolean      default false             not null
+);
+COMMENT ON TABLE adi_workflow_trigger IS 'Workflow trigger config (schedule / webhook) | 工作流触发配置（定时 cron / webhook token）';
+COMMENT ON COLUMN adi_workflow_trigger.trigger_type IS 'schedule | webhook | 触发类型：定时 / webhook';
+COMMENT ON COLUMN adi_workflow_trigger.cron_expr IS 'Spring CronExpression (6-field), schedule triggers only | 定时触发 cron 表达式（Spring 6 域格式），仅 schedule 类型';
+COMMENT ON COLUMN adi_workflow_trigger.webhook_token IS 'Webhook path token, unique; URL = {backend}/workflow/webhook/{token} | webhook 路径 token，唯一索引';
+COMMENT ON COLUMN adi_workflow_trigger.input_params IS 'Default inputs of triggered runs, same shape as /workflow/run inputs | 触发时默认入参（与 /workflow/run inputs 同构）';
+COMMENT ON COLUMN adi_workflow_trigger.last_fire_status IS '0=none 1=dispatched 2=dispatch-failed | 最近派发状态：0未触发 1已派发 2派发失败';
+create unique index if not exists uk_workflow_trigger_token on adi_workflow_trigger (webhook_token) where is_deleted = false;
+create index if not exists idx_workflow_trigger_wf on adi_workflow_trigger (workflow_id);
+create trigger trigger_workflow_trigger
+    before update
+    on adi_workflow_trigger
+    for each row
+execute procedure update_modified_column();
+
+-- Workflow Definition Version Snapshot (T9-05)
+create table adi_workflow_version
+(
+    id               bigserial primary key,
+    uuid             varchar(32)  default ''                not null,
+    workflow_id      bigint       default 0                 not null,
+    version_no       int          default 1                 not null,
+    title            varchar(100) default ''                not null,
+    remark           varchar(500) default ''                not null,
+    definition       jsonb        default '{}'              not null,
+    modifier_user_id bigint       default 0                 not null,
+    node_count       int          default 0                 not null,
+    edge_count       int          default 0                 not null,
+    create_time      timestamp    default CURRENT_TIMESTAMP not null,
+    update_time      timestamp    default CURRENT_TIMESTAMP not null,
+    is_deleted       boolean      default false             not null
+);
+COMMENT ON TABLE adi_workflow_version IS 'Workflow definition version snapshot (T9-05) | 工作流定义版本快照：每次保存一条，回滚生成新版本不覆盖历史';
+COMMENT ON COLUMN adi_workflow_version.definition IS 'Full definition JSON (title/remark/nodes/edges, NOT sanitized — rollback needs real configs) | 完整定义JSON（不脱敏：回滚需要真实配置）';
+COMMENT ON COLUMN adi_workflow_version.modifier_user_id IS 'Who saved this version | 该版本的修改人';
+COMMENT ON COLUMN adi_workflow_version.node_count IS 'Node count at snapshot time, for diff summary | 快照时节点数（diff 概要用）';
+COMMENT ON COLUMN adi_workflow_version.edge_count IS 'Edge count at snapshot time, for diff summary | 快照时边数（diff 概要用）';
+create unique index if not exists uk_workflow_version_no on adi_workflow_version (workflow_id, version_no) where is_deleted = false;
+create index if not exists idx_workflow_version_wf on adi_workflow_version (workflow_id);
+create trigger trigger_workflow_version
+    before update
+    on adi_workflow_version
     for each row
 execute procedure update_modified_column();
 
@@ -2398,3 +2461,13 @@ create trigger trigger_memory_pending_update_time
     on adi_memory_pending
     for each row
 execute procedure update_modified_column();
+
+-- =====================================================================
+-- V15__workflow_p3_nodes.sql（二开 T9-02/03/04/07/08，2026-10-20）
+-- 工作流引擎 P3 五卡：4 个新节点组件注册（Loop/Parallel/Code/SubWorkflow）
+-- + adi_workflow_node.layout 布局元数据（T9-08 Container，纯布局不影响执行语义）。
+-- 热开关 DML 见 all_dml.sql / all_dml_cn.sql / all_dml_en.sql。
+-- =====================================================================
+
+alter table adi_workflow_node add column if not exists layout jsonb default '{}'::jsonb not null;
+comment on column adi_workflow_node.layout is 'Canvas layout metadata (T9-08 container grouping etc.), no execution semantics | 画布布局元数据（T9-08 Container分组等），不参与执行语义';

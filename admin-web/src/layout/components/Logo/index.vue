@@ -1,6 +1,6 @@
 <template>
   <div class="logo">
-    <img :src="websiteConfig.logo" alt="" :class="{ 'mr-2': !collapsed }" />
+    <img :src="websiteConfig.logo" :alt="websiteConfig.title" :class="{ 'mr-2': !collapsed }" />
     <h2 v-show="!collapsed" class="title">{{ websiteConfig.title }}</h2>
   </div>
 </template>

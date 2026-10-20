@@ -15,7 +15,7 @@
       <n-alert type="default" :show-icon="false" style="margin-bottom: 12px">
         {{ t('finetune.jobHint') }}
       </n-alert>
-      <n-data-table :columns="columns" :data="list" :loading="loading" :pagination="pagination" remote @update:page="onPage" />
+      <n-data-table :columns="columns" :data="list" :loading="loading" :pagination="pagination" :scroll-x="1600" remote @update:page="onPage" />
     </n-card>
 
     <!-- ================= 创建训练任务 ================= -->

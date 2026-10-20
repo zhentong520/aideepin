@@ -14,6 +14,8 @@ import SpecialEdge from './components/edges/SpecialEdge.vue'
 import CustomEdge from './components/edges/CustomEdge.vue'
 import CustomEdge2 from './components/edges/CustomEdge2.vue'
 import RunDetail from '@/views/workflow/components/RunDetail.vue'
+import VersionHistoryModal from '@/views/workflow/components/VersionHistoryModal.vue'
+import TriggerModal from '@/views/workflow/components/TriggerModal.vue'
 // T3-09：执行链路回放事件
 import type { WfReplayEvent } from '@/views/workflow/components/wf-replay'
 import WfDefineRightPanel from '@/views/workflow/WfDefineRightPanel.vue'
@@ -38,6 +40,10 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const showRunModal = ref<boolean>(false)
+// T9-05/T9-01：版本历史与触发器管理弹窗
+const showVersionModal = ref<boolean>(false)
+const showTriggerModal = ref<boolean>(false)
+const isWfOwner = computed(() => userStore.userInfo.uuid === props.workflow.userUuid)
 const ms = useMessage()
 const submitting = ref<boolean>(false)
 const hidePropertyPanel = ref<boolean>(true)
@@ -836,6 +842,19 @@ watch(
                       >
                         {{ t('workflow.run') }}
                       </NButton>
+                      <!-- T9-05 版本历史 / T9-01 触发器：仅创建人可见 -->
+                      <NButton
+                        v-if="isWfOwner" text-color="black" color="white" class="shadow-lg mr-3"
+                        @click="showTriggerModal = true"
+                      >
+                        {{ t('workflow.triggerConfig') }}
+                      </NButton>
+                      <NButton
+                        v-if="isWfOwner" text-color="black" color="white" class="shadow-lg mr-3"
+                        @click="showVersionModal = true"
+                      >
+                        {{ t('workflow.versionHistory') }}
+                      </NButton>
                       <NTooltip v-if="saveDisabledTip" :disabled="!saveDisabledTip">
                         <template #trigger>
                           <NButton
@@ -876,6 +895,10 @@ watch(
               @replay-event="onReplayEvent"
             />
           </NModal>
+          <!-- T9-05：版本历史与一键回滚（回滚生成新版本，不覆盖历史） -->
+          <VersionHistoryModal v-model:show="showVersionModal" :workflow="workflow" />
+          <!-- T9-01：触发器管理（定时 cron / webhook 地址复制） -->
+          <TriggerModal v-model:show="showTriggerModal" :workflow="workflow" />
           <!-- T3-06：保存前校验错误列表（可点击定位到具体节点） -->
           <NModal
             :show="validationErrors.length > 0" :mask-closable="false" :auto-focus="false" preset="card"

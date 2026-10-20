@@ -2,6 +2,7 @@
 import { computed, nextTick } from 'vue'
 import { HoverButton, SvgIcon } from '@/components/common'
 import { useAppStore, useChatStore, useSceneStore } from '@/store'
+import { t } from '@/locales'
 
 interface Props {
   usingContext: boolean
@@ -57,6 +58,7 @@ function toggleUsingContext() {
       <div class="flex items-center">
         <button
           class="flex items-center justify-center w-11 h-11"
+          :aria-label="t('common.toggleSider')"
           @click="handleUpdateCollapsed"
         >
           <SvgIcon v-if="collapsed" class="text-2xl" icon="ri:align-justify" />
@@ -70,7 +72,7 @@ function toggleUsingContext() {
         {{ headerTitle }}
       </h1>
       <div class="flex items-center space-x-2">
-        <HoverButton @click="toggleUsingContext">
+        <HoverButton @click="toggleUsingContext" :aria-label="t('chat.usingContext')">
           <span class="text-xl" :class="{ 'text-brand-500': usingContext, 'text-[#a8071a]': !usingContext }">
             <SvgIcon icon="ri:chat-history-line" />
           </span>

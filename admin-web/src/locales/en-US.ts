@@ -42,6 +42,8 @@ export default {
     positiveText: 'Confirm',
     negativeText: 'Cancel',
     more: 'More',
+    // T9-12 a11y: icon-only buttons need aria-label
+    toggleSider: 'Toggle sidebar',
   },
   layout: {
     tabsView: {

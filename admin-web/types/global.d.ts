@@ -77,6 +77,8 @@ declare global {
     VITE_PROXY: [string, string][];
     VITE_BUILD_COMPRESS: 'gzip' | 'brotli' | 'none';
     VITE_BUILD_COMPRESS_DELETE_ORIGIN_FILE: boolean;
+    // T9-11：PWA 开关（生产构建生效，开发环境始终关闭）
+    VITE_GLOB_APP_PWA: boolean;
   }
 
   declare function parseInt(s: string | number, radix?: number): number;

@@ -33,4 +33,9 @@ public class WfRuntimeResp {
      * Total run duration in milliseconds aggregated from all nodes (terminal snapshot).
      */
     private Long duration;
+
+    /**
+     * 二开新增（T9-01）：触发来源 manual/schedule/webhook/api。
+     */
+    private String triggerSource;
 }

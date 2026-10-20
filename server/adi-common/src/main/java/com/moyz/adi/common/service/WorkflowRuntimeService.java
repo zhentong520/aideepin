@@ -62,11 +62,21 @@ public class WorkflowRuntimeService extends ServiceImpl<WorkflowRunMapper, Workf
      * 仅以 is_test 列区分；正式执行记录查询（page）过滤 is_test=true。
      */
     public WfRuntimeResp create(User user, Long workflowId, boolean isTest) {
+        return create(user, workflowId, isTest, null);
+    }
+
+    /**
+     * T9-01：带触发来源创建运行记录。triggerSource：manual/schedule/webhook/api，
+     * 空 = manual。触发记录（来源/参数/结果）进运行历史：来源=trigger_source 列，
+     * 参数=input，结果=output+status。
+     */
+    public WfRuntimeResp create(User user, Long workflowId, boolean isTest, String triggerSource) {
         WorkflowRuntime one = new WorkflowRuntime();
         one.setUuid(UuidUtil.createShort());
         one.setUserId(user.getId());
         one.setWorkflowId(workflowId);
         one.setIsTest(isTest);
+        one.setTriggerSource(StringUtils.isBlank(triggerSource) ? "manual" : triggerSource);
         baseMapper.insert(one);
 
         one = baseMapper.selectById(one.getId());
@@ -227,6 +237,19 @@ public class WorkflowRuntimeService extends ServiceImpl<WorkflowRunMapper, Workf
                 .eq(WorkflowRuntime::getId, workflowRuntime.getId())
                 .set(WorkflowRuntime::getIsDeleted, true)
                 .update();
+    }
+
+    /**
+     * T9-01：该工作流是否存在「进行中」的正式运行记录（排除试跑）。
+     * 定时触发防重入用：上次未跑完不重复触发。
+     */
+    public boolean existsDoing(Long workflowId) {
+        return ChainWrappers.lambdaQueryChain(baseMapper)
+                .eq(WorkflowRuntime::getWorkflowId, workflowId)
+                .eq(WorkflowRuntime::getStatus, WORKFLOW_PROCESS_STATUS_DOING)
+                .eq(WorkflowRuntime::getIsTest, false)
+                .eq(WorkflowRuntime::getIsDeleted, false)
+                .exists();
     }
 
     /**

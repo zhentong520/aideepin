@@ -79,7 +79,7 @@ onUnmounted(() => {
             <span>{{ item.title }}</span>
           </div>
           <div v-if="mouseEnterKbUuid === item.uuid || isMobile" class="absolute z-10 flex visible right-1 pd-2">
-            <button class="p-1">
+            <button class="p-1" :aria-label="(!item.isPublic) ? t('common.edit') : t('common.view')">
               <SvgIcon
                 :icon="(!item.isPublic) ? 'carbon:edit' : 'carbon:information'"
                 @click.stop="designerStore.setShowCreateView(true, item.uuid)"

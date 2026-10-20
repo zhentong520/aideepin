@@ -126,6 +126,7 @@
     "vite-plugin-compression": "^0.5.1",
     "vite-plugin-html": "^3.2.2",
     "vite-plugin-mock": "^2.9.8",
+    "vite-plugin-pwa": "^0.14.7",
     "vite-plugin-style-import": "^2.0.0",
     "vue-demi": "^0.13.11",
     "vue-draggable-next": "^2.2.1",

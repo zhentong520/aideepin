@@ -716,3 +716,34 @@ values ('FunAudioLLM/CosyVoice2-0.5B', 'SiliconFlow-TTS', 'tts', 'siliconflow', 
     }
   ]
 }', true);
+
+-- Workflow P3 node registrations & hot switches (T9-02/03/04/07, 2026-10-20): Loop / Parallel / Code / SubWorkflow nodes.
+-- Unset/absent rows fall back to application.yml adi.wf.* defaults (enabled).
+-- Container (T9-08) is canvas organization only, NOT a runtime node — no component row.
+INSERT INTO adi_workflow_component(uuid, name, title, remark, display_order, is_enable)
+SELECT replace(gen_random_uuid()::text, '-', ''), 'Loop', 'Loop',
+       'Iterate over an array input item by item (Each, parallel optional) or loop by condition (Loop), with max-iteration fuse', 21, true
+WHERE NOT EXISTS (SELECT 1 FROM adi_workflow_component WHERE name = 'Loop');
+INSERT INTO adi_workflow_component(uuid, name, title, remark, display_order, is_enable)
+SELECT replace(gen_random_uuid()::text, '-', ''), 'Parallel', 'Parallel',
+       'Run branches in parallel and join with configurable semantics (all / any)', 22, true
+WHERE NOT EXISTS (SELECT 1 FROM adi_workflow_component WHERE name = 'Parallel');
+INSERT INTO adi_workflow_component(uuid, name, title, remark, display_order, is_enable)
+SELECT replace(gen_random_uuid()::text, '-', ''), 'Code', 'Code',
+       'Run a code snippet as a Skill sandbox task; inputs via SKILL_SCRIPT_ARGS, stdout as output', 23, true
+WHERE NOT EXISTS (SELECT 1 FROM adi_workflow_component WHERE name = 'Code');
+INSERT INTO adi_workflow_component(uuid, name, title, remark, display_order, is_enable)
+SELECT replace(gen_random_uuid()::text, '-', ''), 'SubWorkflow', 'SubWorkflow',
+       'Run another workflow as a sub-process (reference-chain dedup, depth cap 3)', 24, true
+WHERE NOT EXISTS (SELECT 1 FROM adi_workflow_component WHERE name = 'SubWorkflow');
+
+INSERT INTO adi_sys_config (name, value) SELECT 'wf_loop_enabled', 'true'
+WHERE NOT EXISTS (SELECT 1 FROM adi_sys_config WHERE name = 'wf_loop_enabled' AND is_deleted = false);
+INSERT INTO adi_sys_config (name, value) SELECT 'wf_parallel_enabled', 'true'
+WHERE NOT EXISTS (SELECT 1 FROM adi_sys_config WHERE name = 'wf_parallel_enabled' AND is_deleted = false);
+INSERT INTO adi_sys_config (name, value) SELECT 'wf_code_enabled', 'true'
+WHERE NOT EXISTS (SELECT 1 FROM adi_sys_config WHERE name = 'wf_code_enabled' AND is_deleted = false);
+INSERT INTO adi_sys_config (name, value) SELECT 'wf_sub_workflow_enabled', 'true'
+WHERE NOT EXISTS (SELECT 1 FROM adi_sys_config WHERE name = 'wf_sub_workflow_enabled' AND is_deleted = false);
+INSERT INTO adi_sys_config (name, value) SELECT 'wf_error_branch_enabled', 'true'
+WHERE NOT EXISTS (SELECT 1 FROM adi_sys_config WHERE name = 'wf_error_branch_enabled' AND is_deleted = false);

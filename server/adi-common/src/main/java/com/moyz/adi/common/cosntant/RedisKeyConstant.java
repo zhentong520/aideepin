@@ -181,6 +181,20 @@ public class RedisKeyConstant {
 
     public static final String WORKFLOW_COPY_DOING = "workflow:copy:doing:{0}";
 
+    // ===== 二开新增（T9-01，2026-10-20）：工作流自动触发 =====
+
+    /**
+     * 定时触发派发防重锁（多实例/多轮询防重复派发）
+     * 参数：triggerId；值：clientId；TTL 60s
+     */
+    public static final String WF_TRIGGER_FIRE_LOCK = "workflow:trigger:fire:{0}";
+
+    /**
+     * webhook 匿名限流（60 秒固定窗口）
+     * 参数：token 摘要、epochMinute；值：窗口内请求数
+     */
+    public static final String WF_WEBHOOK_RATE = "workflow:webhook:rl:{0}:{1}";
+
     // ===== 二开新增（T1-09，2026-10-19）：External API 限流与配额 =====
 
     /**
