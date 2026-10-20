@@ -52,7 +52,7 @@
 
 <script lang="ts" setup>
   import { h, onMounted, ref } from 'vue'
-  import { NButton, NText } from 'naive-ui'
+  import { NButton } from 'naive-ui'
   import agentTraceApi from '@/api/agentTrace'
   import { t, useI18n } from '@/locales'
 
