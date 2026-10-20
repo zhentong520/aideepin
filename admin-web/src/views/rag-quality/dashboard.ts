@@ -44,6 +44,14 @@ export interface KbQualityItem {
   avgElapsedMs?: number | null
 }
 
+export interface RagQualityDetailReq {
+  beginTime: string
+  endTime: string
+  kbUuid?: string
+  userUuid?: string
+  scope: string
+}
+
 export interface RagQualityDetailItem {
   queryId: string
   createTime: string
