@@ -848,7 +848,7 @@ onActivated(() => {
       <NCollapseItem name="indexFailures">
         <template #header>
           <div class="flex items-center justify-between w-full pr-2">
-            <span :style="{ color: indexInProgress ? '#f0a020' : '#d03050', fontWeight: '600' }">
+            <span :style="{ color: indexInProgress ? 'var(--adi-warning)' : 'var(--adi-danger-text)', fontWeight: '600' }">
               {{ indexInProgress ? runningSummary : failureSummary }}
             </span>
             <NButton v-if="!indexInProgress" size="small" type="error" @click.stop="retryDocIndex">

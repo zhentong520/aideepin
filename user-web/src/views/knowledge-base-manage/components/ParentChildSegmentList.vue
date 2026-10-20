@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, h } from 'vue'
 import type { DataTableColumns } from 'naive-ui'
-import { NButton, NCollapse, NCollapseItem, NDataTable, NEmpty, NIcon, NPagination } from 'naive-ui'
+import { NButton, NCollapse, NCollapseItem, NDataTable, NIcon, NPagination } from 'naive-ui'
+import { UxState } from '@/components/common'
 import { CheckmarkCircle12Filled } from '@vicons/fluent'
 import { useI18n } from 'vue-i18n'
 import { segmentDriftVisible, segmentStatusMeta } from './segment-status'
@@ -75,7 +76,7 @@ export default { name: 'ParentChildSegmentList' }
 
 <template>
   <div :style="props.loading ? 'opacity:0.6;pointer-events:none;' : ''">
-    <NEmpty v-if="props.segments.length === 0" :description="t('common.noData')" style="margin: 32px 0;" />
+    <UxState v-if="props.segments.length === 0" state="empty" :text="t('common.noData')" class="!my-s32" />
     <NCollapse v-else>
       <NCollapseItem v-for="seg in props.segments" :key="seg.uuid" :name="seg.uuid">
         <template #header>
@@ -83,7 +84,7 @@ export default { name: 'ParentChildSegmentList' }
             <span class="pc-seq">{{ seg.position + 1 }}</span>
             <span class="pc-preview">{{ truncated(seg.content, 80) }}</span>
             <span v-if="metaOf(seg).iconCheck" class="pc-status" :title="metaOf(seg).title">
-              <NIcon :size="14" color="#18a058">
+              <NIcon :size="14" color="var(--adi-success)">
                 <CheckmarkCircle12Filled />
               </NIcon>
             </span>
@@ -172,7 +173,7 @@ export default { name: 'ParentChildSegmentList' }
 .pc-drift {
   flex-shrink: 0;
   font-size: 12px;
-  color: #d03050;
+  color: var(--adi-danger-text);
   cursor: pointer;
 }
 .pc-body {

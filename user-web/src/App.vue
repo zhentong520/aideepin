@@ -28,7 +28,6 @@ const { theme, themeOverrides } = useTheme()
 const { language } = useLanguage()
 const route = useRoute()
 const routeName = (route.name as string) || ''
-console.log(`menu-${routeName.toLowerCase()}`)
 const activeKey = ref<string>('menu-chat')
 const showPrompt = ref<boolean>(false)
 const showSetting = ref<boolean>(false)

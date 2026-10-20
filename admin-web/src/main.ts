@@ -1,3 +1,5 @@
+import 'aideepin-tokens/tokens.css'
+
 import './styles/tailwind.css'
 import './styles/index.less'
 import { createApp } from 'vue'

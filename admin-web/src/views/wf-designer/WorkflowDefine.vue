@@ -262,7 +262,7 @@ onUnmounted(() => {
                 <!-- 节点菜单 -->
                 <WfDefineSidebar />
               </NLayoutSider>
-              <NLayoutContent class="h-full" style="background:#f5f5f5">
+              <NLayoutContent class="h-full bg-app-bg-subtle">
                 <!-- 流程图设计器 begin -->
                 <VueFlow
                   ref="wrapper" :nodes="uiWorkflow.nodes" :edges="uiWorkflow.edges" fit-view-on-init
@@ -389,7 +389,8 @@ onUnmounted(() => {
   </div>
 </template>
 
-<style>
+<style lang="less">
+@import '@/styles/breakpoints.less';
 @import '@vue-flow/core/dist/style.css';
 @import '@vue-flow/core/dist/theme-default.css';
 
@@ -486,7 +487,8 @@ onUnmounted(() => {
   margin-left: 0.5rem;
 }
 
-@media screen and (min-width: 768px) {
+
+@media screen and (min-width: @adi-bp-md) {
   .dndflow {
     flex-direction: row;
   }

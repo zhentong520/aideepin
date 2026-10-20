@@ -44,6 +44,7 @@
     "@vue-flow/core": "^1.48.2",
     "@vueup/vue-quill": "^1.2.0",
     "@vueuse/core": "^9.13.0",
+    "aideepin-tokens": "link:../packages/aideepin-tokens",
     "axios": "^1.6.8",
     "blueimp-md5": "^2.19.0",
     "date-fns": "^2.30.0",

@@ -16,7 +16,7 @@
           :class="{ 'tabs-card-prev-hide': !scrollable }"
           @click="scrollPrev"
         >
-          <n-icon size="16" color="#515a6e">
+          <n-icon size="16" color="var(--adi-text-muted)">
             <LeftOutlined />
           </n-icon>
         </span>
@@ -25,7 +25,7 @@
           :class="{ 'tabs-card-next-hide': !scrollable }"
           @click="scrollNext"
         >
-          <n-icon size="16" color="#515a6e">
+          <n-icon size="16" color="var(--adi-text-muted)">
             <RightOutlined />
           </n-icon>
         </span>
@@ -56,7 +56,7 @@
           :options="TabsMenuOptions"
         >
           <div class="tabs-close-btn">
-            <n-icon size="16" color="#515a6e">
+            <n-icon size="16" color="var(--adi-text-muted)">
               <DownOutlined />
             </n-icon>
           </div>
@@ -597,7 +597,7 @@
             }
 
             &:hover {
-              color: #515a6e;
+              color: var(--adi-text-muted);
             }
 
             .n-icon {
@@ -610,7 +610,7 @@
               color: #808695;
 
               &:hover {
-                color: #515a6e !important;
+                color: var(--adi-text-muted) !important;
               }
 
               svg {
@@ -663,7 +663,7 @@
   .tabs-view-fix {
     position: fixed;
     z-index: 5;
-    padding: 6px 10px 6px 10px;
+    padding: 6px var(--adi-space-s12) 6px var(--adi-space-s12);
     left: 200px;
   }
 

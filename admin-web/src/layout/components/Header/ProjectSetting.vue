@@ -326,7 +326,7 @@
 <style lang="less" scoped>
   .drawer {
     .n-divider:not(.n-divider--vertical) {
-      margin: 10px 0;
+      margin: var(--adi-space-s12) 0;
     }
 
     &-setting-item {

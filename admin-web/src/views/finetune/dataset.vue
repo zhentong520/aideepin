@@ -54,11 +54,11 @@
           <n-tag size="small" type="success">{{ previewStat.suggest_cutoff_len ?? '-' }}</n-tag>
         </n-descriptions-item>
       </n-descriptions>
-      <n-alert v-if="previewStat && previewStat.suggest_cutoff_len" type="info" :show-icon="false" size="small" style="margin-bottom: 10px">
+      <n-alert v-if="previewStat && previewStat.suggest_cutoff_len" type="info" :show-icon="false" size="small" style="margin-bottom: var(--adi-space-s12)">
         {{ t('finetune.cutoffHint', { len: previewStat.suggest_cutoff_len }) }}
       </n-alert>
-      <pre v-if="previewText" style="max-height: 420px; overflow: auto; background: #f6f6f6; padding: 12px; font-size: 12px">{{ previewText }}</pre>
-      <n-empty v-else :description="t('finetune.noPreview')" />
+      <pre v-if="previewText" class="max-h-[420px] overflow-auto bg-app-bg-subtle p-s12 text-xs">{{ previewText }}</pre>
+      <UxState v-else state="empty" :text="t('finetune.noPreview')" />
     </n-modal>
   </div>
 </template>

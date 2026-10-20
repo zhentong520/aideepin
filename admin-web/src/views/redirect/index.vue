@@ -1,7 +1,7 @@
 <script lang="tsx">
   import { defineComponent, onBeforeMount } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
-  import { NEmpty } from 'naive-ui'
+  import UxState from '@/components/UxState.vue'
 
   export default defineComponent({
     name: 'Redirect',
@@ -16,7 +16,8 @@
           query,
         })
       })
-      return () => <NEmpty />
+      // T4-03：跳转占位页统一为骨架屏，消灭「白屏 + 无提示」
+      return () => <UxState state="loading" skeletonRows={3} />
     },
   })
 </script>

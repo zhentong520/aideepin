@@ -1,0 +1,104 @@
+/* 自动生成（T4-01）：node scripts/build-tokens.ts —— 勿手改，改 src/index.ts 后重新生成 */
+:root {
+  --adi-primary: #2d8cf0;
+  --adi-success: #19be6b;
+  --adi-warning: #f0a020;
+  --adi-danger: #d03050;
+  --adi-info: #2563eb;
+  --adi-danger-text: #bb2a44;
+  --adi-bg: #ffffff;
+  --adi-bg-subtle: #f6f8fa;
+  --adi-border: #e5e6eb;
+  --adi-text: #1f2328;
+  --adi-text-muted: #5c6773;
+
+  --adi-brand-50: #f1f7fe;
+  --adi-brand-100: #deedfd;
+  --adi-brand-200: #bcdbfa;
+  --adi-brand-300: #92c3f7;
+  --adi-brand-400: #67acf4;
+  --adi-brand-500: #2d8cf0;
+  --adi-brand-600: #1077e4;
+  --adi-brand-700: #0e63be;
+  --adi-brand-800: #0b4f98;
+  --adi-brand-900: #083c72;
+
+  --adi-radius-sm: 4px;
+  --adi-radius-md: 8px;
+  --adi-radius-lg: 12px;
+
+  --adi-space-s4: 4px;
+  --adi-space-s8: 8px;
+  --adi-space-s12: 12px;
+  --adi-space-s16: 16px;
+  --adi-space-s24: 24px;
+  --adi-space-s32: 32px;
+  --adi-space-s48: 48px;
+
+  --adi-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --adi-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --adi-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+
+  --adi-z-base: 0;
+  --adi-z-dropdown: 1000;
+  --adi-z-sticky: 1100;
+  --adi-z-overlay: 1200;
+  --adi-z-modal: 1300;
+  --adi-z-toast: 1400;
+
+  --adi-code-bg: #f6f8fa;
+  --adi-code-border: #e5e6eb;
+  --adi-code-text: #1f2328;
+  --adi-code-caret: #1f2328;
+  --adi-code-selection: #cfe3ff;
+  --adi-code-bg-subtle: #eef1f4;
+  --adi-code-meta: #8250df;
+  --adi-code-head: #0550ae;
+  --adi-code-bold: #1f2328;
+  --adi-code-code: #0a3069;
+  --adi-code-link: #0969da;
+  --adi-code-bullet: #cf222e;
+  --adi-code-quote: #6e7781;
+  --adi-code-str: #0a3069;
+  --adi-code-key: #0550ae;
+  --adi-code-num: #0550ae;
+  --adi-code-kw: #cf222e;
+  --adi-code-fn: #8250df;
+  --adi-code-var: #953800;
+  --adi-code-com: #6e7781;
+}
+
+html.dark {
+  --adi-primary: #5ecfff;
+  --adi-success: #3fb950;
+  --adi-warning: #d29922;
+  --adi-danger: #f85149;
+  --adi-info: #58a6ff;
+  --adi-danger-text: #ff7b72;
+  --adi-bg: #0d1117;
+  --adi-bg-subtle: #161b22;
+  --adi-border: #30363d;
+  --adi-text: #e6edf3;
+  --adi-text-muted: #8b949e;
+
+  --adi-code-bg: #161b22;
+  --adi-code-border: #30363d;
+  --adi-code-text: #e6edf3;
+  --adi-code-caret: #e6edf3;
+  --adi-code-selection: #264f78;
+  --adi-code-bg-subtle: #21262d;
+  --adi-code-meta: #d2a8ff;
+  --adi-code-head: #79c0ff;
+  --adi-code-bold: #e6edf3;
+  --adi-code-code: #a5d6ff;
+  --adi-code-link: #58a6ff;
+  --adi-code-bullet: #f85149;
+  --adi-code-quote: #8b949e;
+  --adi-code-str: #a5d6ff;
+  --adi-code-key: #79c0ff;
+  --adi-code-num: #79c0ff;
+  --adi-code-kw: #ff7b72;
+  --adi-code-fn: #d2a8ff;
+  --adi-code-var: #ffa657;
+  --adi-code-com: #8b949e;
+}

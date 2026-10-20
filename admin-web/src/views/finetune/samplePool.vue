@@ -70,12 +70,12 @@
       <n-grid :cols="2" :x-gap="12">
         <n-gi>
           <n-h6>{{ t('finetune.sp.rawDialog') }}</n-h6>
-          <pre style="max-height: 380px; overflow: auto; background: #f6f6f6; padding: 12px; font-size: 12px">{{ rawDialogText }}</pre>
+          <pre class="max-h-[380px] overflow-auto bg-app-bg-subtle p-s12 text-xs">{{ rawDialogText }}</pre>
         </n-gi>
         <n-gi>
           <n-h6>{{ t('finetune.sp.generatedSample') }}</n-h6>
-          <pre v-if="generatedSampleText" style="max-height: 380px; overflow: auto; background: #f6f6f6; padding: 12px; font-size: 12px">{{ generatedSampleText }}</pre>
-          <n-empty v-else :description="t('finetune.sp.notRewritten')" />
+          <pre v-if="generatedSampleText" class="max-h-[380px] overflow-auto bg-app-bg-subtle p-s12 text-xs">{{ generatedSampleText }}</pre>
+          <UxState v-else state="empty" :text="t('finetune.sp.notRewritten')" />
         </n-gi>
       </n-grid>
       <template #footer>

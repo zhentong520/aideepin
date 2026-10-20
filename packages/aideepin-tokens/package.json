@@ -1,0 +1,16 @@
+{
+  "name": "aideepin-tokens",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Aideepin design tokens 单一来源（T4-01）：两端 Tailwind / naive-ui / CSS 变量共用",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tokens.css": "./dist/tokens.css"
+  },
+  "scripts": {
+    "build": "node scripts/build-tokens.ts"
+  }
+}

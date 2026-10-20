@@ -206,7 +206,7 @@
     background: #000;
     color: white;
     overflow: hidden;
-    z-index: 9999;
+    z-index: var(--adi-z-toast);
 
     &.onLockLogin {
       background-color: rgba(25, 28, 34, 0.88);

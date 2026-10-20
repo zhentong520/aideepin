@@ -27,7 +27,7 @@
           <pre class="code">{{ sharegptSample }}</pre>
         </n-tab-pane>
       </n-tabs>
-      <n-alert type="warning" :show-icon="false" size="small" style="margin: 10px 0">{{ t('finetune.guide.dataRule') }}</n-alert>
+      <n-alert type="warning" :show-icon="false" size="small" style="margin: var(--adi-space-s12) 0">{{ t('finetune.guide.dataRule') }}</n-alert>
       <n-space vertical size="small">
         <div class="dim" v-html="safeHtml(t('finetune.guide.dataTip1'))"></div>
         <div class="dim" v-html="safeHtml(t('finetune.guide.dataTip2'))"></div>
@@ -180,7 +180,7 @@ ollama create <tag> -f ./Modelfile
   .sec {
     font-weight: 600;
     font-size: 14px;
-    margin: 20px 0 10px;
+    margin: 20px 0 var(--adi-space-s12);
     padding-left: 8px;
     border-left: 3px solid #2080f0;
   }
@@ -192,7 +192,7 @@ ollama create <tag> -f ./Modelfile
   .code {
     background: rgba(128, 128, 128, 0.1);
     border-radius: 4px;
-    padding: 10px;
+    padding: var(--adi-space-s12);
     font-size: 12px;
     overflow: auto;
     white-space: pre-wrap;

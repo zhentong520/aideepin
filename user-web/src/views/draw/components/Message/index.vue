@@ -1,6 +1,7 @@
 <script setup lang='ts'>
 import { computed, h, ref } from 'vue'
-import { NButton, NDropdown, NEmpty, NIcon, NImage, NSpace, NSpin, useDialog, useMessage } from 'naive-ui'
+import { NButton, NDropdown, NIcon, NImage, NSpace, NSpin, useDialog, useMessage } from 'naive-ui'
+import { UxState } from '@/components/common'
 import type { ImageRenderToolbarProps } from 'naive-ui'
 import { Delete24Regular } from '@vicons/fluent'
 import { Reload } from '@vicons/ionicons5'
@@ -188,7 +189,7 @@ function openDetail(uuid: string) {
           </template>
           <template v-else>
             <template v-if="!imageUrls || imageUrls.length === 0">
-              <NEmpty :description="t('draw.imageNotFound')" />
+              <UxState state="error" :text="t('draw.imageNotFound')" />
             </template>
             <template v-if="imageUrls && imageUrls.length > 0">
               <NSpace>

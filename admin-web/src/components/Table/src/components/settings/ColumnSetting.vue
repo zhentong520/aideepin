@@ -286,7 +286,7 @@
     &-checkbox {
       display: flex;
       align-items: center;
-      padding: 10px 14px;
+      padding: var(--adi-space-s12) 14px;
 
       &:hover {
         background: #e6f7ff;

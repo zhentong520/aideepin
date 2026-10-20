@@ -128,7 +128,7 @@
       />
     </template>
 
-    <n-empty v-else :description="t('kbRecall.idle')" style="padding: 60px 0" />
+    <UxState v-else state="empty" :text="t('kbRecall.idle')" class="!py-15" />
   </n-card>
 </template>
 
@@ -142,7 +142,6 @@
     NCollapseItem,
     NDataTable,
     NDivider,
-    NEmpty,
     NFormItemGi,
     NGi,
     NGrid,

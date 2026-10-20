@@ -8,7 +8,7 @@ defineProps<NodeProps>()
 <template>
   <div>
     <div>{{ data.label }}</div>
-    <div style="position: relative; padding: 10px">
+    <div style="position: relative; padding: var(--adi-space-s12)">
       <Handle type="source" :position="Position.Right" />
       <Handle type="target" :position="Position.Left" />
     </div>

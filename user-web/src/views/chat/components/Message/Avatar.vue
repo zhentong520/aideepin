@@ -48,11 +48,7 @@ const avatar = computed(() => userStore.userInfo.avatar)
     v-else
     round
     :size="imageSize ? imageSize : 32"
-    :style="{
-      color: '#4b9e5f',
-      border: 'solid 1px #4b9e5f',
-      backgroundColor: 'transparent',
-    }"
+    class="border border-brand-500 text-brand-500 bg-transparent"
   >
     <SvgIcon icon="ri:robot-2-line" class="text-base" />
   </NAvatar>

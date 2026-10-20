@@ -249,7 +249,7 @@
   }
 
   .layout-content-main {
-    margin: 0 10px 10px;
+    margin: 0 var(--adi-space-s12) var(--adi-space-s12);
     position: relative;
     padding-top: 64px;
   }

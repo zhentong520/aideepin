@@ -167,7 +167,7 @@ onMounted(() => {
               v-for="entry in sceneEntries" :key="entry.scene.uuid"
               class="relative flex items-center gap-3 px-3 py-3 break-all border rounded-md group dark:border-neutral-800"
               :class="isActive(entry)
-                ? ['border-[#4b9e5f]', 'bg-neutral-100', 'text-[#4b9e5f]', 'dark:bg-[#24272e]', 'dark:border-[#4b9e5f]', 'cursor-pointer']
+                ? ['border-brand-500', 'bg-neutral-100', 'text-brand-500', 'dark:bg-[#24272e]', 'dark:border-brand-500', 'cursor-pointer']
                 : (entry.characterUuid ? 'cursor-pointer hover:bg-neutral-100 dark:hover:bg-[#24272e]' : 'cursor-not-allowed opacity-60')"
               @click="handleSelect(entry)"
             >

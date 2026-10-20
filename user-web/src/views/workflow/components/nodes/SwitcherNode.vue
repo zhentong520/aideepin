@@ -49,7 +49,7 @@ function inceaseYPosition() {
             </div>
             <div
               v-if="cidx !== wfCase.conditions.length - 1" class="absolute text-blue-400 text-xs"
-              :style="`right:10px;top: ${yposition + 12}px`"
+              :style="`right:var(--adi-space-s12);top: ${yposition + 12}px`"
             >
               {{ wfCase.operator === 'and' ? t('workflow.conditionAnd') : t('workflow.conditionOr') }}
             </div>

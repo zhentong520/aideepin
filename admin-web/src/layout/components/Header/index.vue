@@ -377,12 +377,12 @@
         line-height: 64px;
         overflow: hidden;
         white-space: nowrap;
-        padding-left: 10px;
+        padding-left: var(--adi-space-s12);
 
         img {
           width: auto;
           height: 32px;
-          margin-right: 10px;
+          margin-right: var(--adi-space-s12);
         }
 
         .title {
@@ -391,7 +391,7 @@
       }
 
       ::v-deep(.ant-breadcrumb span:last-child .link-text) {
-        color: #515a6e;
+        color: var(--adi-text-muted);
       }
 
       .n-breadcrumb {
@@ -440,7 +440,7 @@
 
       .anticon {
         font-size: 16px;
-        color: #515a6e;
+        color: var(--adi-text-muted);
       }
     }
 
@@ -454,7 +454,7 @@
       border: 1px solid #e0e0e0;
       padding: 0 16px;
       font-size: 14px;
-      color: #515a6e;
+      color: var(--adi-text-muted);
       background: #fff;
       white-space: nowrap;
 
@@ -467,15 +467,15 @@
 
   .layout-header-light {
     background: #fff;
-    color: #515a6e;
+    color: var(--adi-text-muted);
 
     .n-icon {
-      color: #515a6e;
+      color: var(--adi-text-muted);
     }
 
     .layout-header-left {
       ::v-deep(.n-breadcrumb .n-breadcrumb-item:last-child .n-breadcrumb-item__link) {
-        color: #515a6e;
+        color: var(--adi-text-muted);
       }
     }
 
@@ -495,7 +495,7 @@
   }
 
   //::v-deep(.menu-router-link) {
-  //  color: #515a6e;
+  //  color: var(--adi-text-muted);
   //
   //  &:hover {
   //    color: #1890ff;

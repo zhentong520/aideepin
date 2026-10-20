@@ -3,7 +3,6 @@ import { computed, onMounted, ref } from 'vue'
 import {
   NButton,
   NCard,
-  NEmpty,
   NForm,
   NFormItem,
   NInput,
@@ -18,6 +17,7 @@ import {
   useMessage,
 } from 'naive-ui'
 import { t } from '@/locales'
+import { UxState } from '@/components/common'
 import api from '@/api'
 
 const ms = useMessage()
@@ -197,7 +197,7 @@ onMounted(loadList)
           </tr>
         </tbody>
       </NTable>
-      <NEmpty v-else :description="t('datasource.empty')" />
+      <UxState v-else state="empty" :text="t('datasource.empty')" />
     </NCard>
 
     <NModal

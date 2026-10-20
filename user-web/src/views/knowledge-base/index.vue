@@ -2,7 +2,8 @@
 import type { Ref } from 'vue'
 import { computed, nextTick, onActivated, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { NButton, NCollapse, NCollapseItem, NFlex, NIcon, NInput, NModal, NSpin, useDialog, useLoadingBar, useMessage } from 'naive-ui'
+import { NButton, NCollapse, NCollapseItem, NFlex, NIcon, NInput, NModal, useDialog, useLoadingBar, useMessage } from 'naive-ui'
+import { UxState } from '@/components/common'
 import { Cat } from '@vicons/fa'
 import { Message } from '../chat/components'
 import { useScroll } from '../chat/hooks/useScroll'
@@ -415,9 +416,7 @@ onActivated(async () => {
       v-model:show="showReferenceModal" style="max-width: 80%;" preset="card" content-style="max-height: 80vh; overflow-y: auto;"
       :title="t('chat.referenceMaterial')"
     >
-      <div v-if="refLoading" class="flex justify-center py-6">
-        <NSpin size="small" />
-      </div>
+      <UxState v-if="refLoading" state="loading" :skeleton-rows="3" />
       <div v-else-if="references.length === 0">
         {{ t('common.none') }}
       </div>

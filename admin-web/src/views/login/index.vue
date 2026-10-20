@@ -162,6 +162,7 @@
 </script>
 
 <style lang="less" scoped>
+@import '../../styles/breakpoints.less';
   .view-account {
     display: flex;
     flex-direction: column;
@@ -191,15 +192,15 @@
     }
 
     .default-color {
-      color: #515a6e;
+      color: var(--adi-text-muted);
 
       .ant-checkbox-wrapper {
-        color: #515a6e;
+        color: var(--adi-text-muted);
       }
     }
   }
 
-  @media (min-width: 768px) {
+  @media (min-width: @adi-bp-md) {
     .view-account {
       background-image: url('../../assets/images/login.svg');
       background-repeat: no-repeat;

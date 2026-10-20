@@ -1,6 +1,7 @@
 <script setup lang='ts'>
 import { computed, onMounted, ref, watch } from 'vue'
-import { NAvatar, NButton, NCard, NCarousel, NEmpty, NFlex, NFloatButton, NIcon, NImage, NImageGroup, NInput, NList, NListItem, NPagination, NSpin, NTag, NThing, NTooltip, useDialog, useLoadingBar, useMessage } from 'naive-ui'
+import { NAvatar, NButton, NCard, NCarousel, NFlex, NFloatButton, NIcon, NImage, NImageGroup, NInput, NList, NListItem, NPagination, NSpin, NTag, NThing, NTooltip, useDialog, useLoadingBar, useMessage } from 'naive-ui'
+import { UxState } from '@/components/common'
 import { useRouter } from 'vue-router'
 import { ArrowDown, ArrowUp, Reload } from '@vicons/ionicons5'
 import DrawDetailFuncBar from './DrawDetailFuncBar.vue'
@@ -211,12 +212,12 @@ watch(
         </template>
         <template v-else>
           <template v-if="currentDraw.uuid === drawStore.loadingUuid && currentDraw.processStatus === 2">
-            <NEmpty :description="`${t('draw.errorPrefix')}${currentDraw.processStatusRemark}`" />
+            <UxState state="error" :text="`${t('draw.errorPrefix')}${currentDraw.processStatusRemark}`" />
           </template>
           <template
             v-else-if="currentDraw.uuid !== drawStore.loadingUuid && (!currentDraw.imageUrls || currentDraw.imageUrls.length === 0)"
           >
-            <NEmpty :description="t('draw.imageNotFound')" />
+            <UxState state="error" :text="t('draw.imageNotFound')" />
           </template>
           <template v-else-if="currentDraw.imageUuids && currentDraw.imageUuids.length > 0">
             <NImageGroup>
@@ -252,7 +253,7 @@ watch(
             <div :style="`max-height: ${defaultImageHeight / 2}px`" class="overflow-y-auto">
               <NList hoverable>
                 <NListItem v-for="comment in comments" :key="comment.uuid">
-                  <NThing content-style="margin-top: 10px;">
+                  <NThing content-style="margin-top: var(--adi-space-s12);">
                     <template #description>
                       <NFlex style="margin-top: 4px" justify="space-between">
                         <NTag :bordered="false" :color="{ color: '#ff000000' }">

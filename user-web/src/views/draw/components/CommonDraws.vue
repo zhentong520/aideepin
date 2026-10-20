@@ -1,6 +1,7 @@
 <script setup lang='ts'>
 import { onMounted, ref } from 'vue'
-import { NEmpty, NIcon, NImage, NSpin } from 'naive-ui'
+import { NIcon, NImage, NSpin } from 'naive-ui'
+import { UxState } from '@/components/common'
 import { Cat } from '@vicons/fa'
 import { Reload } from '@vicons/ionicons5'
 import { useScroll } from '@/views/chat/hooks/useScroll'
@@ -87,12 +88,12 @@ defineExpose({ gotoTop, gotoBottom })
             </template>
             <template v-else>
               <template v-if="draw.uuid !== drawStore.loadingUuid && draw.processStatus === 2">
-                <NEmpty :description="t('draw.drawFailed')" />
+                <UxState state="error" :text="t('draw.drawFailed')" />
               </template>
               <template
                 v-else-if="draw.uuid !== drawStore.loadingUuid && (!draw.imageUrls || draw.imageUrls.length === 0)"
               >
-                <NEmpty :description="t('draw.imageNotFound')" />
+                <UxState state="error" :text="t('draw.imageNotFound')" />
               </template>
               <template v-else-if="draw.imageUrls && draw.imageUrls.length > 0">
                 <template v-for="imageUrl in draw.imageUrls" :key="imageUrl">

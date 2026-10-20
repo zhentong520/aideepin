@@ -81,10 +81,10 @@
                       <n-button size="tiny" quaternary @click="resetDefaults">{{ t('finetune.resetDefaults') }}</n-button>
                     </n-space>
                   </n-form-item>
-                  <n-alert v-if="presetDesc" type="info" :show-icon="false" size="small" style="margin-bottom: 10px">{{ presetDesc }}</n-alert>
+                  <n-alert v-if="presetDesc" type="info" :show-icon="false" size="small" style="margin-bottom: var(--adi-space-s12)">{{ presetDesc }}</n-alert>
                 </n-grid-item>
                 <n-grid-item v-if="datasetStat" :span="24">
-                  <n-alert :type="datasetStat.quality === 'poor' ? 'error' : datasetStat.quality === 'fair' ? 'warning' : 'success'" :show-icon="false" size="small" style="margin-bottom: 10px">
+                  <n-alert :type="datasetStat.quality === 'poor' ? 'error' : datasetStat.quality === 'fair' ? 'warning' : 'success'" :show-icon="false" size="small" style="margin-bottom: var(--adi-space-s12)">
                     {{ t('finetune.datasetStat', {
                       n: datasetStat.unique_samples ?? '-',
                       dup: Math.round((datasetStat.dup_ratio || 0) * 100),
@@ -172,7 +172,7 @@
             <n-alert v-else type="warning" :show-icon="false" size="small">{{ t('finetune.vramUnknown') }}</n-alert>
 
             <div class="panel-title" style="margin-top: 12px">{{ t('finetune.diagTitle') }}</div>
-            <n-empty v-if="!previewWarnings.length" size="small" :description="t('finetune.diagClean')" />
+            <UxState v-if="!previewWarnings.length" state="empty" :text="t('finetune.diagClean')" />
             <n-alert
               v-for="(w, i) in previewWarnings"
               :key="i"
@@ -222,12 +222,12 @@
         </n-tab-pane>
 
         <n-tab-pane name="report" :tab="t('finetune.tabReport')">
-          <n-empty v-if="!hasMetrics" :description="t('finetune.reportEmpty')" />
+          <UxState v-if="!hasMetrics" state="empty" :text="t('finetune.reportEmpty')" />
           <template v-else>
-            <n-alert v-if="metrics.eval_loss_increased" type="warning" :show-icon="false" style="margin-bottom: 10px">
+            <n-alert v-if="metrics.eval_loss_increased" type="warning" :show-icon="false" style="margin-bottom: var(--adi-space-s12)">
               {{ t('finetune.reportOverfit') }}
             </n-alert>
-            <n-alert v-else-if="metrics.best_step && metrics.total_steps && metrics.best_step < metrics.total_steps" type="info" :show-icon="false" style="margin-bottom: 10px">
+            <n-alert v-else-if="metrics.best_step && metrics.total_steps && metrics.best_step < metrics.total_steps" type="info" :show-icon="false" style="margin-bottom: var(--adi-space-s12)">
               {{ t('finetune.reportEarlyStop', { step: metrics.best_step, total: metrics.total_steps }) }}
             </n-alert>
             <n-descriptions :column="2" bordered size="small">
@@ -259,7 +259,7 @@
           <n-space style="margin-bottom: 8px">
             <n-button size="small" type="primary" :loading="logLoading" @click="refreshDetail">{{ t('finetune.refreshLog') }}</n-button>
           </n-space>
-          <pre style="max-height: 360px; overflow: auto; background: #111; color: #d4d4d4; padding: 12px; font-size: 12px">{{ logText || '...' }}</pre>
+          <pre class="max-h-[360px] overflow-auto p-s12 text-xs" style="background: var(--adi-code-bg); color: var(--adi-code-text);">{{ logText || '...' }}</pre>
         </n-tab-pane>
       </n-tabs>
     </n-modal>
@@ -726,7 +726,7 @@
   .panel {
     background: rgba(128, 128, 128, 0.06);
     border-radius: 6px;
-    padding: 10px;
+    padding: var(--adi-space-s12);
   }
   .panel-title {
     font-weight: 600;

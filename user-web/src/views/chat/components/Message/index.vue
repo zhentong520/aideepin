@@ -1,6 +1,7 @@
 <script setup lang='ts'>
 import { computed, h, ref, watch } from 'vue'
-import { NButton, NCollapse, NCollapseItem, NDropdown, NEmpty, NIcon, NImage, NSpace, NSpin, useDialog, useMessage } from 'naive-ui'
+import { NButton, NCollapse, NCollapseItem, NDropdown, NIcon, NImage, NSpace, NSpin, useDialog, useMessage } from 'naive-ui'
+import { UxState } from '@/components/common'
 import type { ImageRenderToolbarProps } from 'naive-ui'
 import { Delete24Regular } from '@vicons/fluent'
 import { Reload } from '@vicons/ionicons5'
@@ -255,7 +256,7 @@ watch(() => props.thinking, (thinking) => {
           </template>
           <template v-else>
             <template v-if="!imageUrls || imageUrls.length === 0">
-              <NEmpty :description="t('chat.imageNotFound')" />
+              <UxState state="error" :text="t('chat.imageNotFound')" />
             </template>
             <template v-if="imageUrls && imageUrls.length > 0">
               <!-- <NImageGroup :render-toolbar="renderToolbar"> -->

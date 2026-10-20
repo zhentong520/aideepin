@@ -90,7 +90,6 @@ async function loadGraph() {
 }
 
 function initCy() {
-  console.log('ref graph initCy')
   cy = cytoscape({
     container: document.getElementById('refGraphCy'),
     elements: [],

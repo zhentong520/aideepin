@@ -114,7 +114,7 @@
         :bordered="true"
         :row-key="(row: any) => row.id"
       />
-      <NEmpty v-else :description="t('knowledgeBase.shareEmpty')" />
+      <UxState v-else state="empty" :text="t('knowledgeBase.shareEmpty')" />
     </NCard>
 
     <!-- 上传 / 来源弹窗 -->
@@ -264,7 +264,6 @@ import {
   NDataTable,
   NDrawer,
   NDrawerContent,
-  NEmpty,
   NFlex,
   NIcon,
   NInput,
@@ -582,7 +581,7 @@ function renderSegExpand(row: any) {
       'div',
       {
         style:
-          'font-size:12px;line-height:1.7;white-space:pre-wrap;background:rgba(128,128,128,.08);padding:8px 10px;border-radius:4px',
+          'font-size:12px;line-height:1.7;white-space:pre-wrap;background:rgba(128,128,128,.08);padding:8px var(--adi-space-s12);border-radius:4px',
       },
       text
     )

@@ -1,6 +1,7 @@
 <script setup lang='ts'>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { NBreadcrumb, NBreadcrumbItem, NCard, NEmpty, NSpin, useMessage } from 'naive-ui'
+import { NBreadcrumb, NBreadcrumbItem, NCard, NSpin, useMessage } from 'naive-ui'
+import { UxState } from '@/components/common'
 import { useRoute } from 'vue-router'
 import DocumentGraphCanvas from './DocumentGraphCanvas.vue'
 import { knowledgeBaseEmptyInfo, knowledgeBaseEmptyItem } from '@/utils/functions'
@@ -99,11 +100,11 @@ onMounted(() => {
       <div class="flex flex-wrap gap-x-6 gap-y-1 mb-3" style="font-size: 12px; opacity: 0.7;">
         <span>{{ t('knowledgeBase.graphLabel') }}: {{ graphicalStatusLabel }}</span>
         <span v-if="curDoc.graphicalStatusChangeTime">{{ t('knowledgeBase.updateTime') }}: {{ curDoc.graphicalStatusChangeTime }}</span>
-        <span v-if="curDoc.graphicalStatus === 'FAIL' && curDoc.failReason" style="color: #d03050;">{{ curDoc.failReason }}</span>
+        <span v-if="curDoc.graphicalStatus === 'FAIL' && curDoc.failReason" style="color: var(--adi-danger-text);">{{ curDoc.failReason }}</span>
       </div>
       <DocumentGraphCanvas v-if="graphEmpty !== true" :doc-uuid="curDocUuid" :height="canvasHeight" @loaded="onGraphLoaded" />
       <div v-else class="flex items-center justify-center" :style="{ height: `${canvasHeight}px` }">
-        <NEmpty :description="curDoc.graphicalStatus === 'DOING' ? t('knowledgeBase.graphBuildingTip') : t('knowledgeBase.noGraphData')" />
+        <UxState state="empty" :text="curDoc.graphicalStatus === 'DOING' ? t('knowledgeBase.graphBuildingTip') : t('knowledgeBase.noGraphData')" />
       </div>
     </NCard>
   </div>

@@ -277,7 +277,7 @@ watch(isDeepSeekThinking, async (newVal) => {
         <NPopover trigger="hover">
           <template #trigger>
             <span
-              :class="{ 'text-[#4b9e5f]': currCharacter.understandContextEnable, 'text-[#a8071a]': !currCharacter.understandContextEnable }"
+              :class="{ 'text-brand-500': currCharacter.understandContextEnable, 'text-[#a8071a]': !currCharacter.understandContextEnable }"
             >
               <SvgIcon icon="ri:chat-history-line" />
             </span>

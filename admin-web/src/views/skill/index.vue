@@ -84,7 +84,7 @@
               <n-button size="tiny" type="primary" secondary @click="openCreateFile">{{ t('skill.newFile') }}</n-button>
             </div>
             <n-spin :show="structLoading">
-              <n-empty v-if="!structLoading && !fileItems.length" :description="t('skill.noFiles')" size="small" style="margin-top: 60px" />
+              <UxState v-if="!structLoading && !fileItems.length" state="empty" :text="t('skill.noFiles')" class="!mt-15" />
               <n-tree
                 v-else
                 block-line

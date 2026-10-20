@@ -92,7 +92,7 @@
 </script>
 <style lang="less" scoped>
   .thing-cell {
-    margin: 0 -16px 10px;
+    margin: 0 -16px var(--adi-space-s12);
     padding: 5px 16px;
 
     &:hover {

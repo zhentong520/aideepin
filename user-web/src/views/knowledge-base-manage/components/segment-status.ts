@@ -23,11 +23,11 @@ export function segmentStatusMeta(seg: KnowledgeBase.Segment, t: (key: string) =
 
   switch (seg.embeddingStatus) {
     case 'DOING':
-      return { kind: 'doing', text: t('knowledgeBase.statusProcessing'), color: '#f0a020', muted: false, iconCheck: false, title: '', retryable: false }
+      return { kind: 'doing', text: t('knowledgeBase.statusProcessing'), color: 'var(--adi-warning)', muted: false, iconCheck: false, title: '', retryable: false }
     case 'FAIL':
-      return { kind: 'fail', text: t('knowledgeBase.statusFailed'), color: '#d03050', muted: false, iconCheck: false, title: seg.failReason || '', retryable: true }
+      return { kind: 'fail', text: t('knowledgeBase.statusFailed'), color: 'var(--adi-danger-text)', muted: false, iconCheck: false, title: seg.failReason || '', retryable: true }
     case 'DONE':
-      return { kind: 'done', text: t('knowledgeBase.statusVectorized'), color: '#18a058', muted: false, iconCheck: true, title: t('knowledgeBase.statusVectorized'), retryable: false }
+      return { kind: 'done', text: t('knowledgeBase.statusVectorized'), color: 'var(--adi-success)', muted: false, iconCheck: true, title: t('knowledgeBase.statusVectorized'), retryable: false }
     default:
       return { kind: 'pending', text: t('knowledgeBase.statusPending'), color: '', muted: true, iconCheck: false, title: '', retryable: false }
   }
@@ -57,7 +57,7 @@ export function createStatusColumn(
       const elements: any[] = []
       if (meta.iconCheck) {
         // Vectorized is the steady state: a green check reads faster than text (title keeps the label)
-        elements.push(h(NIcon, { size: 14, color: '#18a058', title: meta.title }, { default: () => h(CheckmarkCircle12Filled) }))
+        elements.push(h(NIcon, { size: 14, color: 'var(--adi-success)', title: meta.title }, { default: () => h(CheckmarkCircle12Filled) }))
       } else {
         elements.push(h('span', {
           style: `font-size:12px;color:${meta.color};${meta.muted ? 'opacity:0.55;' : ''}${meta.retryable ? 'cursor:pointer;' : ''}`,
@@ -67,7 +67,7 @@ export function createStatusColumn(
       }
       // Drift indicator: status says vectorized but the store lacks the vector
       if (segmentDriftVisible(row))
-        elements.push(h('span', { style: 'font-size:12px;color:#d03050;margin-left:6px;cursor:pointer;', onClick: () => handlers.onRepair(row) }, { default: () => t('knowledgeBase.vectorMissing') }))
+        elements.push(h('span', { style: 'font-size:12px;color:var(--adi-danger-text);margin-left:6px;cursor:pointer;', onClick: () => handlers.onRepair(row) }, { default: () => t('knowledgeBase.vectorMissing') }))
       return h('div', { class: 'flex items-center' }, { default: () => elements })
     },
   }

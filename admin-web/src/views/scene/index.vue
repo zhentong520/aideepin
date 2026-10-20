@@ -62,7 +62,7 @@
           {{ t('scene.bindTip') }}
         </n-alert>
         <n-spin :show="bindLoading">
-          <n-checkbox-group v-model:value="bindAgentUuids" style="display: flex; flex-direction: column; gap: 10px">
+          <n-checkbox-group v-model:value="bindAgentUuids" style="display: flex; flex-direction: column; gap: var(--adi-space-s12)">
             <n-checkbox v-for="a in allAgents" :key="a.uuid" :value="a.uuid" :disabled="a.isEnable === false">
               <div class="agent-option">
                 <span class="agent-name">{{ a.title }}</span>
@@ -71,7 +71,7 @@
               </div>
             </n-checkbox>
           </n-checkbox-group>
-          <n-empty v-if="!bindLoading && !allAgents.length" :description="t('scene.noAgent')" size="small" style="margin-top: 40px" />
+          <UxState v-if="!bindLoading && !allAgents.length" state="empty" :text="t('scene.noAgent')" class="!mt-s32" />
         </n-spin>
         <template #footer>
           <n-space justify="end">

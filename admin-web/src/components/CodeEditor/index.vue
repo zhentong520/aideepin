@@ -242,9 +242,9 @@
     font-family: Consolas, Monaco, 'Courier New', monospace;
     font-size: 12px;
     line-height: 1.65;
-    background: #f7f8fa;
-    border: 1px solid #e5e6eb;
-    border-radius: 4px;
+    background: var(--adi-code-bg);
+    border: 1px solid var(--adi-code-border);
+    border-radius: var(--adi-radius-sm);
 
     .ce-shadow,
     .ce-input {
@@ -254,7 +254,7 @@
       box-sizing: border-box;
       width: 100%;
       height: 100%;
-      padding: 10px 12px;
+      padding: var(--adi-space-s12) var(--adi-space-s12);
       margin: 0;
       border: 0;
       font: inherit;
@@ -265,7 +265,7 @@
 
     .ce-shadow {
       overflow: hidden;
-      color: #333;
+      color: var(--adi-code-text);
       pointer-events: none;
 
       code {
@@ -277,73 +277,73 @@
       overflow: auto;
       color: transparent;
       background: transparent;
-      caret-color: #333;
+      caret-color: var(--adi-code-text);
       outline: none;
       resize: none;
 
       &::selection {
-        background: #cfe3ff;
+        background: var(--adi-code-selection);
       }
     }
 
     :deep(.tok-meta) {
-      color: #8250df;
+      color: var(--adi-code-meta);
     }
 
     :deep(.tok-head) {
       font-weight: 600;
-      color: #0550ae;
+      color: var(--adi-code-head);
     }
 
     :deep(.tok-bold) {
       font-weight: 600;
-      color: #1f2328;
+      color: var(--adi-code-bold);
     }
 
     :deep(.tok-code) {
-      color: #0a3069;
-      background: #eef1f4;
+      color: var(--adi-code-code);
+      background: var(--adi-code-bg-subtle);
     }
 
     :deep(.tok-link) {
-      color: #0969da;
+      color: var(--adi-code-link);
     }
 
     :deep(.tok-bullet) {
-      color: #cf222e;
+      color: var(--adi-code-bullet);
     }
 
     :deep(.tok-quote) {
-      color: #6e7781;
+      color: var(--adi-code-com);
     }
 
     :deep(.tok-str) {
-      color: #0a3069;
+      color: var(--adi-code-code);
     }
 
     :deep(.tok-key) {
-      color: #0550ae;
+      color: var(--adi-code-head);
     }
 
     :deep(.tok-num) {
-      color: #0550ae;
+      color: var(--adi-code-head);
     }
 
     :deep(.tok-kw) {
-      color: #cf222e;
+      color: var(--adi-code-bullet);
     }
 
     :deep(.tok-fn) {
-      color: #8250df;
+      color: var(--adi-code-meta);
     }
 
     :deep(.tok-var) {
-      color: #953800;
+      color: var(--adi-code-var);
     }
 
     :deep(.tok-com) {
       font-style: italic;
-      color: #6e7781;
+      color: var(--adi-code-com);
     }
   }
 </style>

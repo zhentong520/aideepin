@@ -760,7 +760,7 @@ watch(
                 <!-- 节点菜单 -->
                 <WfDefineSidebar />
               </NLayoutSider>
-              <NLayoutContent class="h-full" style="background:#f5f5f5">
+              <NLayoutContent class="h-full bg-app-bg-subtle">
                 <!-- 流程图设计器 begin：画布与属性面板为并列 flex 列（T3-04），面板不再覆盖画布 -->
                 <div class="flex h-full w-full overflow-hidden">
                   <div class="flex-1 relative overflow-hidden">
@@ -927,7 +927,8 @@ watch(
   </div>
 </template>
 
-<style>
+<style lang="less">
+@import '@/styles/breakpoints.less';
 @import '@vue-flow/core/dist/style.css';
 @import '@vue-flow/core/dist/theme-default.css';
 @import '@vue-flow/controls/dist/style.css';
@@ -941,26 +942,26 @@ watch(
 
 .dndflow aside {
   border-right: 1px solid #eee;
-  padding: 15px 10px;
+  padding: var(--adi-space-s16) var(--adi-space-s12);
   font-size: 12px;
   background: #fcfcfc;
 }
 
 .dndflow aside>* {
-  margin-bottom: 10px;
+  margin-bottom: var(--adi-space-s12);
 }
 
 .vue-flow__node {
   border: 1px solid #eee;
   box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  padding: 10px;
+  padding: var(--adi-space-s12);
   border-radius: 10px;
   background: #FFF;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   align-items: center;
-  gap: 10px;
+  gap: var(--adi-space-s12);
   width: 280px;
 }
 
@@ -968,7 +969,7 @@ watch(
 .vue-flow__node.selected {
   border: 1px solid #2563eb;
   box-shadow: 0 0 0 3px rgb(37 99 235 / 0.15), 0 8px 16px -4px rgb(0 0 0 / 0.15);
-  padding: 10px;
+  padding: var(--adi-space-s12);
   border-radius: 10px;
 }
 
@@ -991,7 +992,7 @@ watch(
 .vue-flow__node .header {
   height: 45px;
   line-height: 45px;
-  margin-bottom: 10px;
+  margin-bottom: var(--adi-space-s12);
   text-align: center;
   font-weight: 600;
 }
@@ -1001,7 +1002,7 @@ watch(
   height: 40px;
   line-height: 40px;
   background: #9696961a;
-  margin-bottom: 10px;
+  margin-bottom: var(--adi-space-s12);
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
@@ -1040,7 +1041,7 @@ watch(
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
+  padding: 6px var(--adi-space-s12);
   background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
@@ -1097,7 +1098,8 @@ watch(
   height: 1px;
 }
 
-@media screen and (min-width: 768px) {
+
+@media screen and (min-width: @adi-bp-md) {
   .dndflow {
     flex-direction: row;
   }

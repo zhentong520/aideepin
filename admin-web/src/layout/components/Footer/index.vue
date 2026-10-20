@@ -41,7 +41,7 @@
       transition: all 0.2s ease-in-out;
 
       &:hover {
-        color: #515a6e;
+        color: var(--adi-text-muted);
       }
     }
 

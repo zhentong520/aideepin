@@ -96,7 +96,6 @@ async function loadGraph() {
 }
 
 function initCy() {
-  console.log('ref graph initCy')
   cy = cytoscape({
     container: document.getElementById('refGraphCy'),
     elements: [],
@@ -122,7 +121,6 @@ function relayout() {
 }
 
 onUpdated(() => {
-  console.log('RefGraph onUpdated')
   nextTick(() => {
     selectedVertex.value = null
     selectedEdge.value = null
@@ -131,7 +129,6 @@ onUpdated(() => {
 })
 
 onMounted(() => {
-  console.log('RefGraph onMounted')
   nextTick(() => {
     initCy()
     getAndRenderGraph()

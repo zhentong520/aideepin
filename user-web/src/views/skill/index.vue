@@ -28,7 +28,7 @@
               </NButton>
             </div>
           </NCard>
-          <NEmpty v-if="!loading && marketList.length === 0" :description="t('skill.empty')" />
+          <UxState v-if="!loading && marketList.length === 0" state="empty" :text="t('skill.empty')" />
         </div>
       </NTabPane>
 
@@ -47,7 +47,7 @@
               <NSwitch :value="item.isEnable" @update:value="(v: boolean) => toggleEnable(item, v)" />
             </div>
           </NCard>
-          <NEmpty v-if="!loading && myList.length === 0" :description="t('skill.emptyMine')" />
+          <UxState v-if="!loading && myList.length === 0" state="empty" :text="t('skill.emptyMine')" />
         </div>
       </NTabPane>
     </NTabs>
@@ -64,7 +64,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { NButton, NCard, NEmpty, NIcon, NInput, NModal, NTag, NTabs, NTabPane, NSwitch, useLoadingBar, useMessage } from 'naive-ui'
+import { NButton, NCard, NIcon, NInput, NModal, NTag, NTabs, NTabPane, NSwitch, useLoadingBar, useMessage } from 'naive-ui'
+import { UxState } from '@/components/common'
 import { Search12Regular } from '@vicons/fluent'
 import MarkdownIt from 'markdown-it'
 import { t } from '@/locales'

@@ -8,5 +8,6 @@ import LLMSelector from './LLMSelector.vue'
 import ImageModelSelector from './ImageModelSelector.vue'
 import ApiKeyModal from './ApiKeyModal.vue'
 import ApiDocPanel from './ApiDocPanel.vue'
+import UxState from './UxState.vue'
 
-export { HoverButton, NaiveProvider, SvgIcon, UserAvatar, Setting, PromptStore, LLMSelector, ImageModelSelector, ApiKeyModal, ApiDocPanel }
+export { HoverButton, NaiveProvider, SvgIcon, UserAvatar, Setting, PromptStore, LLMSelector, ImageModelSelector, ApiKeyModal, ApiDocPanel, UxState }

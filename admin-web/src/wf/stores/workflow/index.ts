@@ -96,7 +96,6 @@ export const useWfStore = defineStore('wf-store', {
             break
         }
         if (!wfRuntime) {
-          console.log(`wfRuntime not found: ${wfRuntimeUuid}`)
           return null
         }
         return wfRuntime
@@ -110,7 +109,7 @@ export const useWfStore = defineStore('wf-store', {
 
         const runtimeNode = wfRuntime.nodes.find((item: { uuid: string }) => item.uuid === runtimeNodeUuid)
         if (!runtimeNode)
-          console.log(`runtimeNode not found: ${runtimeNodeUuid}`)
+          return null
 
         return runtimeNode
       }
@@ -119,7 +118,6 @@ export const useWfStore = defineStore('wf-store', {
 
   actions: {
     setShowCreateView(status: boolean, wfUuid: string) {
-      console.log(`setShowCreateView: ${status}, ${wfUuid}`)
       this.showCreateOrEditView = status
       this.createOrEditWfUuid = wfUuid
     },
@@ -131,8 +129,6 @@ export const useWfStore = defineStore('wf-store', {
       const selected = this.getWorkflowInfo(wfUuid)
       if (selected)
         this.activeWorkflowInfo = selected
-      else
-        console.log(`setActive: ${wfUuid} workflow not found`)
     },
     setActiveAndGo(wfUuid: string, defaultViewType?: string) {
       this.setActive(wfUuid)
@@ -319,7 +315,6 @@ export const useWfStore = defineStore('wf-store', {
     unshiftWfRuntimes(wfUuid: string, wfRuntimes: Workflow.WorkflowRuntime[]) {
       wfRuntimes.forEach((wfRuntime) => {
         this.initWfRuntime(wfRuntime)
-        console.log('appendWfRuntime', wfRuntime)
       })
       const records = this.wfUuidToWfRuntimes.get(wfUuid)
       if (records)
@@ -330,7 +325,6 @@ export const useWfStore = defineStore('wf-store', {
     appendWfRuntimes(wfUuid: string, wfRuntimes: Workflow.WorkflowRuntime[]) {
       wfRuntimes.forEach((wfRuntime) => {
         this.initWfRuntime(wfRuntime)
-        console.log('appendWfRuntime', wfRuntime)
       })
       const records = this.wfUuidToWfRuntimes.get(wfUuid)
       if (records)
@@ -349,8 +343,6 @@ export const useWfStore = defineStore('wf-store', {
         runtimeNode.nodeUuid = wfNode.uuid
         runtimeNode.nodeTitle = wfNode.title
         runtimeNode.wfComponent = wfNode.wfComponent
-      } else {
-        console.log(`wfNode not found: ${runtimeNode.nodeId}`)
       }
       runtimeNode.wfRuntimeUuid = wfRuntime.uuid
       if (!runtimeNode.input)
@@ -412,7 +404,6 @@ export const useWfStore = defineStore('wf-store', {
     },
     updateSuccess(wfUuid: string, wfRuntimeUuid: string, outputJson: string) {
       if (!wfRuntimeUuid) {
-        console.log('updateSuccess instUuid is empty')
         return
       }
       const wfRuntimes = this.wfUuidToWfRuntimes.get(wfUuid)
@@ -424,14 +415,12 @@ export const useWfStore = defineStore('wf-store', {
             inst.output = JSON.parse(outputJson)
           } catch (e) {
             console.error(e)
-            console.log('outputJson is not json', outputJson)
           }
         }
       }
     },
     updateErrorMsg(wfUuid: string, wfRuntimeUuid: string, errorMsg: string) {
       if (!wfRuntimeUuid) {
-        console.log('updateSuccess instUuid is empty')
         return
       }
       const wfRuntimes = this.wfUuidToWfRuntimes.get(wfUuid)
@@ -450,7 +439,6 @@ export const useWfStore = defineStore('wf-store', {
       // Delete node
       const wf = this.getWorkflowInfo(wfUuid)
       if (!wf) {
-        console.log('deleteNode wf not found')
         return
       }
 
@@ -482,7 +470,6 @@ export const useWfStore = defineStore('wf-store', {
       // Delete edge
       const wf = this.getWorkflowInfo(wfUuid)
       if (!wf) {
-        console.log('deleteEdge wf not found')
         return
       }
       wf.deleteEdges.push(edgeUuid)
@@ -495,7 +482,6 @@ export const useWfStore = defineStore('wf-store', {
     _deleteUiNode(wfUuid: string, nodeUuid: string) {
       const uiWorkflow = this.wfUuidToUIWorkflow.get(wfUuid)
       if (!uiWorkflow) {
-        console.log('_deleteUiNode uiWorkflow not found')
         return
       }
       const idx = uiWorkflow.nodes.findIndex((node: { id: string }) => node.id === nodeUuid)
@@ -505,7 +491,6 @@ export const useWfStore = defineStore('wf-store', {
     _deleteUiEdge(wfUuid: string, edgeId: string) {
       const uiWorkflow = this.wfUuidToUIWorkflow.get(wfUuid)
       if (!uiWorkflow) {
-        console.log('_deleteUiEdge uiWorkflow not found')
         return
       }
       const idx = uiWorkflow.edges.findIndex((edge: { id: string }) => edge.id === edgeId)

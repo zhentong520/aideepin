@@ -7,7 +7,6 @@ import {
   NCollapse,
   NCollapseItem,
   NDivider,
-  NEmpty,
   NForm,
   NFormItem,
   NInput,
@@ -233,7 +232,7 @@ watch(() => props.docUuid, load)
             <NAlert v-if="rawTruncated" type="warning" :bordered="false" style="margin-bottom: 8px">
               {{ t('knowledgeBase.previewRawTruncated', { n: RAW_LIMIT }) }}
             </NAlert>
-            <NEmpty v-if="!rawText" :description="t('knowledgeBase.previewRawEmpty')" />
+            <UxState v-if="!rawText" state="empty" :text="t('knowledgeBase.previewRawEmpty')" />
             <pre v-else class="raw-box">{{ rawShown }}</pre>
           </NCard>
         </NSpin>
@@ -278,7 +277,7 @@ watch(() => props.docUuid, load)
             </NCard>
 
           </template>
-          <NEmpty v-else :description="t('common.noData')" />
+          <UxState v-else state="empty" :text="t('common.noData')" />
         </NSpin>
       </NTabPane>
 
@@ -356,7 +355,7 @@ watch(() => props.docUuid, load)
             </NCard>
 
             <NCard size="small" :title="`${t('knowledgeBase.chunkList')} (${result.totalChunks ?? 0})`" style="margin-top: 12px">
-              <NEmpty v-if="!result.chunks?.length" :description="t('knowledgeBase.chunkEmpty')" />
+              <UxState v-if="!result.chunks?.length" state="empty" :text="t('knowledgeBase.chunkEmpty')" />
               <template v-else-if="!isQaMode">
                 <div v-for="item in result.chunks" :key="item.index" class="chunk-item">
                   <div class="chunk-head">
@@ -407,7 +406,7 @@ watch(() => props.docUuid, load)
               </template>
             </NCard>
           </template>
-          <NEmpty v-else :description="t('common.noData')" />
+          <UxState v-else state="empty" :text="t('common.noData')" />
         </NSpin>
       </NTabPane>
     </NTabs>
@@ -426,7 +425,7 @@ watch(() => props.docUuid, load)
   word-break: break-word;
   background: #f6f7f9;
   border-radius: 6px;
-  padding: 10px 12px;
+  padding: var(--adi-space-s12) var(--adi-space-s12);
   font-size: 13px;
   line-height: 1.7;
   margin: 0;
@@ -450,7 +449,7 @@ watch(() => props.docUuid, load)
   word-break: break-word;
   background: #f6f7f9;
   border-radius: 6px;
-  padding: 8px 10px;
+  padding: 8px var(--adi-space-s12);
   font-size: 12px;
   line-height: 1.7;
   margin: 4px 0 0;
@@ -459,7 +458,7 @@ watch(() => props.docUuid, load)
 .chunk-item {
   border: 1px solid #eee;
   border-radius: 6px;
-  padding: 8px 10px;
+  padding: 8px var(--adi-space-s12);
   margin-bottom: 8px;
 }
 
@@ -480,7 +479,7 @@ watch(() => props.docUuid, load)
 
 .children-box {
   margin-top: 6px;
-  padding-left: 10px;
+  padding-left: var(--adi-space-s12);
   border-left: 2px solid #eee;
 }
 

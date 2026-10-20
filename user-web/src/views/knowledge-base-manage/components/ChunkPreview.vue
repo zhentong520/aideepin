@@ -1,5 +1,6 @@
 <script setup lang='ts'>
-import { NAlert, NButton, NCard, NCollapse, NCollapseItem, NDivider, NEmpty, NForm, NFormItem, NInput, NInputNumber, NPagination, NSelect, NSpace, NSpin, NSwitch, NTag, NText } from 'naive-ui'
+import { NAlert, NButton, NCard, NCollapse, NCollapseItem, NDivider, NForm, NFormItem, NInput, NInputNumber, NPagination, NSelect, NSpace, NSpin, NSwitch, NTag, NText } from 'naive-ui'
+import { UxState } from '@/components/common'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useMessage } from 'naive-ui'
 import { t } from '@/locales'
@@ -211,11 +212,11 @@ defineExpose({ run })
             <span>{{ t('knowledgeBase.maxTokens') }}: <b>{{ result.stats.maxTokens }}</b></span>
             <span>
               {{ t('knowledgeBase.oversizeChunks') }}:
-              <b :style="{ color: (result.stats.oversizeCount ?? 0) > 0 ? '#d03050' : undefined }">{{ result.stats.oversizeCount }}</b>
+              <b :style="{ color: (result.stats.oversizeCount ?? 0) > 0 ? 'var(--adi-danger-text)' : undefined }">{{ result.stats.oversizeCount }}</b>
             </span>
             <span>
               {{ t('knowledgeBase.tinyChunks') }}:
-              <b :style="{ color: (result.stats.tinyCount ?? 0) > 0 ? '#f0a020' : undefined }">{{ result.stats.tinyCount }}</b>
+              <b :style="{ color: (result.stats.tinyCount ?? 0) > 0 ? 'var(--adi-warning)' : undefined }">{{ result.stats.tinyCount }}</b>
             </span>
             <span v-if="result.childChunkCount">{{ t('knowledgeBase.childChunkTotal') }}: <b>{{ result.childChunkCount }}</b></span>
           </NSpace>
@@ -226,7 +227,7 @@ defineExpose({ run })
 
         <!-- 块列表 -->
         <NCard size="small" :title="`${t('knowledgeBase.chunkList')} (${result.totalChunks})`" style="margin-top: 12px">
-          <NEmpty v-if="!result.chunks.length" :description="t('knowledgeBase.chunkEmpty')" />
+          <UxState v-if="!result.chunks.length" state="empty" :text="t('knowledgeBase.chunkEmpty')" />
           <div v-for="item in result.chunks" :key="item.index" class="chunk-item">
             <div class="chunk-head">
               <NTag size="small" :bordered="false">
@@ -294,7 +295,7 @@ defineExpose({ run })
 .chunk-item {
   border: 1px solid #eee;
   border-radius: 6px;
-  padding: 8px 10px;
+  padding: 8px var(--adi-space-s12);
   margin-bottom: 8px;
 }
 
@@ -315,7 +316,7 @@ defineExpose({ run })
 
 .children-box {
   margin-top: 6px;
-  padding-left: 10px;
+  padding-left: var(--adi-space-s12);
   border-left: 2px solid #eee;
 }
 
