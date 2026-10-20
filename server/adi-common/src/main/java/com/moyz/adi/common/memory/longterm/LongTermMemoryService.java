@@ -1,9 +1,11 @@
 package com.moyz.adi.common.memory.longterm;
 
 import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.config.AdiProperties;
 import com.moyz.adi.common.entity.LLMCallRecord;
 import com.moyz.adi.common.entity.User;
 import com.moyz.adi.common.enums.LLMCallRecordSourceType;
+import com.moyz.adi.common.enums.MemoryType;
 import com.moyz.adi.common.helper.LLMContext;
 import com.moyz.adi.common.memory.vo.BatchActionMemories;
 import com.moyz.adi.common.memory.vo.ExtractedEpisodicEvent;
@@ -28,6 +30,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import static com.moyz.adi.common.cosntant.AdiConstant.RESPONSE_FORMAT_TYPE_JSON_OBJECT;
@@ -54,9 +57,13 @@ public class LongTermMemoryService {
     @Resource
     private LLMCallRecordService llmCallRecordService;
     @Resource
+    private AdiProperties adiProperties;
+    @Resource
     private SemanticMemoryService semanticMemoryService;
     @Resource
     private EpisodicMemoryService episodicMemoryService;
+    @Resource
+    private MemoryPendingService memoryPendingService;
 
     @Async
     public void asyncAdd(MemoryAddParam request) {
@@ -85,17 +92,46 @@ public class LongTermMemoryService {
                 ? new ArrayList<>(extracted.getEpisodicEvents())
                 : new ArrayList<>();
 
+        Long userId = request.getUser().getId();
+        boolean piiConfirm = adiProperties.getMemory() != null && adiProperties.getMemory().isPiiConfirmEnabled();
+
         // Dispatch episodic: append-only, independent of the semantic merge path.
         // 分发情景事件：append-only，与语义合并互不干扰。
+        // T7-07：piiConfirmEnabled 时敏感事件先进 pending 等确认，非敏感照常直写。
         if (!episodes.isEmpty()) {
-            try {
-                episodicMemoryService.batchAdd(request.getCharacterId(),
-                        request.getUser().getId(),
-                        request.getSourceMsgId(),
-                        episodes,
-                        request.isFreeToken());
-            } catch (Exception e) {
-                log.error("Failed to add episodic memories for characterId={}", request.getCharacterId(), e);
+            List<ExtractedEpisodicEvent> directEvents = new ArrayList<>(episodes.size());
+            for (ExtractedEpisodicEvent episode : episodes) {
+                if (piiConfirm && null != episode && SensitiveMemoryDetector.isSensitive(episode.getSummary())) {
+                    memoryPendingService.createPending(userId, request.getCharacterId(),
+                            MemoryType.EPISODIC, episode.getSummary(), request.getSourceMsgId());
+                } else {
+                    directEvents.add(episode);
+                }
+            }
+            if (!directEvents.isEmpty()) {
+                try {
+                    episodicMemoryService.batchAdd(request.getCharacterId(),
+                            userId,
+                            request.getSourceMsgId(),
+                            directEvents,
+                            request.isFreeToken());
+                } catch (Exception e) {
+                    log.error("Failed to add episodic memories for characterId={}", request.getCharacterId(), e);
+                }
+            }
+        }
+
+        // T7-07：piiConfirmEnabled 时把敏感语义事实分流进 pending（绝不进入下方合并直写链路），
+        // 非敏感事实照常走合并；开关关闭时全部直写（历史行为，热回滚位）。
+        if (piiConfirm && !facts.isEmpty()) {
+            Iterator<String> it = facts.iterator();
+            while (it.hasNext()) {
+                String fact = it.next();
+                if (SensitiveMemoryDetector.isSensitive(fact)) {
+                    memoryPendingService.createPending(userId, request.getCharacterId(),
+                            MemoryType.SEMANTIC, fact, request.getSourceMsgId());
+                    it.remove();
+                }
             }
         }
 
@@ -108,7 +144,7 @@ public class LongTermMemoryService {
 
         // ===== Stage 2: per-fact merge-candidate search (embedding only, no LLM) =====
         SemanticMemoryService.MergeCandidates candidates =
-                semanticMemoryService.searchMergeCandidates(facts, request.getCharacterId());
+                semanticMemoryService.searchMergeCandidates(facts, request.getCharacterId(), userId);
         if (candidates.isEmpty()) {
             log.info("No non-blank fact left to analyze");
             return;
@@ -131,7 +167,7 @@ public class LongTermMemoryService {
         }
 
         // ===== Stage 4: apply semantic actions (no LLM) =====
-        semanticMemoryService.applyActions(batchActions, request.getCharacterId(), candidates);
+        semanticMemoryService.applyActions(batchActions, request.getCharacterId(), userId, candidates);
     }
 
     private SseAskParam buildExtractionRequest(MemoryAddParam request, String inputMessage) {

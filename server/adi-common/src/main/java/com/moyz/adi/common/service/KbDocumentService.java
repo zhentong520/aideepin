@@ -296,6 +296,45 @@ public class KbDocumentService extends ServiceImpl<KbDocumentMapper, KbDocument>
                 .update();
     }
 
+    /**
+     * 二开新增（T7-05，2026-10-20）：按知识库全量重建 embedding 索引（换 embedding provider 后的标准动作）。
+     * <p>
+     * 与 {@link #invalidateSegmentsByKb} 的两处关键差异：
+     * <ol>
+     *   <li><b>QA 模式文档一并入队</b>：切段参数变更时 QA 文档的段行来自问答数据流、与切段无关，
+     *       故旧方法跳过；但换 provider 时问答对的向量同样过期，必须重建。QA 文档不删段行
+     *       （段行归问答数据流所有），由 {@code reindexEmbedding} 自行清向量 + 清 embedding_id 后重嵌；</li>
+     *   <li><b>语义即"全部重建"</b>：非 QA 文档同样走"删段行 + 删向量 + 重新切段入队"，
+     *       保证新 provider 下块结构与向量同代，不留下旧模型产物的混血索引。</li>
+     * </ol>
+     * 版本推进（bumpIndexVersion）使在途任务经检查点作废并自清理；无 running 任务时清理立即执行，
+     * 否则移交在途任务的取消善后——与 invalidateSegmentsByKb 同一套竞态纪律。
+     *
+     * @param kbUuid 知识库 uuid
+     * @return 入队重建的文档条数
+     */
+    public int rebuildEmbeddingByKb(String kbUuid) {
+        List<KbDocument> docs = ChainWrappers.lambdaQueryChain(baseMapper)
+                .eq(KbDocument::getKbUuid, kbUuid)
+                .eq(KbDocument::getIsDeleted, false)
+                .list();
+        int count = 0;
+        for (KbDocument doc : docs) {
+            boolean qaMode = SegmentIndexService.effectiveMode(doc) == SegmentModeEnum.QA;
+            bumpIndexVersion(doc.getUuid());
+            // QA 段行不删（归问答数据流）；非 QA 无在途任务时立即清段行与向量
+            if (!qaMode && !indexTaskService.hasRunningByDoc(doc.getUuid())) {
+                iKnowledgeEmbeddingService.deleteByItemUuid(doc.getUuid());
+                documentSegmentService.deleteByDocUuid(doc.getUuid());
+            }
+            markEmbeddingPending(doc.getUuid());
+            indexTaskService.enqueueDocument(doc.getKbUuid(), doc.getUuid(), DOC_INDEX_TYPE_EMBEDDING, ThreadContext.getCurrentUser());
+            count++;
+        }
+        log.info("rebuildEmbeddingByKb, kbUuid:{}, enqueued docs:{}", kbUuid, count);
+        return count;
+    }
+
     public KbDocument getEnable(String uuid) {
         return ChainWrappers.lambdaQueryChain(baseMapper)
                 .eq(KbDocument::getUuid, uuid)

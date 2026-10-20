@@ -1,0 +1,73 @@
+{
+  "_comment": "T7-05 embedding provider 评估报告结构示例（仅展示 schema，数字为占位符，不是任何真实跑分结果）。真实报告由 EvalReportWriter 落盘到 reports/eval-<时间戳>.json，run_embedding_eval.sh 负责把基线/候选两份报告归档为 reports/embedding-baseline.json 与 reports/embedding-candidate.json。",
+  "meta": {
+    "runId": "20261020-153000",
+    "startedAt": "2026-10-20T15:30:00",
+    "finishedAt": "2026-10-20T15:32:11",
+    "datasetSize": 34,
+    "config": {
+      "kbUuid": "<被评测知识库 uuid>",
+      "topK": 0,
+      "withGeneration": false,
+      "overlapOverride": -1,
+      "segmentSizeOverride": -1,
+      "hybridOverride": null,
+      "rerankOverride": null,
+      "notes": "embedding-baseline (pre-switch provider)"
+    },
+    "env": {
+      "runner": "QaEvalMain",
+      "embeddingModel": "<adi.embedding-model 当前值，如 local:bge-small-zh-v1.5 或 xinference:bge-m3>",
+      "embeddingProviderVersion": "<EmbeddingProviderService.currentProvider().version()，如 xinference/bge-m3@1024>",
+      "backend": "live"
+    }
+  },
+  "metrics": {
+    "accuracy": 0.0,
+    "recall": 0.0,
+    "refusalAccuracy": 0.0,
+    "factCount": 18,
+    "multiHopCount": 7,
+    "refusalCount": 9,
+    "perType": {
+      "fact": {"count": 18, "accuracy": 0.0, "recall": 0.0, "refusalAccuracy": 0.0, "errored": 0},
+      "multi_hop": {"count": 7, "accuracy": 0.0, "recall": 0.0, "refusalAccuracy": 0.0, "errored": 0},
+      "refusal": {"count": 9, "accuracy": 0.0, "recall": 0.0, "refusalAccuracy": 0.0, "errored": 0}
+    }
+  },
+  "items": [
+    {
+      "id": "f01",
+      "type": "fact",
+      "question": "重新切分子块会有什么后果？",
+      "snippetCovered": [true],
+      "contextRecall": 1.0,
+      "sourceHit": true,
+      "refused": false,
+      "refusalCorrect": true,
+      "refusalExpected": false,
+      "retrievedCount": 5,
+      "detail": ""
+    },
+    {
+      "id": "r04",
+      "type": "refusal",
+      "question": "法国的首都是哪座城市？",
+      "snippetCovered": [],
+      "contextRecall": null,
+      "sourceHit": null,
+      "refused": true,
+      "refusalCorrect": true,
+      "refusalExpected": true,
+      "retrievedCount": 0,
+      "detail": ""
+    }
+  ],
+  "_t7_05_interpretation": {
+    "_comment": "结论解释纪律（铁律 9）：以下为解读口径，不是跑分结果。",
+    "same_params": "两轮必须是同一题库、同一 top-k、同一切分/rerank 配置，唯一变量是 embedding provider",
+    "zero_hit_all_items": "候选轮全部 sourceHit=false 且 retrievedCount=0 时，优先怀疑切模型后未全量重建（新维度表为空、旧表成孤儿），而不是模型质量差——启动日志里的 EMBEDDING PROVIDER MISMATCH 告警与 /admin/kb/rebuildEmbedding/{uuid} 响应可定位",
+    "noise": "单题权重约 1/34≈2.9%，指标变化 < 3 题（约 ±8.8%）不下结论，先核对逐题明细",
+    "rollback": "回滚 = adi.embedding-model 切回基线 provider + 重启 + 对受影响库再调一次重建端点；审计日志 KB_REINDEX 记录完整的新旧 provider 版本链"
+  }
+}

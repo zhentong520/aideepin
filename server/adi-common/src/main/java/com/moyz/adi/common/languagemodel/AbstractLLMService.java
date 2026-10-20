@@ -15,6 +15,8 @@ import com.moyz.adi.common.languagemodel.data.ToolLoopBudget;
 import com.moyz.adi.common.languagemodel.data.LLMException;
 import com.moyz.adi.common.languagemodel.data.LLMResponseContent;
 import com.moyz.adi.common.memory.shortterm.MapDBChatMemoryStore;
+import com.moyz.adi.common.multiagent.AgentCallChain;
+import com.moyz.adi.common.multiagent.DelegateAgentTool;
 import com.moyz.adi.common.rag.TokenEstimatorFactory;
 import com.moyz.adi.common.rag.TokenEstimatorThreadLocal;
 import com.moyz.adi.common.service.ModelHealthService;
@@ -206,6 +208,8 @@ public abstract class AbstractLLMService extends CommonModelService {
                 .mcpClients(httpRequestParams.getMcpClients())
                 .skillBundle(httpRequestParams.getSkillBundle())
                 .characterUuid(httpRequestParams.getCharacterUuid())
+                // T7-02：透传调用链给工具回调线程（delegate_agent 深度限制/防环）
+                .agentCallChain(httpRequestParams.getAgentCallChain())
                 .answerContentType(params.getAnswerContentType())
                 .consumer(consumer)
                 // T6-08/T6-09：降级切换时需要用同一份 modelProperties 重建备用模型的 StreamingChatModel
@@ -272,7 +276,7 @@ public abstract class AbstractLLMService extends CommonModelService {
             return;
         }
         Map<ToolSpecification, ToolExecutor> toolExecutorMap = getRequestTools(params.getMcpClients(), params.getSkillBundle(),
-                null == params.getUser() ? null : params.getUser().getId(), params.getCharacterUuid());
+                null == params.getUser() ? null : params.getUser().getId(), params.getCharacterUuid(), params.getAgentCallChain());
         dispatchStreamingChat(params, toolExecutorMap);
     }
 
@@ -512,7 +516,7 @@ public abstract class AbstractLLMService extends CommonModelService {
             AiMessage responseAiMessage = chatResponse.aiMessage();
             if (responseAiMessage.hasToolExecutionRequests()) {
                 Map<ToolSpecification, ToolExecutor> toolExecutorMap = getRequestTools(chatModelRequest.getMcpClients(), chatModelRequest.getSkillBundle(),
-                        chatModelRequest.getChatUserId(), chatModelRequest.getCharacterUuid());
+                        chatModelRequest.getChatUserId(), chatModelRequest.getCharacterUuid(), chatModelRequest.getAgentCallChain());
                 List<ToolExecutionResultMessage> toolExecutionMessages = createToolExecutionMessages(responseAiMessage, toolExecutorMap, null);
 
                 AiMessage aiMessage = AiMessage.aiMessage(responseAiMessage.toolExecutionRequests());
@@ -665,8 +669,10 @@ public abstract class AbstractLLMService extends CommonModelService {
      * 统一映射到 ToolExecutor（MCP 包装 client.executeTool，Skill 委托 SkillToolService）。
      * 二开（2026-09-21）：新增 create_skill 常驻注册（对话中直接创建技能），userId/characterUuid
      * 由装配层显式传入——工具在 LLM 回调线程执行，ThreadContext 不保证可达。
+     * 二开（T7-02，2026-10-20）：新增 delegate_agent 常驻注册（agent-as-tool），开关关闭时不注册；
+     * 调用链随参数透传（嵌套深度限制/防环在门面收口）。
      */
-    private Map<ToolSpecification, ToolExecutor> getRequestTools(List<McpClient> mcpClients, SkillToolService.SkillBundle skillBundle, Long chatUserId, String characterUuid) {
+    private Map<ToolSpecification, ToolExecutor> getRequestTools(List<McpClient> mcpClients, SkillToolService.SkillBundle skillBundle, Long chatUserId, String characterUuid, AgentCallChain agentCallChain) {
         Map<ToolSpecification, ToolExecutor> tools = new HashMap<>();
         if (!CollectionUtils.isEmpty(mcpClients)) {
             // MCP Tools
@@ -687,6 +693,12 @@ public abstract class AbstractLLMService extends CommonModelService {
         SkillToolService skillToolService = SpringUtil.getBean(SkillToolService.class);
         ToolSpecification createSpec = skillToolService.buildCreateSkillSpecification();
         tools.put(createSpec, (req, memoryId) -> skillToolService.executeCreateSkill(req, chatUserId, characterUuid));
+        // T7-02：delegate_agent（agent-as-tool）常驻注册，热开关关闭时不注入（模型看不到该工具）
+        DelegateAgentTool delegateAgentTool = SpringUtil.getBean(DelegateAgentTool.class);
+        if (delegateAgentTool.enabled()) {
+            ToolSpecification delegateSpec = delegateAgentTool.buildSpecification();
+            tools.put(delegateSpec, (req, memoryId) -> delegateAgentTool.execute(req, chatUserId, characterUuid, agentCallChain));
+        }
         return tools;
     }
 
@@ -724,6 +736,12 @@ public abstract class AbstractLLMService extends CommonModelService {
             toolSpecifications.addAll(httpRequestParams.getSkillBundle().toolSpecifications());
         }
         toolSpecifications.add(skillToolService.buildCreateSkillSpecification());
+        // T7-02：delegate_agent（agent-as-tool）工具清单注入——执行侧 getRequestTools 按 name
+        // 匹配 executor，两处 name 一致即可安全互通；热开关关闭时不注入（模型看不到）
+        DelegateAgentTool delegateAgentTool = SpringUtil.getBean(DelegateAgentTool.class);
+        if (delegateAgentTool.enabled()) {
+            toolSpecifications.add(delegateAgentTool.buildSpecification());
+        }
 
         DefaultChatRequestParameters.Builder<?> builder = ChatRequestParameters.builder();
         builder.toolSpecifications(toolSpecifications);

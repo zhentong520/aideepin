@@ -171,4 +171,23 @@ public class KnowledgeBase extends BaseEntity {
     @Schema(title = "默认密级 PUBLIC/ORG/PRIVATE | Default sensitivity")
     @TableField("default_sensitivity")
     private String defaultSensitivity;
+
+    // ===== 二开新增（T7-05，2026-10-20）：embedding provider 溯源（换模型防静默零命中）=====
+
+    /**
+     * 产出当前向量索引的 embedding provider 名称（如 bge-small-zh-v1.5 / bge-m3）。
+     * 空串 = 未知（存量库或从未重建），消费方必须跳过比对而非判为不一致。
+     */
+    @Schema(title = "embedding provider 名称 | Embedding provider name (blank = unknown/legacy)")
+    @TableField("embedding_provider")
+    private String embeddingProvider;
+
+    /**
+     * embedding provider 不可变版本串（本地 name@dim / 远端 platform/name@dim）。
+     * 与当前生效 provider 不一致即说明该库向量建于旧模型之下：检索命中新表（空）会静默零召回，
+     * 需按当前 provider 全量重建（回滚 = 切回配置里的旧 provider 再重建一次）。
+     */
+    @Schema(title = "embedding provider 版本 | Embedding provider version (blank = unknown/legacy)")
+    @TableField("embedding_provider_version")
+    private String embeddingProviderVersion;
 }

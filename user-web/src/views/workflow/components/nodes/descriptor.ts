@@ -13,10 +13,10 @@
  * T3-11：CommonNodeHeader 按必填字段实时显示未配置徽标
  * T3-14：节点卡 hover 显示 doc 文档；wfNodePresets 内置模板可拖入画布
  *
- * 与后端 WfNodeFactory 的 20 个 case 一一对应（START/LLM_ANSWER/CLASSIFIER/
+ * 与后端 WfNodeFactory 的 21 个 case 一一对应（START/LLM_ANSWER/CLASSIFIER/
  * SWITCHER/TEMPLATE/KEYWORD_EXTRACTOR/DOCUMENT_EXTRACTOR/FAQ_EXTRACTOR/
  * KNOWLEDGE_RETRIEVER/GOOGLE_SEARCH/OPENAI_IMAGE/TONGYI_WANX/HUMAN_FEEDBACK/
- * MAIL_SEND/HTTP_REQUEST/AGENT/DATABASE/MCP/SKILL/END）。
+ * MAIL_SEND/HTTP_REQUEST/AGENT/DATABASE/MCP/SKILL/ORCHESTRATOR/END）。
  */
 import type { Component } from 'vue'
 
@@ -40,6 +40,7 @@ import AgentNode from './AgentNode.vue'
 import DatabaseNode from './DatabaseNode.vue'
 import McpNode from './McpNode.vue'
 import SkillNode from './SkillNode.vue'
+import OrchestratorNode from './OrchestratorNode.vue'
 
 import StartNodeProperty from './StartNodeProperty.vue'
 import EndNodeProperty from './EndNodeProperty.vue'
@@ -61,6 +62,7 @@ import AgentNodeProperty from './AgentNodeProperty.vue'
 import DatabaseNodeProperty from './DatabaseNodeProperty.vue'
 import McpNodeProperty from './McpNodeProperty.vue'
 import SkillNodeProperty from './SkillNodeProperty.vue'
+import OrchestratorNodeProperty from './OrchestratorNodeProperty.vue'
 
 export type WfNodeCategory = 'trigger' | 'llm' | 'retrieval' | 'transform' | 'action' | 'flow'
 
@@ -927,6 +929,36 @@ export const wfNodeDescriptors: WfNodeDescriptor[] = [
         required: 'Skill and mode; script path required in script mode.',
         output: 'Instruction text or script stdout.',
         errors: 'Skill not installed; script mode on a script-less skill; script timeout (60s).',
+      },
+    },
+    hasInput: true,
+    hasOutput: true,
+  },
+  {
+    type: 'Orchestrator',
+    icon: 'carbon:network-4',
+    iconClass: 'text-purple-700',
+    category: 'action',
+    color: COLOR_ACTION,
+    component: OrchestratorNode,
+    propertyComponent: OrchestratorNodeProperty,
+    // 保留自定义：sub_agents 是数组结构（多行 Agent + 任务 id + 提示词），三段式 SchemaForm 无法表达
+    customPanel: true,
+    componentTitle: { zh: '多 Agent 编排', en: 'Multi-Agent Orchestrator' },
+    metrics: ['subTaskCount', 'successCount', 'failCount', 'summaryLength'],
+    configSchema: [],
+    doc: {
+      zh: {
+        purpose: '把子任务分派给多个子 Agent 并行执行，通过共享黑板回写结果并汇总。',
+        required: '至少一个子 Agent；任务 id 缺省用 Agent 唯一标识。',
+        output: '汇总文本（默认含每个子任务的成败记录）。',
+        errors: '子 Agent 列表为空；编排开关被停用；fail_fast 开启时存在失败子任务。',
+      },
+      en: {
+        purpose: 'Dispatches subtasks to multiple sub-agents in parallel, writes results back through a shared blackboard, then summarizes.',
+        required: 'At least one sub-agent; task id defaults to the agent uuid.',
+        output: 'Summary text (with each subtask success/failure record by default).',
+        errors: 'Empty sub-agent list; orchestration switch off; fail_fast with failed subtasks.',
       },
     },
     hasInput: true,

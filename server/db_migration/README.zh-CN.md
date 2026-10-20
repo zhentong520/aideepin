@@ -92,6 +92,7 @@ CREATE DATABASE aideepin;
 * `029_qianwen_maas_provider.sql` — 千帆 MaaS 平台与模型
 * `030_qianwen_rerank_default.sql` — rerank 默认模型切换为千帆
 * `031_kb_doc_source.sql` — 知识库文档来源：URL 网页抓取 / API 接口拉取（含 md、markdown 解析支持）
+* `042_rag_quality_dashboard.sql` — RAG 质量看板 + 失败闭环：`adi_rag_query_log` 补 `query_text` 列（评测题题面来源），新建 👍👎 反馈表 `adi_rag_feedback`
 
 > **注意**：`019` 插入的工作流组件记录用的是英文占位标题。如需中文展示，升级后执行语言包
 > `all_dml_cn.sql`（或 `all_dml_en.sql`），两个语言包都会把该记录刷新为对应语言。

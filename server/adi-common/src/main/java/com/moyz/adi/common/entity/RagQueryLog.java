@@ -60,7 +60,11 @@ public class RagQueryLog extends BaseEntity {
     @TableField("embedding_model")
     private String embeddingModel;
 
-    @Schema(title = "用户反馈：空/PASS/FAIL | Feedback: empty/PASS/FAIL")
+    @Schema(title = "用户反馈：空/PASS/FAIL（旧列，已被adi_rag_feedback取代，不再写入）| Feedback: legacy column, superseded by adi_rag_feedback")
     @TableField("feedback")
     private String feedback;
+
+    @Schema(title = "用户原始问句（截断500字符）| Raw user query text (truncated to 500 chars)")
+    @TableField("query_text")
+    private String queryText;
 }

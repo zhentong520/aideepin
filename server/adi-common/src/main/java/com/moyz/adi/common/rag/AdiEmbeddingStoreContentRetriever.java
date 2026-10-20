@@ -343,6 +343,7 @@ public class AdiEmbeddingStoreContentRetriever implements ContentRetriever {
      * <ul>
      *   <li>仅知识库链路（context != null）记录；角色记忆通道 context 恒为 null，不记录</li>
      *   <li>hit_segments = ACL 双保险过滤后、展开前的原始命中</li>
+     *   <li>query_text = 用户原始问句（截断 500 字符，T7-01 失败案例转评测题的题面来源）</li>
      *   <li>filter_expression = 实际下发向量库的表达式（含 ACL 条件）</li>
      *   <li>全程 try/catch：日志缺失可以被接受，检索被拖垮不行</li>
      * </ul>
@@ -381,7 +382,8 @@ public class AdiEmbeddingStoreContentRetriever implements ContentRetriever {
                     matches.size(),
                     aclFilteredCount,
                     (int) (System.currentTimeMillis() - startTime),
-                    embeddingModelName());
+                    embeddingModelName(),
+                    query.text());
             SpringUtil.getBean(RagQueryLogService.class).saveAsync(row);
         } catch (Exception e) {
             log.warn("save rag query log failed,query:{},error:{}", StringUtils.abbreviate(query.text(), 50), e.getMessage());

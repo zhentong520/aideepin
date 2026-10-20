@@ -188,6 +188,22 @@ set title         = '技能',
     display_order = 9,
     is_enable     = true
 where name = 'Skill';
+insert into adi_workflow_component(uuid, name, title, remark, display_order, is_enable)
+values (replace(gen_random_uuid()::text, '-', ''), 'Orchestrator', '多 Agent 编排',
+        '把子任务分派给多个子 Agent 并行执行，通过共享黑板回写结果并汇总', 20, true);
+
+-- 多 Agent 热开关（T7-02/T7-03，2026-10-20）：delegate_agent 委派与 Orchestrator 编排节点，
+-- 管理端系统配置页可直接改值；未配置时代码回退 application.yml 默认值（缺省开）。
+INSERT INTO adi_sys_config (name, value)
+SELECT 'agent_delegation_enabled', 'true'
+WHERE NOT EXISTS (
+    SELECT 1 FROM adi_sys_config WHERE name = 'agent_delegation_enabled' AND is_deleted = false
+);
+INSERT INTO adi_sys_config (name, value)
+SELECT 'agent_orchestrator_enabled', 'true'
+WHERE NOT EXISTS (
+    SELECT 1 FROM adi_sys_config WHERE name = 'agent_orchestrator_enabled' AND is_deleted = false
+);
 -- 工作流示例
 insert into adi_workflow(uuid, title, user_id, is_public, is_enable)
 values ('c40cfc1792264130b1c1f82d1448648f', '中文转英文', 1, true, true);

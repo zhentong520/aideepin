@@ -13,6 +13,7 @@ import com.moyz.adi.common.entity.KnowledgeBaseAuditLog;
 import com.moyz.adi.common.entity.KnowledgeBaseShare;
 import com.moyz.adi.common.enums.SegmentModeEnum;
 import com.moyz.adi.common.service.KbCategoryService;
+import com.moyz.adi.common.service.KbPackService;
 import com.moyz.adi.common.service.KnowledgeBaseService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
@@ -20,11 +21,15 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -39,6 +44,9 @@ public class KnowledgeBaseController {
 
     @Resource
     private KbCategoryService kbCategoryService;
+
+    @Resource
+    private KbPackService kbPackService;
 
     /**
      * 二开新增（2026-10-09）：知识库分类字典（只读），列表/选择器分组筛选用
@@ -142,9 +150,51 @@ public class KnowledgeBaseController {
     }
 
     /**
+     * 二开新增（T7-05，2026-10-20）：按知识库全量重建 embedding 索引（库 owner 或管理员）。
+     * <p>
+     * 换 embedding provider（如 bge-small-zh-v1.5 → bge-m3）后的标准动作：失效该库全部
+     * 文档段行与向量（含 QA 文档）后按当前 provider 重新入队，并把 provider 版本记录到
+     * 知识库。回滚 = 把 adi.embedding-model 切回 previousVersion 对应配置并重启，再调一次。
+     */
+    @PostMapping("/rebuildEmbedding/{uuid}")
+    public com.moyz.adi.common.dto.KbEmbeddingRebuildResp rebuildEmbedding(@PathVariable String uuid) {
+        return knowledgeBaseService.rebuildEmbedding(uuid);
+    }
+
+    /**
+     * 二开新增（T7-06，2026-10-20）：导出知识库技能配置包（分享能力不分享数据）。
+     * <p>
+     * ZIP 内只有 SKILL.md + config.json + pack.json：配置与引用清单，不含任何文档内容与向量。
+     * 读权限即可导出（能读库的人导出配置不构成越权）；开关 adi.kb.pack-sharing-enabled=false 时拒绝。
+     */
+    @GetMapping("/pack/export/{uuid}")
+    public ResponseEntity<byte[]> exportPack(@PathVariable String uuid) {
+        byte[] data = kbPackService.exportPack(uuid);
+        String encoded = URLEncoder.encode("kb-pack.zip", StandardCharsets.UTF_8).replace("+", "%20");
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, "application/zip")
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + encoded + "\"; filename*=UTF-8''" + encoded)
+                .contentLength(data.length)
+                .body(data);
+    }
+
+    /**
+     * 二开新增（T7-06，2026-10-20）：导入知识库技能配置包，以当前用户为 owner 新建知识库。
+     * <p>
+     * 共享的是能力不是数据：新库只有配置，文档由导入方自行灌入；包内引用的数据按导入方
+     * 自身 ACL 重新校验，任一无权即整体拒绝（A_KB_PACK_IMPORT_REF_DENIED），绝不静默穿透。
+     */
+    @PostMapping("/pack/import")
+    public KnowledgeBase importPack(@RequestParam("file") MultipartFile file,
+                                    @RequestParam(value = "title", required = false) String title) {
+        return kbPackService.importPack(file, title);
+    }
+
+    /**
      * 删除知识库
      *
-* @param uuid 知识库uuid / Knowledge base UUID
+     * @param uuid 知识库uuid / Knowledge base UUID
      * @return 成功或失败
      */
     @PostMapping("/del/{uuid}")

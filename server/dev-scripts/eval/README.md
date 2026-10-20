@@ -10,7 +10,9 @@
 | `qa-dataset.json` | 固定题库（34 题：fact 18 / multi_hop 7 / refusal 9）。金标片段逐字照抄语料原文，派生自 kb-eval `golden.jsonl` |
 | `compare_reports.py` | 对比两份报告：指标变化 + 逐题明细变化（改善/退步/拒答翻转） |
 | `run_overlap_eval.sh` | T6-04：overlap ∈ {0, 0.1, 0.2}（折算 0/51/102 token）三组对照编排 |
+| `run_embedding_eval.sh` | T7-05：embedding provider（基线 vs bge-m3 候选）同题库对照编排 |
 | `sample-report-structure.json` | 报告 JSON schema 示例（占位数字，非真实分数） |
+| `sample-embedding-report-structure.json` | T7-05 报告 schema + 结论解释纪律（占位数字，非真实分数） |
 | `reports/` | 真实跑分报告落盘处（`eval-<时间戳>.json`），入 git 供对比 |
 | Java 侧 | `com.moyz.adi.common.eval` 包：`QaEvalScorer`（计分器，单测覆盖）/ `QaEvalRunner`（编排）/ `KbQaEvalGateway`（真实链路网关）/ `QaEvalMain`（CLI 入口） |
 
@@ -50,6 +52,30 @@ EVAL_RUN_CMD='...' bash run_overlap_eval.sh --kb <kbOv0> <kbOv51> <kbOv102>
 
 ⚠️ 约束：默认 overlap 保持 0 不动，是否开启 overlap 由三组对照的量化结论决定；
 改动前后必须先跑 T6-02 基线（`RetrievalRegressionBaselineTest`）归因。
+
+## T7-05 embedding provider（bge-m3）评估流程
+
+```bash
+# 0. 基线体检：先过 T6-02 检索回归基线
+#    mvn -pl adi-common test -Dtest=RetrievalRegressionBaselineTest
+# 1. 基线轮：当前 adi.embedding-model 下的语料库跑一轮，报告归档 embedding-baseline.json
+# 2. 切换候选：adi.embedding-model 改为 bge-m3（如 xinference:bge-m3，模型配置 dimension=1024）→ 重启
+# 3. 全量重建：POST /admin/kb/rebuildEmbedding/{uuid}（T7-05 端点），确认响应 currentVersion 与生效 provider 一致
+# 4. 候选轮：再跑一轮，报告归档 embedding-candidate.json
+# 5. 对比：
+EVAL_RUN_CMD='...' bash run_embedding_eval.sh --baseline-kb <kbUuid> --candidate-kb <kbUuid>
+# 无环境演练（只打印计划，不产出数字）：
+bash run_embedding_eval.sh --baseline-kb a --candidate-kb b --dry-run
+```
+
+⚠️ 约束与解释纪律：
+
+- 两轮必须同题库、同 top-k、同切分/rerank 参数，唯一变量是 embedding provider；
+- 候选轮全题零命中时优先怀疑「切模型后未全量重建」（新维度表为空），启动日志
+  `EMBEDDING PROVIDER MISMATCH` 告警（`EmbeddingProviderGuard`）与重建端点响应可定位；
+- 默认 `adi.embedding-model` 在拿到可复现量化结论前保持不变；回滚 = 切回基线 provider
+  + 重启 + 对受影响库再调一次重建端点（审计动作 `KB_REINDEX` 记录完整版本链）；
+- 单题权重 ≈ 1/34 ≈ 2.9%，指标变化 < 3 题（约 ±8.8%）不下结论，先核对逐题明细。
 
 ## 题库维护纪律
 

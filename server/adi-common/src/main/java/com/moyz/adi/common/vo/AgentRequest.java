@@ -37,4 +37,12 @@ public class AgentRequest {
 
     /** Enable web search. */
     private boolean enableWebSearch;
+
+    /**
+     * T7-02/T7-04（2026-10-20）：当前 Agent 调用链（嵌套深度限制 + 防环）。
+     * 父 Agent 委派时必须把自己持有的链传下来（链上已含父与目标 Agent），
+     * 子 Agent 内部再发起 delegate_agent 时才能正确判深/判环；为 null 时由
+     * 执行层以本 Agent 为链根播种新链。
+     */
+    private com.moyz.adi.common.multiagent.AgentCallChain callChain;
 }

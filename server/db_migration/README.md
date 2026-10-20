@@ -81,6 +81,7 @@ Execute the migration scripts in sequence (do NOT run the `all_*` files):
 * `029_qianwen_maas_provider.sql` — Qianfan (Qianwen) MaaS platform and its models
 * `030_qianwen_rerank_default.sql` — switch the default rerank model to Qianfan
 * `031_kb_doc_source.sql` — knowledge-base document sources: fetch from a web URL or an HTTP API (also adds md/markdown parsing)
+* `042_rag_quality_dashboard.sql` — RAG quality dashboard + failure loop: `adi_rag_query_log.query_text` column (eval-question source) and the thumbs-up/down feedback table `adi_rag_feedback`
 
 > **Note**: `019` inserts the workflow component row with an English placeholder title. To display
 > it in Chinese, run the language pack (`all_dml_cn.sql` / `all_dml_en.sql`) afterwards; both

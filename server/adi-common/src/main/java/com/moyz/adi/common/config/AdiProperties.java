@@ -94,6 +94,12 @@ public class AdiProperties {
     private Ext ext = new Ext();
 
     /**
+     * 二开新增（T7-01，2026-10-20）：RAG 质量看板与失败闭环配置。
+     */
+    @Valid
+    private Rag rag = new Rag();
+
+    /**
      * 二开新增（T2-07，2026-10-19）：凭据集中管理配置（铁律 10：行为改动必须带开关，可热回滚）。
      */
     @Valid
@@ -277,6 +283,41 @@ public class AdiProperties {
          */
         @Min(value = 1000, message = "adi.agent.tool-loop-max-tokens 必须 >= 1000")
         private int toolLoopMaxTokens = 200000;
+
+        /**
+         * T7-02：agent-as-tool 委派机制总开关（adi.agent.delegation-enabled，默认 true）。
+         * <p>
+         * false 时 delegate_agent 一律拒绝（返回可读错误），行为与改造前一致，可热回滚（铁律 10）。
+         * 另有 sys_config「agent_delegation_enabled」做运行期热开关（缺省开），
+         * 两者任一关闭即停用；系统配置优先于配置文件。
+         * <p>
+         * Master switch for the delegate_agent (agent-as-tool) mechanism. When false,
+         * every delegation is rejected with a readable error — a safe rollback to
+         * pre-T7-02 behavior. The sys_config key agent_delegation_enabled provides the
+         * runtime hot switch and takes precedence.
+         */
+        private boolean delegationEnabled = true;
+
+        /**
+         * T7-02：委派嵌套深度硬限制（adi.agent.delegation-max-depth，默认 1）。
+         * <p>
+         * 1 = Agent A 可委派给 B，B 不能再委派（深度 ≥2 拒绝）。⚠️ 这是任务书规定的
+         * 安全硬限制，调大会让委派套委派失控，仅允许调小（更严）。
+         * <p>
+         * Hard nesting-depth limit for delegation (default 1 per the task spec).
+         * Only tighten it; raising it re-enables the runaway nesting the limit exists to prevent.
+         */
+        @Min(value = 1, message = "adi.agent.delegation-max-depth 必须 >= 1")
+        private int delegationMaxDepth = 1;
+
+        /**
+         * T7-03：多 Agent 编排节点（Orchestrator）开关（adi.agent.orchestrator-enabled，默认 true）。
+         * <p>
+         * 关闭后工作流里的 Orchestrator 节点直接返回可读错误（A0086），不再并行拉起子 Agent。
+         * 与 sys_config agent_orchestrator_enabled 任一关闭即停用（系统配置优先，铁律 10）。
+         * </p>
+         */
+        private boolean orchestratorEnabled = true;
     }
 
     /**
@@ -380,6 +421,37 @@ public class AdiProperties {
          */
         @Valid
         private Acl acl = new Acl();
+
+        /**
+         * 二开新增（T7-05，2026-10-20）：embedding 全量重建开关（adi.kb.embedding-rebuild-enabled，默认 true）。
+         * <p>
+         * 控制「按知识库重建 embedding 索引」端点（管理端 /admin/kb/rebuildEmbedding/{uuid}
+         * 与用户端同权端点）。换 embedding provider（如切 bge-m3）后的标准动作就是调它：
+         * 失效全部文档段行与向量 → 按当前 provider 重新入队 → 记录 provider 版本（回滚依据）。
+         * <p>
+         * false 时端点直接拒绝（A_KB_EMBEDDING_REBUILD_DISABLED），行为与历史版本一致；
+         * 关闭它不影响任何自动索引链路（保存文档/编辑参数触发的重索引照常）。
+         * <p>
+         * Embedding rebuild switch. Guards the per-KB rebuild endpoints; disabling them
+         * refuses the call without touching the automatic indexing paths.
+         */
+        private boolean embeddingRebuildEnabled = true;
+
+        /**
+         * 二开新增（T7-06，2026-10-20）：知识包导出/导入与分享开关（adi.kb.pack-sharing-enabled，默认 true）。
+         * <p>
+         * 控制知识库「技能配置包」的导出端点（SKILL.md + config.json + pack.json 的 ZIP）与导入端点。
+         * 语义约束（写进设计与测试）：<b>共享的是能力不是数据</b>——包里只有配置与引用清单，
+         * 不含任何文档内容/向量；导入时引用数据按导入方自身 ACL 重新校验，无权即整体拒绝，
+         * 绝不静默穿透。
+         * <p>
+         * false 时两个端点直接拒绝（A_PARAMS_ERROR），历史行为不受影响；热回滚位。
+         * <p>
+         * Knowledge pack sharing switch. Guards the KB pack export/import endpoints;
+         * packs carry configuration only — referenced data is re-validated against the
+         * importer's own ACL and denied references reject the whole import.
+         */
+        private boolean packSharingEnabled = true;
     }
 
     @Data
@@ -630,6 +702,32 @@ public class AdiProperties {
         @DecimalMin(value = "0.0", message = "adi.memory.min-score 应在 0-1 之间")
         @DecimalMax(value = "1.0", message = "adi.memory.min-score 应在 0-1 之间")
         private double minScore = AdiConstant.LONG_TERM_MEMORY_MIN_SCORE_DEFAULT;
+
+        /**
+         * 二开新增（T7-07，2026-10-20）：记忆用户维度开关（adi.memory.user-dimension-enabled，默认 true）。
+         * <p>
+         * 打开时：写入路径在 metadata 里记录 {@code user_id}（同一用户跨 Agent 跨会话共享记忆），
+         * 检索路径按 {@code character_id + user_id} 双条件过滤（A 用户读不到 B 用户的记忆）。
+         * 关闭时：完全不写也不过隙 {@code user_id}，行为回退到历史上的 character 单维度
+         * （存量数据已由 V14 迁移按 owner 关系回填，关闭开关不会丢数据，只是不再按用户隔离）。
+         * <p>
+         * Per-user memory dimension switch. When off, no user_id is written or filtered
+         * and retrieval falls back to the historical character-only dimension.
+         */
+        private boolean userDimensionEnabled = true;
+
+        /**
+         * 二开新增（T7-07，2026-10-20）：敏感记忆写入前确认开关（adi.memory.pii-confirm-enabled，默认 true）。
+         * <p>
+         * 打开时：抽取结果中命中 PII 特征（联系方式/证件/账号密码）的记忆不直接落库，
+         * 先进入 pending 状态等用户在 API 层确认（pending → confirm 两段式），确认后才持久化；
+         * 非敏感记忆照常直写。关闭时：全部直写（历史行为），热回滚位。
+         * <p>
+         * Sensitive-memory confirmation switch. When off, all extracted memories are
+         * persisted directly (legacy behaviour); when on, PII memories require explicit
+         * user confirmation before being persisted.
+         */
+        private boolean piiConfirmEnabled = true;
     }
 
     /**
@@ -647,5 +745,42 @@ public class AdiProperties {
          * so registration / password-reset flows work without a real SMTP server.
          */
         private boolean mock = false;
+    }
+
+    /**
+     * 二开新增（T7-01，2026-10-20）：RAG 质量看板与失败闭环配置。
+     * <p>
+     * RAG quality dashboard and failure-loop settings (T7-01).
+     */
+    @Data
+    public static class Rag {
+
+        /**
+         * 低分阈值（adi.rag.eval.low-score-threshold）：单次检索最高分低于该值计为「低分」。
+         * <p>
+         * 用于质量看板低分占比、明细表 low_score 筛选、转评测题候选范围（三处同口径）。
+         * 与知识库检索的 minScore 是两个独立参数：minScore 是入库检索时的召回过滤线，
+         * 本阈值只用于质量评估视角，改它不影响任何检索行为。
+         * <p>
+         * Low-score threshold for the top score of one retrieval. Shared by the dashboard
+         * low-score share, the detail low_score filter and the to-eval candidate scope.
+         * Independent of the retrieval minScore: changing it never affects retrieval.
+         */
+        @DecimalMin(value = "0.0", message = "adi.rag.eval.low-score-threshold 应 >= 0")
+        @DecimalMax(value = "1.0", message = "adi.rag.eval.low-score-threshold 应 <= 1")
+        private double lowScoreThreshold = 0.5;
+
+        /**
+         * 评测题库目录（adi.rag.eval.dataset-dir）：失败案例转评测题写入
+         * {@code <dir>/qa-dataset-derived.json}（与 T6-01 的 qa-dataset.json 同目录、同结构）。
+         * <p>
+         * ⚠️ 生产部署必须改成绝对路径：默认值是相对路径，只有工作目录为仓库根时才成立。
+         * 目录不存在时转评测题接口报错退出，不会静默写丢。
+         * <p>
+         * Directory holding the QA eval datasets. Derived questions are appended to
+         * qa-dataset-derived.json under it. MUST be an absolute path in production;
+         * a missing directory fails the to-eval call instead of silently dropping data.
+         */
+        private String evalDatasetDir = "server/dev-scripts/eval";
     }
 }

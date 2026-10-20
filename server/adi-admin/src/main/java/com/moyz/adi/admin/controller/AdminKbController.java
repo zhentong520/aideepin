@@ -3,12 +3,15 @@ package com.moyz.adi.admin.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.moyz.adi.common.annotation.AdminOnly;
 import com.moyz.adi.common.dto.KbEditReq;
+import com.moyz.adi.common.dto.KbEmbeddingRebuildResp;
 import com.moyz.adi.common.dto.KbInfoResp;
 import com.moyz.adi.common.dto.KbRecallTestReq;
 import com.moyz.adi.common.dto.KbRecallTestResp;
 import com.moyz.adi.common.dto.KbSearchReq;
 import com.moyz.adi.common.entity.KbCategory;
+import com.moyz.adi.common.entity.KnowledgeBase;
 import com.moyz.adi.common.service.KbCategoryService;
+import com.moyz.adi.common.service.KbPackService;
 import com.moyz.adi.common.service.KbRecallTestService;
 import com.moyz.adi.common.service.KnowledgeBaseService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -18,9 +21,14 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * Knowledge Base
@@ -44,6 +52,9 @@ public class AdminKbController {
 
     @Resource
     private com.moyz.adi.common.service.KbAclBackfillService kbAclBackfillService;
+
+    @Resource
+    private KbPackService kbPackService;
 
     // ===== 二开新增（2026-10-09）：知识库分类字典 CRUD =====
 
@@ -88,6 +99,46 @@ public class AdminKbController {
     @PostMapping("/rebuildKeywordIndex/{uuid}")
     public int rebuildKeywordIndex(@PathVariable String uuid) {
         return knowledgeBaseService.rebuildKeywordIndex(uuid);
+    }
+
+    // ===== 二开新增（T7-05，2026-10-20）：按知识库全量重建 embedding 索引 =====
+
+    @Operation(summary = "重建 embedding 索引 | Rebuild embedding index",
+            description = "换 embedding provider（如切 bge-m3）后的标准动作：失效该库全部文档段行与向量（含 QA 文档），"
+                    + "按当前 adi.embedding-model 重新入队，并把 provider 版本记录到知识库。"
+                    + "回滚 = 把 adi.embedding-model 切回 previousVersion 对应配置并重启，再调一次本接口。"
+                    + "开关 adi.kb.embedding-rebuild-enabled=false 时拒绝")
+    @PostMapping("/rebuildEmbedding/{uuid}")
+    public KbEmbeddingRebuildResp rebuildEmbedding(@PathVariable String uuid) {
+        return knowledgeBaseService.rebuildEmbedding(uuid);
+    }
+
+    // ===== 二开新增（T7-06，2026-10-20）：知识库技能配置包导出/导入（分享能力不分享数据）=====
+
+    @Operation(summary = "导出知识包 | Export knowledge pack",
+            description = "把知识库技能配置打包为 ZIP（SKILL.md + config.json + pack.json）。"
+                    + "共享的是能力不是数据：包内只有配置与引用清单，不含任何文档内容与向量；"
+                    + "导入方按自身 ACL 重新校验引用。开关 adi.kb.pack-sharing-enabled=false 时拒绝")
+    @GetMapping("/pack/export/{uuid}")
+    public ResponseEntity<byte[]> exportPack(@PathVariable String uuid) {
+        byte[] data = kbPackService.exportPack(uuid);
+        String encoded = URLEncoder.encode("kb-pack.zip", StandardCharsets.UTF_8).replace("+", "%20");
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, "application/zip")
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + encoded + "\"; filename*=UTF-8''" + encoded)
+                .contentLength(data.length)
+                .body(data);
+    }
+
+    @Operation(summary = "导入知识包 | Import knowledge pack",
+            description = "解析知识包 ZIP 并以当前用户为 owner 新建知识库（配置来自包内 config.json）。"
+                    + "包内引用的数据按导入方自身 ACL 重新校验：任一无权即整体拒绝（A_KB_PACK_IMPORT_REF_DENIED），"
+                    + "绝不静默穿透。新库不含任何数据，文档由导入方自行灌入")
+    @PostMapping("/pack/import")
+    public KnowledgeBase importPack(@RequestParam("file") MultipartFile file,
+                                    @RequestParam(value = "title", required = false) String title) {
+        return kbPackService.importPack(file, title);
     }
 
     @Operation(summary = "知识库详情（含检索配置） | Knowledge base detail with retrieval settings")

@@ -16,7 +16,9 @@ import dev.langchain4j.store.embedding.EmbeddingMatch;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingSearchResult;
 import dev.langchain4j.store.embedding.EmbeddingStore;
+import dev.langchain4j.store.embedding.filter.Filter;
 import dev.langchain4j.store.embedding.filter.comparison.IsEqualTo;
+import dev.langchain4j.store.embedding.filter.logical.And;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -30,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 
 import static com.moyz.adi.common.cosntant.AdiConstant.MetadataKey.CHARACTER_ID;
+import static com.moyz.adi.common.cosntant.AdiConstant.MetadataKey.USER_ID;
 
 /**
  * Semantic memory service: deduplicating merge candidates retrieval and
@@ -58,14 +61,19 @@ public class SemanticMemoryService {
      * fact keeps its own tmpId space so the LLM never sees ambiguous IDs across facts.
      * <p>
      * 对每条 fact 检索 top-K 候选。每条 fact 独立的 tmpId 空间，避免 LLM 跨 fact 时 id 歧义。
+     * <p>
+     * 二开（T7-07）：userDimensionEnabled 时按 {@code character_id + user_id} 双条件过滤，
+     * 保证合并候选只来自当前用户名下的记忆（用户隔离，见 {@link #memoryFilter}）。
      */
-    public MergeCandidates searchMergeCandidates(List<String> facts, Long characterId) {
+    public MergeCandidates searchMergeCandidates(List<String> facts, Long characterId, Long userId) {
         Map<String, List<Map<String, String>>> factToOldMemoriesForPrompt = new LinkedHashMap<>();
         Map<String, Map<String, String>> factToTmpIdToEmbeddingId = new HashMap<>();
         Map<String, Map<String, EmbeddingMatch<TextSegment>>> factToEmbeddingIdToMatch = new HashMap<>();
         double minScore = adiProperties.getMemory() != null
                 ? adiProperties.getMemory().getMinScore()
                 : AdiConstant.LONG_TERM_MEMORY_MIN_SCORE_DEFAULT;
+        boolean userDim = adiProperties.getMemory() != null && adiProperties.getMemory().isUserDimensionEnabled();
+        Filter mergeFilter = memoryFilter(characterId, userId, userDim);
 
         for (String fact : facts) {
             if (StringUtils.isBlank(fact)) {
@@ -76,14 +84,15 @@ public class SemanticMemoryService {
             // 1) 物理隔离：semanticEmbeddingStore 落在 adi_character_memory_embedding[_<dim>] 表，
             //    知识库向量在 adi_knowledge_base_embedding[_<dim>]，两张表互不可见；
             // 2) metadata 隔离：本链路只写 conv_id(character_id)/memory_type 等键，
-            //    从不写 kb_uuid，也不写 T1-04 的 acl_* 键；filter 只用 IsEqualTo(CHARACTER_ID, ...)。
+            //    从不写 kb_uuid，也不写 T1-04 的 acl_* 键；filter 见 {@link #memoryFilter}
+            //    （T7-07 起 userDimensionEnabled 时叠加 user_id 条件，隔离逻辑集中一处）。
             // 因此知识库侧的 ACL 过滤（AdiEmbeddingStoreContentRetriever / KbAclFilterBuilder）
             // 对记忆检索零影响，记忆链路无需任何 ACL 处理。
             EmbeddingSearchRequest searchRequest = EmbeddingSearchRequest.builder()
                     .queryEmbedding(embedding)
                     .maxResults(5)
                     .minScore(minScore)
-                    .filter(new IsEqualTo(CHARACTER_ID, characterId))
+                    .filter(mergeFilter)
                     .build();
             EmbeddingSearchResult<TextSegment> searchResult = semanticEmbeddingStore.search(searchRequest);
 
@@ -112,22 +121,92 @@ public class SemanticMemoryService {
      * failures are caught here so other actions still proceed.
      * <p>
      * 应用 ADD / UPDATE / DELETE 操作。单条失败不影响其他操作。
+     * <p>
+     * 二开（T7-07）：userId 用于 ADD/UPDATE 写入 metadata 的 {@code user_id} 键
+     * （userDimensionEnabled 时），同一用户跨 Agent 跨会话共享、他人不可见。
      */
-    public void applyActions(BatchActionMemories batchActions, Long characterId, MergeCandidates candidates) {
+    public void applyActions(BatchActionMemories batchActions, Long characterId, Long userId, MergeCandidates candidates) {
         if (batchActions == null || batchActions.getActions() == null) {
             return;
         }
         for (BatchActionMemories.BatchActionMemory action : batchActions.getActions()) {
             try {
-                applyAction(action, characterId, candidates);
+                applyAction(action, characterId, userId, candidates);
             } catch (Exception ex) {
                 log.warn("Apply memory action failed, action={}, error={}", action, ex.getMessage());
             }
         }
     }
 
+    /**
+     * Persist a user-confirmed memory (T7-07 pending → confirm flow) directly into the
+     * semantic store with the same metadata contract as the ADD path.
+     * <p>
+     * 持久化用户已确认的敏感记忆（T7-07 pending→confirm 两段式的 confirm 端），
+     * metadata 契约与 ADD 路径完全一致（含 user_id 维度）。
+     */
+    public void addConfirmed(Long characterId, Long userId, String text) {
+        if (StringUtils.isBlank(text)) {
+            return;
+        }
+        ingestSemantic(characterId, userId, text);
+    }
+
+    /**
+     * Semantic ingest shared by ADD action and the confirm flow: same split params,
+     * same metadata keys, same rag context.
+     * <p>
+     * 语义入库共用入口：ADD 与 confirm 走完全一致的分块参数与 metadata。
+     */
+    private void ingestSemantic(Long characterId, Long userId, String text) {
+        Document document = new DefaultDocument(text, memoryMetadata(characterId, userId));
+        EmbeddingRagContext.get(AdiConstant.RetrieveContentFrom.CHARACTER_MEMORY).ingest(document,
+                EmbeddingIngestParam.builder()
+                        .overlap(20)
+                        .strategy(AdiConstant.SplitStrategy.RECURSIVE)
+                        .maxSegmentSize(AdiConstant.RAG_MAX_SEGMENT_SIZE_IN_TOKENS)
+                        .customSeparator("")
+                        .build());
+    }
+
+    /**
+     * Memory metadata contract for the semantic store. {@code user_id} is written
+     * (stringified) only when the user dimension is enabled and the user id is known —
+     * otherwise the key is omitted entirely, matching the legacy (character-only) data.
+     * <p>
+     * 语义记忆 metadata 契约。userDimensionEnabled 且 userId 已知时写入字符串化的
+     * {@code user_id}；否则完全不写该键，与历史（仅 character 维度）数据一致。
+     * 写哨兵 {@code USER_ID_UNKNOWN} 的只有 V14 迁移对无主存量的回填，写入路径宁缺毋滥。
+     */
+    public static Metadata memoryMetadata(Long characterId, Long userId) {
+        Map<String, Object> meta = new HashMap<>();
+        meta.put(CHARACTER_ID, characterId);
+        meta.put(AdiConstant.MetadataKey.MEMORY_TYPE, MemoryType.SEMANTIC.getDesc());
+        if (null != userId) {
+            meta.put(USER_ID, String.valueOf(userId));
+        }
+        return new Metadata(meta);
+    }
+
+    /**
+     * Semantic memory filter factory — the single place where the character/user
+     * isolation conditions are composed, shared by merge-candidate search and unit tests.
+     * <p>
+     * 语义记忆过滤条件工厂——合并候选检索与单测共用的唯一组装点：
+     * userDimensionEnabled 且 userId 已知时为 {@code And(character_id, user_id)}，
+     * 否则退化为历史行为 {@code character_id} 单条件。
+     */
+    public static Filter memoryFilter(Long characterId, Long userId, boolean userDimensionEnabled) {
+        IsEqualTo characterEq = new IsEqualTo(CHARACTER_ID, characterId);
+        if (!userDimensionEnabled || null == userId) {
+            return characterEq;
+        }
+        return new And(characterEq, new IsEqualTo(USER_ID, String.valueOf(userId)));
+    }
+
     private void applyAction(BatchActionMemories.BatchActionMemory action,
                              Long characterId,
+                             Long userId,
                              MergeCandidates candidates) {
         if (action == null || StringUtils.isBlank(action.getEvent())) {
             return;
@@ -145,17 +224,7 @@ public class SemanticMemoryService {
                 log.warn("ADD action missing text, skip");
                 return;
             }
-            Metadata metadata = new Metadata(Map.of(
-                    CHARACTER_ID, characterId,
-                    AdiConstant.MetadataKey.MEMORY_TYPE, MemoryType.SEMANTIC.getDesc()));
-            Document document = new DefaultDocument(action.getText(), metadata);
-            EmbeddingRagContext.get(AdiConstant.RetrieveContentFrom.CHARACTER_MEMORY).ingest(document,
-                    EmbeddingIngestParam.builder()
-                            .overlap(20)
-                            .strategy(AdiConstant.SplitStrategy.RECURSIVE)
-                            .maxSegmentSize(AdiConstant.RAG_MAX_SEGMENT_SIZE_IN_TOKENS)
-                            .customSeparator("")
-                            .build());
+            ingestSemantic(characterId, userId, action.getText());
             return;
         }
 
@@ -194,10 +263,7 @@ public class SemanticMemoryService {
                 return;
             }
             semanticEmbeddingStore.remove(embeddingId);
-            Metadata metadata = new Metadata(Map.of(
-                    CHARACTER_ID, characterId,
-                    AdiConstant.MetadataKey.MEMORY_TYPE, MemoryType.SEMANTIC.getDesc()));
-            TextSegment newSegment = TextSegment.from(action.getText(), metadata);
+            TextSegment newSegment = TextSegment.from(action.getText(), memoryMetadata(characterId, userId));
             semanticEmbeddingStore.addAll(List.of(embeddingId), List.of(match.embedding()), List.of(newSegment));
             return;
         }

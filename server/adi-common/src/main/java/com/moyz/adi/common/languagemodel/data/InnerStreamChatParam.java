@@ -72,6 +72,12 @@ public class InnerStreamChatParam {
     @Builder.Default
     private ToolLoopBudget toolLoopBudget = ToolLoopBudget.fromConfig();
 
+    /**
+     * T7-02/T7-04：当前 Agent 调用链，流式路径下透传给 delegate_agent 工具
+     * （与 ChatModelRequest.agentCallChain 同源）。
+     */
+    private com.moyz.adi.common.multiagent.AgentCallChain agentCallChain;
+
     public void markFirstToken() {
         firstTokenSent.set(true);
     }

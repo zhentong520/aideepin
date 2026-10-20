@@ -145,7 +145,39 @@ public enum ErrorEnum {
     /** T3-13：根变量存在但字段路径断掉。参数：变量名、断点路径段 */
     A_WF_VAR_PATH_NOT_FOUND("A0078", "A_WF_VAR_PATH_NOT_FOUND"),
     /** T3-14：工作流导入时知识包不存在（不允许静默丢节点）。参数：缺失 kbUuid 列表 */
-    A_WF_IMPORT_KB_NOT_FOUND("A0079", "A_WF_IMPORT_KB_NOT_FOUND");
+    A_WF_IMPORT_KB_NOT_FOUND("A0079", "A_WF_IMPORT_KB_NOT_FOUND"),
+    /**
+     * T7-02：Agent 委派嵌套深度超限（硬限制，再深会失控）。参数：目标 Agent、当前链、最大深度
+     */
+    A_AGENT_DELEGATION_DEPTH_EXCEEDED("A0080", "A_AGENT_DELEGATION_DEPTH_EXCEEDED"),
+    /**
+     * T7-04：A2A 双向互调防环——调用链上出现重复 Agent（A→B→A 或自递归）。参数：重复 Agent、当前链
+     */
+    A_AGENT_DELEGATION_CYCLE("A0081", "A_AGENT_DELEGATION_CYCLE"),
+    /**
+     * T7-02：目标 Agent 无权访问（ACL 校验失败）或不存在。参数：目标 Agent、原因
+     */
+    A_AGENT_DELEGATION_NOT_ALLOWED("A0082", "A_AGENT_DELEGATION_NOT_ALLOWED"),
+    /**
+     * T7-03：多 Agent 编排节点被开关停用（adi.agent.orchestrator-enabled=false 或
+     * sys_config agent_orchestrator_enabled=false）。参数：无
+     */
+    A_AGENT_ORCHESTRATOR_DISABLED("A0086", "A_AGENT_ORCHESTRATOR_DISABLED"),
+    /**
+     * T7-05：embedding 全量重建开关关闭（adi.kb.embedding-rebuild-enabled=false）时
+     * 按库重建端点拒绝执行。参数：无
+     */
+    A_KB_EMBEDDING_REBUILD_DISABLED("A0083", "A_KB_EMBEDDING_REBUILD_DISABLED"),
+    /**
+     * T7-06：知识包导入被导入方 ACL 拒绝——包内引用的数据（模型/分类等）按导入方
+     * 权限重新校验失败。共享的是能力不是数据：显式拒绝，绝不静默穿透。参数：被拒引用名
+     */
+    A_KB_PACK_IMPORT_REF_DENIED("A0084", "A_KB_PACK_IMPORT_REF_DENIED"),
+    /**
+     * T7-06：知识包格式非法（缺 pack.json / 版本不受支持 / ZIP 结构损坏）。
+     * 参数：具体原因
+     */
+    A_KB_PACK_FORMAT_INVALID("A0085", "A_KB_PACK_FORMAT_INVALID");
 
     private final String code;
     private final String info;

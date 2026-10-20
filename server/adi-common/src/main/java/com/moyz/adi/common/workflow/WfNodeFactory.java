@@ -20,6 +20,7 @@ import com.moyz.adi.common.workflow.node.humanfeedback.HumanFeedbackNode;
 import com.moyz.adi.common.workflow.node.keywordextractor.KeywordExtractorNode;
 import com.moyz.adi.common.workflow.node.knowledgeretrieval.KnowledgeRetrievalNode;
 import com.moyz.adi.common.workflow.node.mailsender.MailSendNode;
+import com.moyz.adi.common.workflow.node.orchestrator.OrchestratorNode;
 import com.moyz.adi.common.workflow.node.skill.SkillNode;
 import com.moyz.adi.common.workflow.node.start.StartNode;
 import com.moyz.adi.common.workflow.node.switcher.SwitcherNode;
@@ -95,6 +96,9 @@ public class WfNodeFactory {
                 break;
             case SKILL:
                 wfNode = new SkillNode(wfComponent, nodeDefinition, wfState, nodeState);
+                break;
+            case ORCHESTRATOR:
+                wfNode = new OrchestratorNode(wfComponent, nodeDefinition, wfState, nodeState);
                 break;
             case END:
                 wfNode = new EndNode(wfComponent, nodeDefinition, wfState, nodeState);

@@ -77,6 +77,19 @@ WHERE NOT EXISTS (
     SELECT 1 FROM adi_sys_config WHERE name = 'llm_streaming_timeout_seconds' AND is_deleted = false
 );
 
+-- Multi-Agent hot switches (T7-02/T7-03, 2026-10-20): delegate_agent and Orchestrator node.
+-- Unset/absent row falls back to application.yml adi.agent.* defaults (enabled).
+INSERT INTO adi_sys_config (name, value)
+SELECT 'agent_delegation_enabled', 'true'
+WHERE NOT EXISTS (
+    SELECT 1 FROM adi_sys_config WHERE name = 'agent_delegation_enabled' AND is_deleted = false
+);
+INSERT INTO adi_sys_config (name, value)
+SELECT 'agent_orchestrator_enabled', 'true'
+WHERE NOT EXISTS (
+    SELECT 1 FROM adi_sys_config WHERE name = 'agent_orchestrator_enabled' AND is_deleted = false
+);
+
 -- 模型平台
 insert into adi_model_platform (name, title, base_url)
 values ('openai', 'OpenAI', 'https://api.openai.com/v1');

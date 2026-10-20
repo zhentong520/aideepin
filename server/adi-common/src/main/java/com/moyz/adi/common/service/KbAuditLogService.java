@@ -32,7 +32,13 @@ public class KbAuditLogService extends ServiceImpl<KnowledgeBaseAuditLogMapper, 
     public static final String ACTION_DOC_OCR = "DOC_OCR";
     public static final String ACTION_SHARE_GRANT = "SHARE_GRANT";
     public static final String ACTION_SHARE_REVOKE = "SHARE_REVOKE";
+    public static final String ACTION_KB_REINDEX = "KB_REINDEX";
     public static final String ACTION_AUDIT_VIEW = "AUDIT_VIEW";
+
+    // 二开新增（T7-06，2026-10-20）：知识包导出/导入。detail 记录来源/目标库与 provider 版本链，
+    // 分享链路（谁把哪个库的能力包导给了谁）由此可追溯。
+    public static final String ACTION_KB_PACK_EXPORT = "KB_PACK_EXPORT";
+    public static final String ACTION_KB_PACK_IMPORT = "KB_PACK_IMPORT";
 
     // 审计目标类型
     public static final String TARGET_KB = "KB";

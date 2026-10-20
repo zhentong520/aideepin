@@ -10,6 +10,8 @@ import com.moyz.adi.common.entity.User;
 import com.moyz.adi.common.exception.BaseException;
 import com.moyz.adi.common.helper.LLMContext;
 import com.moyz.adi.common.languagemodel.AbstractLLMService;
+import com.moyz.adi.common.multiagent.AgentCallChain;
+import com.moyz.adi.common.multiagent.DelegationService;
 import com.moyz.adi.common.util.CharacterChatHelper;
 import com.moyz.adi.common.util.JsonUtil;
 import com.moyz.adi.common.util.PromptUtil;
@@ -113,6 +115,15 @@ public class LocalAgentService implements AgentService {
             // 5. Build request params (system message + memory + MCP tools + thinking + web search)
             ChatModelRequest chatRequestParams = CharacterChatHelper.buildChatRequestParams(
                     character, processedPrompt, user, llmService, request.isEnableMcp(), request.isEnableWebSearch(), null);
+            // T7-02/T7-04（2026-10-20）：调用链贯通——父 Agent 委派下来的链原样沿用
+            // （链上已含父与本 Agent，子 Agent 再委派时才能正确判深/判环）；
+            // 无链（用户直接发起对话/工作流节点）时以本 Agent 为链根播种新链。
+            AgentCallChain agentChain = request.getCallChain();
+            if (null == agentChain) {
+                agentChain = DelegationService.newChain();
+                agentChain.enter(character.getUuid());
+            }
+            chatRequestParams.setAgentCallChain(agentChain);
             boolean toolsAttached = request.isEnableMcp() || request.isEnableWebSearch();
             if (toolsAttached) {
                 spans.add(buildSpan(traceId, "", "tools.attach", "tool", System.currentTimeMillis(),

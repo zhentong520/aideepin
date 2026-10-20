@@ -8,6 +8,7 @@ import com.moyz.adi.common.base.ThreadContext;
 import com.moyz.adi.common.cosntant.AdiConstant;
 import com.moyz.adi.common.cosntant.RedisKeyConstant;
 import com.moyz.adi.common.dto.KbEditReq;
+import com.moyz.adi.common.dto.KbEmbeddingRebuildResp;
 import com.moyz.adi.common.dto.KbInfoResp;
 import com.moyz.adi.common.dto.KbQaDto;
 import com.moyz.adi.common.dto.KbSearchReq;
@@ -25,6 +26,8 @@ import com.moyz.adi.common.mapper.KnowledgeBaseMapper;
 import com.moyz.adi.common.memory.shortterm.MapDBChatMemoryStore;
 import com.moyz.adi.common.entity.DocumentSegment;
 import com.moyz.adi.common.rag.*;
+import com.moyz.adi.common.service.embedding.EmbeddingProviderInfo;
+import com.moyz.adi.common.service.embedding.EmbeddingProviderService;
 import com.moyz.adi.common.util.*;
 import com.moyz.adi.common.util.NumberUtil;
 import com.moyz.adi.common.vo.*;
@@ -127,6 +130,16 @@ public class KnowledgeBaseService extends ServiceImpl<KnowledgeBaseMapper, Knowl
     @Resource
     private KbShareService kbShareService;
 
+    /**
+     * 二开新增（T7-05）：embedding provider 解析。为 null 时（历史单测未注入）跳过
+     * provider 记录，绝不因此让创建/重建主流程失败——记录是旁路，索溯源是目的。
+     */
+    @Resource
+    private EmbeddingProviderService embeddingProviderService;
+
+    @Resource
+    private com.moyz.adi.common.config.AdiProperties adiProperties;
+
     public KnowledgeBase saveOrUpdate(KbEditReq kbEditReq) {
         Long editId = resolveEditId(kbEditReq);
         boolean isEdit = null != editId && editId > 0;
@@ -157,6 +170,10 @@ public class KnowledgeBaseService extends ServiceImpl<KnowledgeBaseMapper, Knowl
             knowledgeBase.setOwnerId(user.getId());
             knowledgeBase.setOwnerUuid(user.getUuid());
             knowledgeBase.setOwnerName(user.getName());
+            // T7-05：创建即记录当前 embedding provider（新建库的向量只会由当前 provider 产出）。
+            // 解析失败（远端模型未配维度等）不阻断创建——向量入库时本来就会失败，
+            // 那时错误信息更贴近现场；这里静默跳过只损失溯源信息。
+            recordCurrentProvider(knowledgeBase);
             baseMapper.insert(knowledgeBase);
         } else {
             checkWritePrivilege(editId, null);
@@ -1220,6 +1237,70 @@ public class KnowledgeBaseService extends ServiceImpl<KnowledgeBaseMapper, Knowl
         boolean exists = baseMapper.exists(wrapper);
         if (!exists) {
             throw new BaseException(A_USER_NOT_AUTH);
+        }
+    }
+
+    /**
+     * 二开新增（T7-05，2026-10-20）：按知识库全量重建 embedding 索引，并把本次使用的
+     * provider 版本记录到知识库（换 embedding provider 的标准动作 + 回滚链路凭据）。
+     * <p>
+     * 背景：向量表按「模型 + 维度」分表（{@code adi_knowledge_base_embedding_<suffix>}），
+     * 切换 {@code adi.embedding-model} 后新表为空、旧表成孤儿——问答不报错，只是永远
+     * 召不回内容（严格模式一律拒答，普通模式纯幻觉）。唯一正确的动作是<b>全量重建</b>：
+     * 本方法失效该库全部文档的段行与向量（含 QA 文档）后按当前 provider 重新入队，
+     * 并把新旧 provider 版本写进审计日志。
+     * <p>
+     * 回滚链路：把 {@code adi.embedding-model} 切回 previous* 对应的配置 → 重启 →
+     * 再调一次本方法。两次调用的审计记录（KB_REINDEX）完整还原「谁在何时从什么切到了什么」。
+     * <p>
+     * 开关：{@code adi.kb.embedding-rebuild-enabled=false} 时端点拒绝（A_KB_EMBEDDING_REBUILD_DISABLED）；
+     * 关闭不影响任何自动索引链路。
+     *
+     * @param kbUuid 知识库 uuid
+     * @return 重建结果（含回滚所需的新旧 provider 版本）
+     */
+    public KbEmbeddingRebuildResp rebuildEmbedding(String kbUuid) {
+        if (StringUtils.isBlank(kbUuid)) {
+            throw new BaseException(A_PARAMS_ERROR);
+        }
+        if (!adiProperties.getKb().isEmbeddingRebuildEnabled()) {
+            throw new BaseException(A_KB_EMBEDDING_REBUILD_DISABLED);
+        }
+        KnowledgeBase kb = getOrThrow(kbUuid);
+        // 写权限：管理员或库 owner（与保存/删除同一口径，共享只读用户不能触发重建）
+        checkWritePrivilege(kb.getId(), null);
+        EmbeddingProviderInfo provider = embeddingProviderService.currentProvider();
+        String previousProvider = StringUtils.defaultString(kb.getEmbeddingProvider());
+        String previousVersion = StringUtils.defaultString(kb.getEmbeddingProviderVersion());
+        // 先失效入队、后记录版本：入队失败（如参数错误）时不留"已记录但未重建"的假象
+        int docCount = kbDocumentService.rebuildEmbeddingByKb(kbUuid);
+        kb.setEmbeddingProvider(provider.name());
+        kb.setEmbeddingProviderVersion(provider.version());
+        baseMapper.updateById(kb);
+        stringRedisTemplate.opsForSet().add(KB_STATISTIC_RECALCULATE_SIGNAL, kbUuid);
+        kbAuditLogService.record(kbUuid, kb.getTitle(), KbAuditLogService.ACTION_KB_REINDEX,
+                KbAuditLogService.TARGET_KB, kbUuid, true,
+                "provider:" + previousVersion + " -> " + provider.version() + ",docs:" + docCount);
+        log.info("rebuildEmbedding, kbUuid:{}, provider:{} -> {}, docs:{}",
+                kbUuid, previousVersion, provider.version(), docCount);
+        return new KbEmbeddingRebuildResp(previousProvider, previousVersion,
+                provider.name(), provider.version(), docCount);
+    }
+
+    /**
+     * T7-05：把当前生效的 embedding provider 记录到知识库（创建路径）。
+     * 旁路逻辑：provider 服务缺失或解析失败都只跳过并留痕，不阻断创建主流程。
+     */
+    private void recordCurrentProvider(KnowledgeBase kb) {
+        if (null == embeddingProviderService) {
+            return;
+        }
+        try {
+            EmbeddingProviderInfo provider = embeddingProviderService.currentProvider();
+            kb.setEmbeddingProvider(provider.name());
+            kb.setEmbeddingProviderVersion(provider.version());
+        } catch (Exception e) {
+            log.warn("Record embedding provider skipped on kb create, reason: {}", e.getMessage());
         }
     }
 

@@ -34,4 +34,11 @@ public class ChatModelRequest {
     private String responseFormat;
     private Boolean returnThinking;
     private Boolean enableWebSearch;
+
+    /**
+     * T7-02/T7-04（2026-10-20）：当前 Agent 调用链，供 delegate_agent 工具在
+     * LLM 工具回调线程做嵌套深度限制与双向互调防环（工具线程 ThreadContext
+     * 不可达，链必须随参数显式传递，与 chatUserId/characterUuid 同理）。
+     */
+    private com.moyz.adi.common.multiagent.AgentCallChain agentCallChain;
 }

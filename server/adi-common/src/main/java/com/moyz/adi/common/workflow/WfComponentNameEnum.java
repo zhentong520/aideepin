@@ -44,7 +44,9 @@ public enum WfComponentNameEnum {
 
     MCP("Mcp"),
 
-    SKILL("Skill");
+    SKILL("Skill"),
+
+    ORCHESTRATOR("Orchestrator");
 
     private final String name;
 

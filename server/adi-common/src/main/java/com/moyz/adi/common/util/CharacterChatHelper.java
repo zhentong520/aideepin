@@ -1,6 +1,7 @@
 package com.moyz.adi.common.util;
 
 import com.moyz.adi.common.base.ThreadContext;
+import com.moyz.adi.common.config.AdiProperties;
 import com.moyz.adi.common.cosntant.AdiConstant;
 import com.moyz.adi.common.dto.KbInfoResp;
 import com.moyz.adi.common.entity.AiModel;
@@ -51,6 +52,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import static com.moyz.adi.common.cosntant.AdiConstant.MetadataKey.CHARACTER_ID;
 import static com.moyz.adi.common.cosntant.AdiConstant.MetadataKey.KB_UUID;
 import static com.moyz.adi.common.cosntant.AdiConstant.MetadataKey.MEMORY_TYPE;
+import static com.moyz.adi.common.cosntant.AdiConstant.MetadataKey.USER_ID;
 import static com.moyz.adi.common.cosntant.AdiConstant.RAG_RETRIEVE_MIN_SCORE_DEFAULT;
 
 /**
@@ -73,6 +75,36 @@ public class CharacterChatHelper {
     /**
      * jsonb 可见组数组 → List&lt;String&gt;（组装 KbAclInfo 用，null/非数组安全）。
      */
+    /**
+     * Semantic memory recall filter (T7-07): {@code character_id + memory_type!=episodic}
+     * plus the user-dimension leg when enabled. Pure function so the isolation
+     * conditions are unit-testable without a Spring context.
+     * <p>
+     * 语义记忆召回过滤（T7-07）：character_id + memory_type!=episodic，
+     * 开启用户维度时叠加 user_id 条件。纯函数便于无 Spring 上下文单测隔离条件。
+     */
+    static Filter memorySemanticFilter(Long characterId, Long userId, Filter semanticLeg) {
+        Filter base = new And(new IsEqualTo(CHARACTER_ID, characterId), semanticLeg);
+        if (null == userId) {
+            return base;
+        }
+        return new And(base, new IsEqualTo(USER_ID, String.valueOf(userId)));
+    }
+
+    /**
+     * Episodic memory recall filter (T7-07): {@code character_id} plus the
+     * user-dimension leg when enabled.
+     * <p>
+     * 情景记忆召回过滤（T7-07）：character_id，开启用户维度时叠加 user_id 条件。
+     */
+    static Filter memoryCharacterFilter(Long characterId, Long userId) {
+        if (null == userId) {
+            return new IsEqualTo(CHARACTER_ID, characterId);
+        }
+        return new And(new IsEqualTo(CHARACTER_ID, characterId),
+                new IsEqualTo(USER_ID, String.valueOf(userId)));
+    }
+
     private static List<String> toGroupList(JsonNode groups) {
         List<String> result = new ArrayList<>();
         if (null != groups && groups.isArray()) {
@@ -107,6 +139,13 @@ public class CharacterChatHelper {
                         .temperature(AdiConstant.LLM_TEMPERATURE_DEFAULT)
                         .build());
 
+        // 二开（T7-07）：记忆用户维度。检索主体必须在同步阶段捕获（下游检索跑在
+        // mainExecutor 线程，ThreadContext 不可用）；开关关闭或匿名时保持历史行为
+        // （仅 character_id 单条件）。隔离条件组装见 memorySemanticFilter/memoryCharacterFilter。
+        User memoryUser = ThreadContext.getCurrentUser();
+        boolean userDim = memoryUser != null && SpringUtil.getBean(AdiProperties.class).getMemory().isUserDimensionEnabled();
+        Long memoryUserId = userDim ? memoryUser.getId() : null;
+
         //Create memory retriever for SEMANTIC channel.
         //Excludes records explicitly tagged as episodic. Old records without the
         //memory_type metadata (created before this feature) are treated as semantic.
@@ -114,10 +153,8 @@ public class CharacterChatHelper {
         //创建 SEMANTIC 通道的记忆 retriever。
         //排除显式标记为 episodic 的记录；缺失 memory_type 字段的历史记录视为 semantic（pgvector 的
         //IsNotEqualTo 在键缺失时返回 true，符合预期）。
-        Filter semanticFilter = new And(
-                new IsEqualTo(CHARACTER_ID, characterId),
-                new IsNotEqualTo(MEMORY_TYPE, MemoryType.EPISODIC.getDesc())
-        );
+        Filter semanticFilter = memorySemanticFilter(characterId, memoryUserId,
+                new IsNotEqualTo(MEMORY_TYPE, MemoryType.EPISODIC.getDesc()));
         RetrieverCreateParam memoryRetrieveParam = RetrieverCreateParam.builder()
                 .chatModel(chatModel)
                 .filter(semanticFilter)
@@ -136,7 +173,7 @@ public class CharacterChatHelper {
         EmbeddingRag episodicRag = EmbeddingRagContext.get(AdiConstant.RetrieveContentFrom.CHARACTER_MEMORY_EPISODIC);
         if (episodicRag != null) {
             RetrieverCreateParam episodicRetrieveParam = RetrieverCreateParam.builder()
-                    .filter(new IsEqualTo(CHARACTER_ID, characterId))
+                    .filter(memoryCharacterFilter(characterId, memoryUserId))
                     .maxResults(3)
                     .minScore(RAG_RETRIEVE_MIN_SCORE_DEFAULT)
                     .breakIfSearchMissed(false)

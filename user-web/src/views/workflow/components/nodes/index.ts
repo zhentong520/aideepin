@@ -19,6 +19,7 @@ import AgentNode from './AgentNode.vue'
 import DatabaseNode from './DatabaseNode.vue'
 import McpNode from './McpNode.vue'
 import SkillNode from './SkillNode.vue'
+import OrchestratorNode from './OrchestratorNode.vue'
 
 import StartNodeProperty from './StartNodeProperty.vue'
 import AnswerNodeProperty from './AnswerNodeProperty.vue'
@@ -40,6 +41,7 @@ import AgentNodeProperty from './AgentNodeProperty.vue'
 import DatabaseNodeProperty from './DatabaseNodeProperty.vue'
 import McpNodeProperty from './McpNodeProperty.vue'
 import SkillNodeProperty from './SkillNodeProperty.vue'
+import OrchestratorNodeProperty from './OrchestratorNodeProperty.vue'
 
 // T5-03：节点描述化 —— 六处硬编码收敛后的"定义源头"（新增节点只需在 descriptor.ts 加一条描述）
 export {
@@ -79,6 +81,7 @@ export {
   DatabaseNode,
   McpNode,
   SkillNode,
+  OrchestratorNode,
   StartNodeProperty,
   AnswerNodeProperty,
   ClassifierNodeProperty,
@@ -102,4 +105,5 @@ export {
   DatabaseNodeProperty,
   McpNodeProperty,
   SkillNodeProperty,
+  OrchestratorNodeProperty,
 }

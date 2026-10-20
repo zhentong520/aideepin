@@ -286,6 +286,23 @@ public class AdiConstant {
          */
         public static final String KB_OWNER_UUID = "kb_owner_uuid";
 
+        /**
+         * 二开新增（T7-07，2026-10-20）：记忆归属用户 id（字符串化的 user_id）。
+         * <p>
+         * 同一用户跨 Agent 跨会话共享记忆的隔离维度：character_id 决定「哪个角色」，
+         * user_id 决定「哪个人」——同一用户的不同角色记忆互不重叠，但同一用户的
+         * 任意角色都可读到自己名下的记忆。存量数据由 V14 迁移按
+         * {@code conv_id → adi_character.user_id} 回填，无主行写哨兵值
+         * {@link #USER_ID_UNKNOWN}（绝不匹配任何真实用户）。
+         */
+        public static final String USER_ID = "user_id";
+
+        /**
+         * user_id 缺失时的哨兵值（V14 回填的无主记忆 / 迁移兼容）：永远不等于任何
+         * 真实用户 id，因此「按用户过滤」的检索不会把无主记忆漏给任何人。
+         */
+        public static final String USER_ID_UNKNOWN = "__unknown__";
+
         public static final String TEXT = "text";
     }
 
@@ -346,6 +363,28 @@ public class AdiConstant {
          * LLM streaming timeout in seconds (T6-08), hot-configurable via adi_sys_config.
          */
         public static final String LLM_STREAMING_TIMEOUT_SECONDS = "llm_streaming_timeout_seconds";
+
+        /**
+         * T7-02（铁律 10 开关）：agent-as-tool 委派机制运行期热开关，缺省开。
+         * 管理端置为 false 可热停用 delegate_agent（返回可读错误，不落库），
+         * 与配置文件 adi.agent.delegation-enabled 任一关闭即停用（系统配置优先）。
+         * <p>
+         * Runtime hot switch for the delegate_agent mechanism (T7-02). "false"
+         * rejects every delegation with a readable error; sys_config takes
+         * precedence over adi.agent.delegation-enabled.
+         */
+        public static final String AGENT_DELEGATION_ENABLED = "agent_delegation_enabled";
+
+        /**
+         * T7-03（铁律 10 开关）：多 Agent 编排节点（Orchestrator）运行期热开关，缺省开。
+         * 管理端置为 false 可热停用编排节点（返回可读错误），
+         * 与配置文件 adi.agent.orchestrator-enabled 任一关闭即停用（系统配置优先）。
+         * <p>
+         * Runtime hot switch for the Orchestrator node (T7-03). "false" rejects
+         * orchestration with a readable error; sys_config takes precedence over
+         * adi.agent.orchestrator-enabled.
+         */
+        public static final String AGENT_ORCHESTRATOR_ENABLED = "agent_orchestrator_enabled";
     }
 
     public static final String[] POI_DOC_TYPES = {"doc", "docx", "ppt", "pptx", "xls", "xlsx"};
@@ -747,6 +786,25 @@ public class AdiConstant {
         public static String BGE_SMALL_ZH_V15 = "local:bge-small-zh-v1.5";
         public static int BGE_SMALL_ZH_V15_DIMENSION = 512;
         public static List<String> LOCAL_MODELS = List.of(ALL_MINILM_L6, BGE_SMALL_ZH_V15);
+
+        /**
+         * bge-m3 模型名（T7-05）：作为可选 embedding provider 接入。
+         * <p>
+         * langchain4j 未内置 bge-m3 的 ONNX 推理类（权重约 2GB，亦不适合随发行包分发），
+         * 因此 bge-m3 走「OpenAI 协议兼容端点」这唯一的现实接入方式：由 Xinference /
+         * vLLM / One-API 等以 /v1/embeddings 协议 serving，配置形如
+         * {@code adi.embedding-model=<platform>:bge-m3}（platform 标记
+         * is_openai_api_compatible，AiModel.properties.dimension 显式配维度）。
+         * 本地 ONNX 路线留待 langchain4j 上游提供对应 EmbeddingModel 实现后再补分支，
+         * 不自行伪造一个不可用的本地 provider。
+         */
+        public static String BGE_M3 = "bge-m3";
+        public static int BGE_M3_DIMENSION = 1024;
+        /**
+         * bge-m3 支持 MRL 截断维度（1024 全精度 / 768 / 512 截断），配置其他维度时告警——
+         * 截断维度会改变向量语义，与既有索引不可混用，必须是运维的有意选择。
+         */
+        public static List<Integer> BGE_M3_ALLOWED_DIMENSIONS = List.of(1024, 768, 512);
     }
 
     public static class McpConstant {

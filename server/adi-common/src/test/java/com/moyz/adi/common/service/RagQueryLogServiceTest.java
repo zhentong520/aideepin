@@ -55,7 +55,7 @@ class RagQueryLogServiceTest {
     void buildFillsAllObservableFields() {
         RagQueryLog row = RagQueryLogService.build("q-1", "u-1", List.of("kb-a", "kb-b"),
                 "IsIn(kb_uuid)", "[{\"kb_uuid\":\"kb-a\",\"score\":0.9}]",
-                2, 1, 123, "local:bge-small-zh-v1.5");
+                2, 1, 123, "local:bge-small-zh-v1.5", "如何配置知识库？");
 
         assertEquals("q-1", row.getQueryId());
         assertEquals("u-1", row.getUserUuid());
@@ -70,11 +70,30 @@ class RagQueryLogServiceTest {
         assertEquals("local:bge-small-zh-v1.5", row.getEmbeddingModel());
         assertEquals("", row.getFeedback());
         assertEquals(0, row.getPromptTokens());
+        // T7-01：问句原文落库（转评测题题面来源）
+        assertEquals("如何配置知识库？", row.getQueryText());
+    }
+
+    @Test
+    void buildTruncatesQueryTextTo500() {
+        String longQuery = "长".repeat(2000);
+        RagQueryLog row = RagQueryLogService.build("q-4", "u-4", List.of(), "f", null, 0, 0, 5, "m", longQuery);
+
+        assertTrue(row.getQueryText().length() <= RagQueryLogService.QUERY_TEXT_MAX_LEN,
+                "query_text 必须截断到 500 以内, got " + row.getQueryText().length());
+        // abbreviate 语义：末尾带 … 省略号
+        assertTrue(row.getQueryText().startsWith("长"));
+    }
+
+    @Test
+    void buildNullQueryTextBecomesEmpty() {
+        RagQueryLog row = RagQueryLogService.build("q-5", "u-5", List.of(), "f", null, 0, 0, 5, "m", null);
+        assertEquals("", row.getQueryText());
     }
 
     @Test
     void saveAsyncInsertsRowWithoutThrowing() {
-        RagQueryLog row = RagQueryLogService.build("q-2", "u-2", List.of("kb-a"), "f", null, 0, 0, 5, "m");
+        RagQueryLog row = RagQueryLogService.build("q-2", "u-2", List.of("kb-a"), "f", null, 0, 0, 5, "m", "问句");
         when(mapper.insert(any(RagQueryLog.class))).thenReturn(1);
 
         service.saveAsync(row);
@@ -88,7 +107,7 @@ class RagQueryLogServiceTest {
 
     @Test
     void saveAsyncSwallowsMapperFailure() {
-        RagQueryLog row = RagQueryLogService.build("q-3", "u-3", List.of(), "f", null, 0, 0, 5, "m");
+        RagQueryLog row = RagQueryLogService.build("q-3", "u-3", List.of(), "f", null, 0, 0, 5, "m", "问句");
         when(mapper.insert(any(RagQueryLog.class))).thenThrow(new RuntimeException("db down"));
 
         // 不抛异常：日志失败只 warn，绝不阻断检索链路

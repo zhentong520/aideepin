@@ -32,6 +32,9 @@ public class RagQueryLogService extends ServiceImpl<RagQueryLogMapper, RagQueryL
     /** kb uuid 只允许短 uuid 字符集，防注入的同时过滤脏参数 */
     private static final Pattern KB_UUID_PATTERN = Pattern.compile("^[A-Za-z0-9_-]{1,64}$");
 
+    /** query_text 截断上限（V12 列语义：转评测题题面来源，超长问句无评测价值） */
+    public static final int QUERY_TEXT_MAX_LEN = 500;
+
     @Resource
     private AsyncTaskExecutor mainExecutor;
 
@@ -81,11 +84,14 @@ public class RagQueryLogService extends ServiceImpl<RagQueryLogMapper, RagQueryL
 
     /**
      * 便捷构造：把一次检索的要素组装成日志实体（kbUuids/hitSegments 序列化为 jsonb）。
+     *
+     * @param queryText 用户原始问句；超过 500 字符截断（V12 query_text 列语义：转评测题的题面来源，
+     *                  不需要全量，超长问句往往是粘贴的文档片段）
      */
     public static RagQueryLog build(String queryId, String userUuid, List<String> kbUuids,
                                     String filterExpression, String hitSegmentsJson,
                                     int hitCount, int aclFilteredCount, int elapsedMs,
-                                    String embeddingModel) {
+                                    String embeddingModel, String queryText) {
         RagQueryLog row = new RagQueryLog();
         row.setQueryId(queryId);
         row.setUserUuid(null == userUuid ? "" : userUuid);
@@ -102,6 +108,7 @@ public class RagQueryLogService extends ServiceImpl<RagQueryLogMapper, RagQueryL
         row.setPromptTokens(0);
         row.setEmbeddingModel(null == embeddingModel ? "" : embeddingModel);
         row.setFeedback("");
+        row.setQueryText(null == queryText ? "" : StringUtils.abbreviate(queryText, QUERY_TEXT_MAX_LEN));
         return row;
     }
 }

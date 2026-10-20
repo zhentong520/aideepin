@@ -189,6 +189,22 @@ set title         = 'Skill',
     display_order = 9,
     is_enable     = true
 where name = 'Skill';
+insert into adi_workflow_component(uuid, name, title, remark, display_order, is_enable)
+values (replace(gen_random_uuid()::text, '-', ''), 'Orchestrator', 'Multi-Agent Orchestrator',
+        'Dispatch subtasks to multiple sub-agents running in parallel, write results back through a shared blackboard, then summarize', 20, true);
+
+-- Multi-Agent hot switches (T7-02/T7-03, 2026-10-20): delegate_agent and Orchestrator node.
+-- Unset/absent row falls back to application.yml adi.agent.* defaults (enabled).
+INSERT INTO adi_sys_config (name, value)
+SELECT 'agent_delegation_enabled', 'true'
+WHERE NOT EXISTS (
+    SELECT 1 FROM adi_sys_config WHERE name = 'agent_delegation_enabled' AND is_deleted = false
+);
+INSERT INTO adi_sys_config (name, value)
+SELECT 'agent_orchestrator_enabled', 'true'
+WHERE NOT EXISTS (
+    SELECT 1 FROM adi_sys_config WHERE name = 'agent_orchestrator_enabled' AND is_deleted = false
+);
 
 -- Demo workflow: Translate to Chinese
 insert into adi_workflow(uuid, title, user_id, is_public, is_enable)

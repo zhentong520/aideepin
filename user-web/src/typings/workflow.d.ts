@@ -195,9 +195,19 @@ declare namespace Workflow {
     resultLength?: number
   }
 
+  // 多 Agent 编排节点指标 | Multi-agent orchestrator node metrics
+  interface OrchestratorMetrics extends NodeExecutionMetrics {
+    type: 'orchestrator'
+    subTaskCount?: number
+    successCount?: number
+    failCount?: number
+    summaryLength?: number
+    totalTokens?: number
+  }
+
   type AnyNodeMetrics = LLMMetrics | AgentMetrics | ImageMetrics | HttpRequestMetrics
     | SearchMetrics | KnowledgeRetrievalMetrics | MailMetrics | DocumentMetrics
-    | McpMetrics | SkillMetrics
+    | McpMetrics | SkillMetrics | OrchestratorMetrics
 
   interface WorkflowState {
     showCreateOrEditView: boolean
@@ -449,6 +459,29 @@ declare namespace Workflow {
     mode: string
     script?: string
     args?: string
+  }
+
+  // 子任务分派项（多 Agent 编排） | Subtask dispatch item (multi-agent orchestrator)
+  interface NodeConfigOrchestratorSubAgent {
+    character_uuid?: string
+    // 缺省时用 Agent 唯一标识 | Falls back to the agent uuid when omitted
+    task_id?: string
+    prompt?: string
+    model_platform?: string
+    model_name?: string
+  }
+
+  // 多 Agent 编排节点 | Multi-agent orchestrator node
+  interface NodeConfigOrchestrator implements NodeConfig {
+    sub_agents: NodeConfigOrchestratorSubAgent[]
+    // 汇总提示词，{results} 占位符替换为共享黑板汇总文本
+    summary_prompt?: string
+    // 存在失败子任务时直接让节点失败（默认 false：失败记录仍写入黑板）
+    fail_fast?: boolean
+    // 并行度上限（默认 4）
+    max_parallel?: number
+    enable_rag?: boolean
+    enable_mcp?: boolean
   }
 
   // MCP 服务暴露的工具（/user/mcp/tools 返回） | Tool exposed by an MCP server

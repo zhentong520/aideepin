@@ -79,6 +79,15 @@ const METRIC_RENDERERS: Record<string, WfMetricRenderer> = {
   skillName: { icon: '🧩', text: v => String(v) },
   mode: { icon: '', text: v => `${v === 'script' ? '▶' : '📖'} ${v}` },
   script: { icon: '🐍', text: v => String(v) },
+  subTaskCount: { icon: '🧮', text: v => `${v} subtasks` },
+  successCount: { icon: '✅', text: v => `${v} ok`, tone: 'success' },
+  failCount: {
+    icon: '⚠️',
+    text: v => `${v} failed`,
+    tone: 'error',
+    visible: metadata => (metadata.failCount ?? 0) > 0,
+  },
+  summaryLength: { icon: '📝', text: v => `${v} chars` },
 }
 
 function metricChipClass(tone: WfMetricChip['tone']) {

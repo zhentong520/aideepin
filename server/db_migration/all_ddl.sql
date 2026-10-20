@@ -2132,6 +2132,7 @@ create table if not exists adi_rag_query_log
     prompt_tokens      int          default 0   not null,
     embedding_model    varchar(255) default ''  not null,
     feedback           varchar(16)  default ''  not null,
+    query_text         text         default ''  not null,
     create_time        timestamp    default CURRENT_TIMESTAMP not null,
     update_time        timestamp    default CURRENT_TIMESTAMP not null,
     is_deleted         boolean      default false not null
@@ -2148,7 +2149,8 @@ comment on column adi_rag_query_log.acl_filtered_count is 'Hits dropped by the A
 comment on column adi_rag_query_log.elapsed_ms is 'Retrieval elapsed time in ms | 检索耗时（毫秒）';
 comment on column adi_rag_query_log.prompt_tokens is 'Prompt tokens of the following LLM call; 0 until wired up (T7-01) | 后续LLM调用的prompt token，暂为0';
 comment on column adi_rag_query_log.embedding_model is 'Embedding model config when the query ran | 检索时的embedding模型配置';
-comment on column adi_rag_query_log.feedback is 'User feedback: empty / PASS / FAIL | 用户反馈：空/PASS/FAIL';
+comment on column adi_rag_query_log.feedback is 'Legacy inline feedback, superseded by table adi_rag_feedback (T7-01); kept for compatibility only, never written again | 旧版内联反馈字段，已被 adi_rag_feedback 表取代（T7-01），保留仅为兼容、不再写入';
+comment on column adi_rag_query_log.query_text is 'Raw user query text of this retrieval, truncated to 500 chars | 本次检索的用户原始问句（截断至500字符），失败案例转评测题的题面来源';
 
 create index if not exists idx_rag_query_log_time on adi_rag_query_log (create_time);
 create index if not exists idx_rag_query_log_user on adi_rag_query_log (user_uuid);
@@ -2231,3 +2233,168 @@ execute procedure update_modified_column();
 
 alter table adi_workflow_node add column if not exists credential_uuid varchar(32) default '' not null;
 comment on column adi_workflow_node.credential_uuid is 'Reference to adi_credential.uuid; blank = legacy plaintext field in node_config still authoritative | 引用 adi_credential.uuid；空=仍走 node_config 旧字段（可回滚）';
+
+-- =====================================================================
+-- V13__agent_delegation_orchestrator.sql（二开 T7-02/T7-03，2026-10-20）
+-- 多 Agent 三卡：adi_agent_delegation_log 委派契约记录表（四要素+effort档位+
+-- 调用链快照，T7-02 深度限制与 T7-04 防环共用链字段审计）+ Orchestrator 编排节点注册。
+-- =====================================================================
+
+create table if not exists adi_agent_delegation_log
+(
+    id                bigserial primary key,
+    uuid              varchar(32)      default ''                not null,
+    trace_id          varchar(64)      default ''                not null,
+    source_agent_id   varchar(64)      default ''                not null,
+    source_agent_name varchar(200)     default ''                not null,
+    target_agent_id   varchar(64)      default ''                not null,
+    target_agent_name varchar(200)     default ''                not null,
+    objective         text             default ''                not null,
+    output_format     varchar(500)     default ''                not null,
+    context_summary   text             default ''                not null,
+    must_not_do       text             default ''                not null,
+    effort_level      varchar(16)      default ''                not null,
+    chain_depth       int              default 0                 not null,
+    chain_path        varchar(500)     default ''                not null,
+    status            varchar(16)      default ''                not null,
+    error_message     text             default ''                not null,
+    duration_ms       bigint           default 0                 not null,
+    input_tokens      int              default 0                 not null,
+    output_tokens     int              default 0                 not null,
+    user_id           bigint           default 0                 not null,
+    detail            jsonb            default '{}'::jsonb       not null,
+    create_time       timestamp        default CURRENT_TIMESTAMP not null,
+    update_time       timestamp        default CURRENT_TIMESTAMP not null,
+    is_deleted        boolean          default false             not null
+);
+
+comment on table adi_agent_delegation_log is 'Agent delegation log: contract four fields + effort tier + call chain snapshot | Agent委派记录：契约四要素+投入档位+调用链快照';
+comment on column adi_agent_delegation_log.uuid is 'Record unique uuid | 记录唯一uuid';
+comment on column adi_agent_delegation_log.trace_id is 'Full-chain trace id shared with agent trace spans | 全链路traceId，与agent trace span共用';
+comment on column adi_agent_delegation_log.source_agent_id is 'Delegating agent uuid, empty when user-initiated | 发起委派的Agent uuid，用户直接发起为空';
+comment on column adi_agent_delegation_log.source_agent_name is 'Delegating agent name | 发起委派的Agent名称';
+comment on column adi_agent_delegation_log.target_agent_id is 'Target agent uuid | 目标Agent uuid';
+comment on column adi_agent_delegation_log.target_agent_name is 'Target agent name | 目标Agent名称';
+comment on column adi_agent_delegation_log.objective is 'Delegation objective (required contract field) | 委派目标（契约必填）';
+comment on column adi_agent_delegation_log.output_format is 'Expected output format (contract field) | 期望产出格式（契约要素）';
+comment on column adi_agent_delegation_log.context_summary is 'Context summary handed to target (contract field) | 背景摘要（契约要素）';
+comment on column adi_agent_delegation_log.must_not_do is 'Explicit prohibitions (contract field) | 禁止事项（契约要素）';
+comment on column adi_agent_delegation_log.effort_level is 'Effort tier LOW/MEDIUM/HIGH from objective difficulty | 投入档位（按objective难度）';
+comment on column adi_agent_delegation_log.chain_depth is 'Call chain depth at delegation time (T7-02 depth-limit audit) | 委派时调用链深度（深度限制审计）';
+comment on column adi_agent_delegation_log.chain_path is 'Call chain snapshot agent ids joined by -> (T7-04 cycle-prevention audit) | 调用链快照（防环审计）';
+comment on column adi_agent_delegation_log.status is 'SUCCESS / FAIL / REJECTED | 执行结果';
+comment on column adi_agent_delegation_log.error_message is 'Rejection or failure reason | 拒绝/失败原因';
+comment on column adi_agent_delegation_log.detail is 'Extra detail json (difficulty signals, budget params) | 补充信息json（难度信号/预算参数）';
+
+create index if not exists idx_agent_delegation_trace on adi_agent_delegation_log (trace_id);
+create index if not exists idx_agent_delegation_target on adi_agent_delegation_log (target_agent_id);
+create index if not exists idx_agent_delegation_user on adi_agent_delegation_log (user_id, id);
+
+drop trigger if exists trigger_agent_delegation_log_update_time on adi_agent_delegation_log;
+create trigger trigger_agent_delegation_log_update_time
+    before update
+    on adi_agent_delegation_log
+    for each row
+execute procedure update_modified_column();
+
+-- =====================================================================
+-- 042_rag_quality_dashboard.sql（V12__rag_quality_dashboard.sql，二开 T7-01，2026-10-20）
+-- RAG 质量看板 + 失败闭环：检索日志补 query_text（转评测题题面来源）；
+-- 新建 👍👎 反馈表 adi_rag_feedback（旧列 feedback 保留不再写入，仅为兼容）。
+-- =====================================================================
+
+alter table adi_rag_query_log add column if not exists query_text text default '' not null;
+comment on column adi_rag_query_log.query_text is 'Raw user query text of this retrieval, truncated to 500 chars | 本次检索的用户原始问句（截断至500字符），失败案例转评测题的题面来源';
+
+create table if not exists adi_rag_feedback
+(
+    id            bigserial primary key,
+    feedback_uuid varchar(64)  default '' not null,
+    query_id      varchar(64)  default '' not null,
+    message_uuid  varchar(64)  default '' not null,
+    user_uuid     varchar(64)  default '' not null,
+    rating        varchar(16)  default '' not null,
+    comment       varchar(500) default '' not null,
+    create_time   timestamp    default CURRENT_TIMESTAMP not null,
+    update_time   timestamp    default CURRENT_TIMESTAMP not null,
+    is_deleted    boolean      default false not null
+);
+
+comment on table adi_rag_feedback is 'RAG answer feedback (thumbs up/down) from the user chat page | RAG回答的用户👍👎反馈（用户聊天页提交）';
+comment on column adi_rag_feedback.feedback_uuid is 'Feedback row unique uuid | 反馈行唯一uuid';
+comment on column adi_rag_feedback.query_id is 'Related adi_rag_query_log.query_id (one retrieval = one row there) | 关联 adi_rag_query_log.query_id（一次检索一行）';
+comment on column adi_rag_feedback.message_uuid is 'Answer message uuid from the user chat page (blank until user-web wiring, T7-01) | 用户聊天页回答消息uuid（user-web 接入前可为空）';
+comment on column adi_rag_feedback.user_uuid is 'Feedback author uuid (must be a logged-in user) | 反馈提交用户uuid（必须为登录用户）';
+comment on column adi_rag_feedback.rating is 'PASS (thumbs up) or FAIL (thumbs down) | PASS=👍 或 FAIL=👎';
+comment on column adi_rag_feedback.comment is 'Optional free-text explanation, max 500 chars | 可选文字说明，最长500字符';
+
+create unique index if not exists uk_rag_feedback_query_user on adi_rag_feedback (query_id, user_uuid) where is_deleted = false;
+create index if not exists idx_rag_feedback_user on adi_rag_feedback (user_uuid);
+create index if not exists idx_rag_feedback_time on adi_rag_feedback (create_time);
+
+drop trigger if exists trigger_rag_feedback_update_time on adi_rag_feedback;
+create trigger trigger_rag_feedback_update_time
+    before update
+    on adi_rag_feedback
+    for each row
+execute procedure update_modified_column();
+
+-- =====================================================================
+-- 042_embedding_provider_and_memory_user.sql（V14__embedding_provider_and_memory_user.sql，
+-- 二开第 8 批 T7-05/T7-07，2026-10-20）
+-- T7-05：知识库 embedding provider 溯源列（换模型防静默零命中；回滚=切回旧 provider+重建）。
+-- T7-07：记忆 user_id 回填为纯 DML（只 UPDATE 语义/情景记忆动态分表的 metadata jsonb，
+--   不动向量列、不建表不改列结构），完整脚本见 042_embedding_provider_and_memory_user.sql /
+--   V14__embedding_provider_and_memory_user.sql：
+--     DO $$ 遍历 adi_character_memory_embedding% / adi_character_episodic_memory_embedding%
+--     动态分表，按 metadata->>'conv_id' → adi_character.uuid → user_id 回填 user_id 键；
+--     character 行缺失的无主记忆写哨兵 '__unknown__'（永不匹配任何真实用户）；
+--     WHERE 只更新缺 user_id 的行（幂等，复跑 0 行）。
+-- =====================================================================
+
+alter table adi_knowledge_base add column if not exists embedding_provider varchar(64) default '' not null;
+comment on column adi_knowledge_base.embedding_provider is 'Embedding provider name that produced the current vector index (blank = unknown/legacy; consumers must skip comparison, not treat as mismatch) | 产出当前向量索引的 embedding provider 名称（空=未知/存量，消费方跳过比对）';
+
+alter table adi_knowledge_base add column if not exists embedding_provider_version varchar(64) default '' not null;
+comment on column adi_knowledge_base.embedding_provider_version is 'Immutable embedding provider version (local name@dim, remote platform/name@dim). Mismatch with the active provider means vectors were built by an older model: retrieval would silently recall nothing until a rebuild. Rollback = switch adi.embedding-model back and rebuild again | embedding provider 不可变版本串；与当前生效 provider 不一致即向量建于旧模型，需按当前 provider 重建；回滚=切回旧 provider 再重建';
+
+-- =====================================================================
+-- 042_embedding_provider_and_memory_user.sql 续（T7-07 敏感记忆确认队列）
+-- PII（联系方式/证件/账号密码）命中的抽取记忆不直写向量库，先进 adi_memory_pending
+-- PENDING，用户 confirm 后写入对应向量库，reject 标记驳回。confirm 校验
+-- pending.user_id = 当前登录用户，任何人不能替他人确认。
+-- =====================================================================
+
+create table if not exists adi_memory_pending
+(
+    id            bigserial primary key,
+    memory_uuid   varchar(32)       default ''        not null,
+    user_id       bigint                              not null,
+    character_id  bigint            default 0         not null,
+    memory_type   smallint          default 1         not null,
+    content       text              default ''        not null,
+    status        varchar(16)       default 'PENDING' not null,
+    source_msg_id bigint            default 0         not null,
+    create_time   timestamp         default CURRENT_TIMESTAMP not null,
+    update_time   timestamp         default CURRENT_TIMESTAMP not null,
+    is_deleted    boolean           default false     not null
+);
+
+comment on table adi_memory_pending is 'Sensitive (PII) memory pending user confirmation before vector-store persistence | 敏感(PII)记忆持久化前的用户确认队列表';
+comment on column adi_memory_pending.memory_uuid is 'Pending row unique uuid | 待确认行唯一uuid';
+comment on column adi_memory_pending.user_id is 'Owner user id; only this user may confirm/reject | 归属用户id，仅本人可确认/驳回';
+comment on column adi_memory_pending.character_id is 'Owning character id (conv context) | 归属角色id（对话上下文）';
+comment on column adi_memory_pending.memory_type is 'MemoryType numeric code: 1=semantic 2=episodic (routes the confirm-time vector write) | MemoryType数值编码：1=语义 2=情景（决定确认后写入哪个向量库）';
+comment on column adi_memory_pending.content is 'Memory content awaiting confirmation | 待确认的记忆内容';
+comment on column adi_memory_pending.status is 'PENDING / CONFIRMED / REJECTED | 待确认 / 已确认(已入向量库) / 已驳回';
+comment on column adi_memory_pending.source_msg_id is 'Source character message id (traceability) | 来源角色消息id（溯源）';
+
+create index if not exists idx_memory_pending_user_status on adi_memory_pending (user_id, status);
+create index if not exists idx_memory_pending_create_time on adi_memory_pending (create_time);
+
+drop trigger if exists trigger_memory_pending_update_time on adi_memory_pending;
+create trigger trigger_memory_pending_update_time
+    before update
+    on adi_memory_pending
+    for each row
+execute procedure update_modified_column();
