@@ -23,6 +23,7 @@ const routes: Array<RouteRecordRaw> = [
     component: Layout,
     meta: {
       title: 'route.dashboard',
+      permissions: ['admin:dashboard:view'],
       icon: renderIcon(DashboardOutlined),
       sort: 0,
     },
@@ -36,25 +37,6 @@ const routes: Array<RouteRecordRaw> = [
         },
         component: () => import('@/views/dashboard/console/console.vue'),
       },
-      // {
-      //   path: 'monitor',
-      //   name: `${ routeName }_monitor`,
-      //   meta: {
-      //     title: '监控页',
-      //     permissions: ['dashboard_monitor']
-      //   },
-      //   component: () => import('@/views/dashboard/monitor/monitor.vue')
-      // },
-      // {
-      //   path: 'workplace',
-      //   name: `${routeName}_workplace`,
-      //   meta: {
-      //     title: '工作台',
-      //     keepAlive: true,
-      //     permissions: ['dashboard_workplace'],
-      //   },
-      //   component: () => import('@/views/dashboard/workplace/workplace.vue'),
-      // },
     ],
   },
 ]

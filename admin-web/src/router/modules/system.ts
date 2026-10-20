@@ -22,6 +22,7 @@ const routes: Array<RouteRecordRaw> = [
     component: Layout,
     meta: {
       title: 'route.systemSettings',
+      permissions: ['admin:system:view'],
       icon: renderIcon(OptionsSharp),
       sort: 7,
     },

@@ -56,9 +56,7 @@
     emit('reloadConfig')
   }
   function formSubmit() {
-    console.log(props.quota)
-    console.log(formValue)
-    formRef.value.validate(async (errors) => {
+    formRef.value.validate(async (errors: any) => {
       await api.edit({ name: 'quota_by_token_daily', value: formValue.daily })
       await api.edit({ name: 'quota_by_token_monthly', value: formValue.monthly })
       if (!errors) {

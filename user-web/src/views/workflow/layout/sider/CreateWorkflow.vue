@@ -1,15 +1,20 @@
 <script setup lang='ts'>
 import { computed, onMounted, ref, watch } from 'vue'
-import { NAvatar, NButton, NDivider, NFlex, NFormItem, NInput, NModal, NPopconfirm, NSwitch, NTag, NTooltip, useMessage } from 'naive-ui'
+import { NAvatar, NButton, NDivider, NFlex, NForm, NFormItem, NInput, NModal, NPopconfirm, NSwitch, NTag, NTooltip, useMessage } from 'naive-ui'
+import type { FormInst } from 'naive-ui'
 import { SvgIcon } from '@/components/common'
 import defaultAvatar from '@/assets/avatar.jpg'
 import { useAuthStore, useUserStore, useWfStore } from '@/store'
 import api from '@/api'
 import { t } from '@/locales'
+import { titleRules } from '@/utils/formRules'
 import { emptyWorkflowInfo } from '@/utils/functions'
 
 const saving = ref<boolean>(false)
 const tmpWorkflow = ref<Workflow.WorkflowInfo>(emptyWorkflowInfo())
+const formRef = ref<FormInst | null>(null)
+// 与后端一致：标题必填（@NotBlank），长度上限为前端防御性约束
+const wfRules = { title: titleRules(t('common.title')) }
 
 const wfStore = useWfStore()
 const userStore = useUserStore()
@@ -18,10 +23,9 @@ const ms = useMessage()
 
 async function handleSave(event?: KeyboardEvent) {
   event?.stopPropagation()
-  if (!tmpWorkflow.value.title) {
-    ms.error(t('workflow.titleCannotEmpty'), {
-      duration: 2000,
-    })
+  try {
+    await formRef.value?.validate()
+  } catch {
     return
   }
   if (saving.value)
@@ -137,9 +141,11 @@ watch(() => wfStore.createOrEditWfUuid, (val) => {
       <NDivider v-show="viewStyle === 'read'" />
       <div v-show="viewStyle !== 'read'">
         <NFlex class="grow" justify="space-between" vertical>
-          <NFormItem :label="t('common.title')" :show-feedback="false" :show-require-mark="true">
-            <NInput v-model:value="tmpWorkflow.title" type="text" size="large" :placeholder="t('workflow.titlePlaceholder')" />
-          </NFormItem>
+          <NForm ref="formRef" :model="{ title: tmpWorkflow.title }" :rules="wfRules">
+            <NFormItem :label="t('common.title')" path="title" :show-require-mark="true">
+              <NInput v-model:value="tmpWorkflow.title" type="text" size="large" :placeholder="t('workflow.titlePlaceholder')" />
+            </NFormItem>
+          </NForm>
           <NFormItem :label="t('workflow.remarkLabel')" :show-feedback="false">
             <NInput v-model:value="tmpWorkflow.remark" type="text" size="large" />
           </NFormItem>

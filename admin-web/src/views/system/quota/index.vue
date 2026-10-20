@@ -86,13 +86,12 @@
     daily: 0,
     monthly: 0,
   })
-  function switchType(e) {
+  function switchType(e: { key: number }) {
     type.value = e.key
   }
   async function reloadConfig() {
     const { records } = await api.search({ keyword: 'quota_by' }, 1, 100)
-    console.log(records)
-    records.forEach((element) => {
+    records.forEach((element: any) => {
       const val = parseInt(element.value)
       if (element.name === 'quota_by_token_daily') {
         tokenQuota.value.daily = val

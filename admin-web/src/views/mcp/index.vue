@@ -319,7 +319,7 @@
   import { getColumns } from './columns'
   const columns = getColumns()
   import { McpInfo, McpSearchReq, McpCustomizedParamDefinition, PresetParam } from '/#/mcp'
-  import { getMcpTransportType, getMcpInstallType } from '@/utils/constants'
+  import { getMcpTransportType, getMcpInstallType } from '@/enums/modelOptions'
   const mcpTransportType = getMcpTransportType()
   const mcpInstallType = getMcpInstallType()
   import type { FormRules } from 'naive-ui'
@@ -424,7 +424,7 @@
     title: t('common.action'),
     key: 'action',
     fixed: 'right',
-    render(record) {
+    render(record: Recordable) {
       return h(TableAction as any, {
         style: 'button',
         actions: [
@@ -453,7 +453,7 @@
             key: 'delete',
           },
         ],
-        select: (key) => {
+        select: (key: string) => {
           if (key === 'delete') {
             dialog.warning({
               title: t('common.tip'),
@@ -466,7 +466,6 @@
                 handleDel(record)
               },
               onNegativeClick: () => {
-                console.log('已取消')
               },
             })
           }
@@ -481,12 +480,12 @@
     schemas,
   })
 
-  const loadDataTable = async (res) => {
+  const loadDataTable = async (res: any) => {
     const resp = await mcpApi.mcpSearch({ ...getFieldsValue() } as McpSearchReq, res)
     return resp.data
   }
 
-  function onCheckedRow(_rowKeys) {
+  function onCheckedRow(_rowKeys: Array<string | number>) {
     // 选中行回调
   }
 
@@ -494,10 +493,10 @@
     actionRef.value.reload()
   }
 
-  function confirmEditForm(e) {
+  function confirmEditForm(e: Event) {
     e.preventDefault()
     formBtnLoading.value = true
-    formRef.value.validate(async (errors) => {
+    formRef.value.validate(async (errors: any) => {
       try {
         if (!errors) {
           await mcpApi.mcpEdit(editFormParams)

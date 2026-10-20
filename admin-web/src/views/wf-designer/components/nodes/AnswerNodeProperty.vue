@@ -14,7 +14,6 @@ const props = defineProps<Props>()
 const nodeConfig = props.wfNode.nodeConfig as Workflow.NodeConfigAnswer
 
 function llmSelected(aiModel: AiModelInfo) {
-  console.log('nodeConfig.modelName', nodeConfig.model_name, aiModel.modelName)
   nodeConfig.model_name = aiModel.modelName
   nodeConfig.model_platform = aiModel.modelPlatform
 }

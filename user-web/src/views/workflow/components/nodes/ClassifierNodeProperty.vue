@@ -4,7 +4,7 @@ import { generate } from 'random-words'
 import { NButton, NCollapse, NCollapseItem, NInput } from 'naive-ui'
 import NodeSelector from '../NodeSelector.vue'
 import WfLLMSelector from '../WfLLMSelector.vue'
-import { createNewEdge, deleteEdgesBySourceHandle, updateEdgeBySourceHandle } from '@/utils/workflow-util'
+import { createNewEdge, deleteEdgesBySourceHandle, updateEdgeBySourceHandle } from '@/views/workflow/utils/workflow-util'
 import { t } from '@/locales'
 interface Props {
   workflow: Workflow.WorkflowInfo

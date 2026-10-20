@@ -66,7 +66,11 @@ export default defineConfig((env) => {
         '/api': {
           target: viteEnv.VITE_APP_API_BASE_URL,
           changeOrigin: true, // 允许跨域
-          rewrite: path => path.replace('/api/', '/'),
+          // 坑（T5-12 修）：原 rewrite 用 path.replace('/api/', '/')，
+          // ① 未锚定开头——路径中后段出现 "/api/" 会被误剥（如 /api/proxy/api/x → /proxy/x 丢失首段语义前的正确性尚可，但 /xapi/y 之类含 "/api/" 子串的路径会错剥）；
+          // ② /api 精确路径（无尾斜杠）不被剥前缀，原样打到后端 404。
+          // 后端 context-path=/，这里统一剥掉开头的 /api 段。
+          rewrite: path => path.replace(/^\/api(?=\/|$)/, ''),
         },
       },
     },

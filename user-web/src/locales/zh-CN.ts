@@ -94,6 +94,11 @@ export default {
     pleaseInputValue: '请输入变量值',
     newCreate: '新建',
     required: '必填',
+    // 表单校验体系化（T5-08）：与后端校验语义对齐的通用提示；插值名走 t(key, {...})，禁字面花括号
+    fieldRequired: '{field}为必填项',
+    fieldMaxLength: '{field}不能超过 {max} 个字符',
+    fieldLengthRange: '{field}长度须为 {min}-{max} 位',
+    passwordMinLength: '密码至少 {min} 个字符',
     type: '类型',
     home: '首页',
     input: '输入',

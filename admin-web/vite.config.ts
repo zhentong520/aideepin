@@ -3,6 +3,7 @@ import { loadEnv } from 'vite';
 import { resolve } from 'path';
 import { wrapperEnv } from './build/utils';
 import { createVitePlugins } from './build/vite/plugin';
+import { createProxy } from './build/vite/proxy';
 import { OUTPUT_DIR } from './build/constant';
 import pkg from './package.json';
 import { format } from 'date-fns';
@@ -65,17 +66,9 @@ export default ({ command, mode }: ConfigEnv): UserConfig => {
     server: {
       host: true,
       port: VITE_PORT,
-      // 开发代理：vite3 对 VITE_PROXY 环境变量的 JSON 解析在某些重启场景下会失效
-      // （被当成字符串逐字符遍历，导致 /api 代理根本不注册）。这里直接硬编码到本地后端，
-      // 避免依赖易碎的 env 解析。生产构建由 nginx/网关负责转发，不受此影响。
-      proxy: {
-        '/api': {
-          target: 'http://localhost:9999',
-          changeOrigin: true,
-          ws: true,
-          rewrite: (path) => path.replace(/^\/api/, ''),
-        },
-      },
+      // 开发代理：从 .env.development 的 VITE_PROXY 读取（createProxy 会校验并跳过无效条目），
+      // 生产构建不加载 .env.development，VITE_PROXY 为空数组即无代理，由 nginx/网关负责转发。
+      proxy: createProxy(viteEnv.VITE_PROXY || []),
       hmr: {
         overlay: true,
       },

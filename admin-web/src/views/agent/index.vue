@@ -24,7 +24,7 @@
         :columns="columns"
         :data="filteredList"
         :loading="loading"
-        :row-key="(row: any) => row.uuid"
+        :row-key="(row: AgentRow) => row.uuid"
         style="margin-top: 12px"
       />
     </n-card>
@@ -101,14 +101,39 @@
 
   const message = useMessage()
   const dialog = useDialog()
-  const list = ref<any[]>([])
-  const llms = ref<any[]>([])
+
+  /** Agent 列表行 */
+  interface AgentRow {
+    uuid: string
+    title: string
+    remark: string
+    modelPlatform: string
+    modelName: string
+    llmTemperature?: number
+    systemMessage?: string
+    kbIds?: string
+    sort?: number
+    enableRag?: boolean
+    enableMcp?: boolean
+    enableWebSearch?: boolean
+    isEnable?: boolean
+  }
+
+  /** 模型下拉项：modelPlatform/modelName/modelTitle 为 sceneApi.fetchLlmList 返回的宽泛结构 */
+  interface LlmOption {
+    modelPlatform: string
+    modelName: string
+    modelTitle?: string
+  }
+
+  const list = ref<AgentRow[]>([])
+  const llms = ref<LlmOption[]>([])
   const loading = ref(false)
   const saving = ref(false)
   const keyword = ref('')
   const editVisible = ref(false)
 
-  const form = reactive<any>({
+  const form = reactive({
     uuid: '',
     title: '',
     remark: '',
@@ -125,7 +150,7 @@
     isEnable: true,
   })
 
-  function toModelKey(m: any) {
+  function toModelKey(m: LlmOption) {
     return `${m.modelPlatform}/${m.modelName}`
   }
 
@@ -140,7 +165,7 @@
     const kw = keyword.value.trim().toLowerCase()
     if (!kw)
       return list.value
-    return list.value.filter(a => (a.title || '').toLowerCase().includes(kw))
+    return list.value.filter((a: AgentRow) => (a.title || '').toLowerCase().includes(kw))
   })
 
   function resetForm() {
@@ -164,8 +189,8 @@
     loading.value = true
     try {
       const [agentRes, llmRes] = await Promise.all([agentApi.fetchAgents(), sceneApi.fetchLlmList()])
-      list.value = (agentRes.data || []) as any[]
-      llms.value = (llmRes.data || []) as any[]
+      list.value = (agentRes.data || []) as AgentRow[]
+      llms.value = (llmRes.data || []) as LlmOption[]
     }
     catch (error) {
       console.error('loadAgents error', error)
@@ -181,7 +206,7 @@
     editVisible.value = true
   }
 
-  function openEdit(row: any) {
+  function openEdit(row: AgentRow) {
     resetForm()
     Object.assign(form, {
       uuid: row.uuid,
@@ -231,22 +256,22 @@
       editVisible.value = false
       await load()
     }
-    catch (error: any) {
+    catch (error: unknown) {
       console.error('saveAgent error', error)
-      message.error(error?.message || t('agent.saveFailed'))
+      message.error((error instanceof Error ? error.message : '') || t('agent.saveFailed'))
     }
     finally {
       saving.value = false
     }
   }
 
-  async function doToggle(row: any) {
+  async function doToggle(row: AgentRow) {
     await agentApi.toggleAgent(row.uuid, !row.isEnable)
     message.success(t('common.operationSuccess'))
     await load()
   }
 
-  function doDelete(row: any) {
+  function doDelete(row: AgentRow) {
     dialog.warning({
       title: t('agent.deleteAgent'),
       content: t('agent.deleteConfirm', { name: row.title }),
@@ -268,13 +293,13 @@
       minWidth: 200,
       // 后台当然要看得见模型名——这正是「模型在后台选」的含义。
       // 用户端聊天页才必须隐藏，这里是配置面，不是使用面。
-      render: (row: any) => (row.modelName ? h(NTag, { size: 'small', type: 'info' }, { default: () => `${row.modelPlatform}/${row.modelName}` }) : '-'),
+      render: (row: AgentRow) => (row.modelName ? h(NTag, { size: 'small', type: 'info' }, { default: () => `${row.modelPlatform}/${row.modelName}` }) : '-'),
     },
     {
       title: t('agent.capabilities'),
       key: 'caps',
       minWidth: 160,
-      render: (row: any) => {
+      render: (row: AgentRow) => {
         const caps: string[] = []
         if (row.enableRag)
           caps.push('RAG')
@@ -290,7 +315,7 @@
       title: t('agent.isEnable'),
       key: 'isEnable',
       width: 90,
-      render: (row: any) =>
+      render: (row: AgentRow) =>
         h(NSwitch, {
           value: row.isEnable !== false,
           'onUpdate:value': () => doToggle(row),
@@ -300,7 +325,7 @@
       title: t('common.action'),
       key: 'action',
       width: 150,
-      render: (row: any) =>
+      render: (row: AgentRow) =>
         h(TableAction as any, {
           style: 'button',
           actions: [

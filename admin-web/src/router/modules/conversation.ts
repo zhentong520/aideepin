@@ -22,6 +22,7 @@ const routes: Array<RouteRecordRaw> = [
     component: Layout,
     meta: {
       title: 'route.characterManagement',
+      permissions: ['admin:conversation:view'],
       icon: renderIconWithProps(ChatboxEllipsesOutline, { size: 20 }),
       sort: 3,
     },

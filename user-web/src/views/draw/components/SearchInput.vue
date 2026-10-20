@@ -1,8 +1,7 @@
 <script setup lang='ts'>
 import { computed, ref, watch } from 'vue'
-import { storeToRefs } from 'pinia'
 import { NAutoComplete, NButton, NCol, NInput, NRow } from 'naive-ui'
-import { useAuthStore, useDrawStore, usePromptStore } from '@/store'
+import { useAuthStore, useDrawStore } from '@/store'
 import { useBasicLayout } from '@/hooks/useBasicLayout'
 import { debounce } from '@/utils/functions/debounce'
 import { t } from '@/locales'
@@ -11,10 +10,10 @@ interface Emit {
   (e: 'submit', prompt: string): void
 }
 const emit = defineEmits<Emit>()
-const promptStore = usePromptStore()
 const drawStore = useDrawStore()
 const authStore = useAuthStore()
-const { promptList: promptTemplate } = storeToRefs<any>(promptStore)
+// 「/」唤起的提示词候选：仅本搜索框使用，不进全局 store（T5-11）
+const promptTemplate = ref<{ label: string; value: string }[]>([])
 const prompt = ref<string>('')
 const { isMobile } = useBasicLayout()
 

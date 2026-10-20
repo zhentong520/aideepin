@@ -16,6 +16,7 @@ const routes: Array<RouteRecordRaw> = [
     component: Layout,
     meta: {
       title: 'route.agentManagement',
+      permissions: ['admin:agent:view'],
       icon: renderIcon(Chat),
       sort: 6,
     },

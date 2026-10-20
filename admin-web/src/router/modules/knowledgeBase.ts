@@ -22,6 +22,7 @@ const routes: Array<RouteRecordRaw> = [
     component: Layout,
     meta: {
       title: 'route.knowledgeBaseManagement',
+      permissions: ['admin:knowledgeBase:view'],
       icon: renderIconWithProps(LibraryOutline, { size: 20 }),
       sort: 3,
     },

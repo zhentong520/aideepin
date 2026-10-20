@@ -119,13 +119,13 @@
   const router = useRouter()
   const route = useRoute()
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: Event) => {
     e.preventDefault()
     if (loginCaptchaId.value && !loginCaptchaCode.value) {
       message.error(t('login.captchaRequired'))
       return
     }
-    formRef.value.validate(async (errors) => {
+    formRef.value.validate(async (errors: any) => {
       if (!errors) {
         const { email, password } = formInline
         message.loading(t('login.loggingIn'))

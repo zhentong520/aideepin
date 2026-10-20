@@ -77,7 +77,7 @@ function showEditView() {
 }
 
 async function onCopy() {
-  const { data: newWorkflow } = await api.workflowCopy(props.workflow.uuid)
+  const { data: newWorkflow } = await api.workflowCopy<Workflow.WorkflowInfo>(props.workflow.uuid)
   wfStore.appendWorkflows([newWorkflow], true)
   ms.success(t('workflow.copySuccess'))
 }

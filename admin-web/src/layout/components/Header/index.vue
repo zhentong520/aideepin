@@ -199,8 +199,8 @@
       const router = useRouter()
       const route = useRoute()
 
-      const generator: any = (routerMap) => {
-        return routerMap.map((item) => {
+      const generator: any = (routerMap: any[]) => {
+        return routerMap.map((item: any) => {
           const currentMenu = {
             ...item,
             // meta.title 缺失时不能交给 t()（会抛 vue-i18n "Invalid arguments" 并打断渲染），退化用路由名占位
@@ -219,13 +219,13 @@
 
       const breadcrumbList = computed(() => {
         // 无 title 的纯容器路由不进面包屑；相邻同名项去重，避免「X / X」
-        const list = generator(route.matched).filter((item) => !!item.meta?.title)
+        const list: any[] = generator(route.matched).filter((item: any) => !!item.meta?.title)
         return list.filter(
-          (item, idx) => idx === 0 || item.meta.title !== list[idx - 1].meta.title
+          (item: any, idx: number) => idx === 0 || item.meta.title !== list[idx - 1].meta.title
         )
       })
 
-      const dropdownSelect = (key) => {
+      const dropdownSelect = (key: string) => {
         router.push({ name: key })
       }
 
@@ -305,7 +305,7 @@
       }
 
       //头像下拉菜单
-      const avatarSelect = (key) => {
+      const avatarSelect = (key: number) => {
         switch (key) {
           case 1:
             router.push({ name: 'Setting' })

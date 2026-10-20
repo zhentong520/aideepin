@@ -8,6 +8,13 @@ import type {
 } from 'vue';
 
 declare global {
+  interface Window {
+    $message: import('naive-ui').MessageApi
+    $dialog: import('naive-ui').DialogApi
+    $notification: import('naive-ui').NotificationApi
+    $loading: import('naive-ui').LoadingBarApi
+  }
+
   const __APP_INFO__: {
     pkg: {
       name: string;

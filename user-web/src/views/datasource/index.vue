@@ -18,6 +18,8 @@ import {
 } from 'naive-ui'
 import { t } from '@/locales'
 import { UxState } from '@/components/common'
+import { requiredRule } from '@/utils/formRules'
+import type { FormInst } from 'naive-ui'
 import api from '@/api'
 
 const ms = useMessage()
@@ -53,6 +55,14 @@ function emptyForm(): Workflow.DbDatasource {
 
 const form = ref<Workflow.DbDatasource>(emptyForm())
 const isEdit = computed(() => !!form.value.uuid)
+// 连接信息校验（T5-08）：名称/主机/库名/用户名必填（与后端保存与测试语义一致）
+const dsFormRef = ref<FormInst | null>(null)
+const dsRules = {
+  title: [requiredRule(t('datasource.nameLabel'))],
+  host: [requiredRule(t('datasource.hostLabel'))],
+  dbName: [requiredRule(t('datasource.dbNameLabel'))],
+  username: [requiredRule(t('datasource.usernameLabel'))],
+}
 
 const count = computed(() => list.value.length)
 
@@ -108,6 +118,11 @@ async function onTestFromForm() {
 }
 
 async function onSubmit() {
+  try {
+    await dsFormRef.value?.validate()
+  } catch {
+    return
+  }
   if (!form.value.title) {
     ms.warning(t('datasource.nameLabel'))
     return
@@ -205,23 +220,23 @@ onMounted(loadList)
       :title="isEdit ? t('datasource.editLabel') : t('datasource.addNew')" style="width: 620px"
       content-style="max-height: 80vh; overflow-y: auto;"
     >
-      <NForm label-placement="left" label-width="110">
-        <NFormItem :label="t('datasource.nameLabel')">
+      <NForm ref="dsFormRef" :model="form" :rules="dsRules" label-placement="left" label-width="110">
+        <NFormItem :label="t('datasource.nameLabel')" path="title">
           <NInput v-model:value="form.title" :placeholder="t('datasource.nameLabel')" />
         </NFormItem>
         <NFormItem :label="t('datasource.dbTypeLabel')">
           <NSelect :value="form.dbType" :options="dbTypeOptions" @update:value="onDbTypeChanged" />
         </NFormItem>
-        <NFormItem :label="t('datasource.hostLabel')">
+        <NFormItem :label="t('datasource.hostLabel')" path="host">
           <NInput v-model:value="form.host" placeholder="localhost" />
         </NFormItem>
         <NFormItem :label="t('datasource.portLabel')">
           <NInputNumber v-model:value="form.port" :min="1" :max="65535" />
         </NFormItem>
-        <NFormItem :label="t('datasource.dbNameLabel')">
+        <NFormItem :label="t('datasource.dbNameLabel')" path="dbName">
           <NInput v-model:value="form.dbName" />
         </NFormItem>
-        <NFormItem :label="t('datasource.usernameLabel')">
+        <NFormItem :label="t('datasource.usernameLabel')" path="username">
           <NInput v-model:value="form.username" />
         </NFormItem>
         <NFormItem :label="t('datasource.passwordLabel')">

@@ -107,14 +107,14 @@
       </n-grid>
 
       <n-space vertical :size="8" style="margin-top: 12px">
-        <n-alert v-if="!result.hits.length" type="warning" :bordered="false">
+        <n-alert v-if="!result.hits?.length" type="warning" :bordered="false">
           {{ t('kbRecall.empty') }}
         </n-alert>
         <n-alert v-for="(note, i) in result.notes" :key="i" type="info" :bordered="false" style="font-size: 12px">
           {{ note }}
         </n-alert>
-        <n-alert v-if="result.stage.rerankExecuted" type="success" :bordered="false" style="font-size: 12px">
-          {{ t('kbRecall.rerankRan', { model: result.params.rerankModelName || '-', input: result.stage.rerankInput, output: result.stage.rerankReturned }) }}
+        <n-alert v-if="result.stage?.rerankExecuted" type="success" :bordered="false" style="font-size: 12px">
+          {{ t('kbRecall.rerankRan', { model: result.params?.rerankModelName || '-', input: result.stage?.rerankInput, output: result.stage?.rerankReturned }) }}
         </n-alert>
       </n-space>
 
@@ -166,14 +166,46 @@
   const route = useRoute()
   const message = useMessage()
 
+  /** 知识库下拉项 */
+  interface KbOption {
+    title: string
+    uuid: string
+  }
+
+  /** 命中行：字段以后端 recallTest 返回为准，数值型均可能为 null */
+  interface RecallHit {
+    source: string
+    kind?: string
+    storeScore: number | null
+    cosine: number
+    rerankScore: number | null
+    docTitle?: string
+    position: number | null
+    poolRank?: number | null
+    keywordRank?: number | null
+    rrfScore?: number | null
+    content: string
+    truncated?: boolean
+    [key: string]: unknown
+  }
+
+  /** 召回测试响应（stage/params 为后端宽泛结构，展示侧按可缺省处理） */
+  interface RecallResult {
+    stage?: Record<string, any>
+    params?: Record<string, any>
+    hits?: RecallHit[]
+    costMs?: number
+    [key: string]: any
+  }
+
   const kbUuid = ref<string | null>(null)
-  const kbOptions = ref<any[]>([])
+  const kbOptions = ref<Array<{ label: string; value: string }>>([])
   const kbLoading = ref(false)
-  const kbConfig = ref<any>({})
+  const kbConfig = ref<Record<string, any>>({})
 
   const query = ref('')
   const running = ref(false)
-  const result = ref<any>(null)
+  const result = ref<RecallResult | null>(null)
 
   // null = 沿用知识库配置；只把用户真正改过的字段发给后端
   const emptyForm = () => ({
@@ -188,7 +220,7 @@
     neighborEnabled: null,
     neighborWindow: null,
   })
-  const form = reactive<any>(emptyForm())
+  const form = reactive<Record<string, any>>(emptyForm())
   const overrodeFields = ref<string[]>([])
 
   const overrodeLabel = computed(() =>
@@ -229,20 +261,20 @@
       { label: t('kbRecall.stage.fused'), value: s.fusedReturned, sub: p.hybridEnabled ? t('kbRecall.stage.rrf', { k: p.rrfK }) : t('kbRecall.stage.pureVector') },
       { label: t('kbRecall.stage.rerank'), value: s.rerankExecuted ? s.rerankReturned : '-', sub: s.rerankExecuted ? '' : t('kbRecall.stage.notRun') },
       { label: t('kbRecall.stage.final'), value: s.finalReturned, sub: '' },
-      { label: t('kbRecall.stage.cost'), value: result.value.costMs, sub: t('kbRecall.stage.costSub', { embed: s.embeddingMs, vector: s.vectorMs, keyword: s.keywordMs, rerank: s.rerankMs }) },
+      { label: t('kbRecall.stage.cost'), value: result.value?.costMs, sub: t('kbRecall.stage.costSub', { embed: s.embeddingMs, vector: s.vectorMs, keyword: s.keywordMs, rerank: s.rerankMs }) },
     ]
   })
 
-  function scoreCell(hit: any) {
+  function scoreCell(hit: RecallHit) {
     if (hit.storeScore === null || hit.storeScore === undefined) {
       return h(NText, { depth: 3 }, { default: () => '-' })
     }
     return h(NSpace, { vertical: true, size: 0 }, {
       default: () => [
-        h(NText, { strong: true }, { default: () => hit.storeScore.toFixed(4) }),
+        h(NText, { strong: true }, { default: () => hit.storeScore!.toFixed(4) }),
         h(NText, { depth: 3, style: 'font-size: 12px' }, { default: () => t('kbRecall.cos', { v: hit.cosine.toFixed(4) }) }),
         hit.rerankScore !== null && hit.rerankScore !== undefined
-          ? h(NText, { depth: 3, style: 'font-size: 12px' }, { default: () => t('kbRecall.rerankScore', { v: hit.rerankScore.toFixed(4) }) })
+          ? h(NText, { depth: 3, style: 'font-size: 12px' }, { default: () => t('kbRecall.rerankScore', { v: hit.rerankScore!.toFixed(4) }) })
           : null,
       ],
     })
@@ -261,7 +293,7 @@
       title: t('kbRecall.col.source'),
       key: 'source',
       width: 130,
-      render: (row: any) =>
+      render: (row: RecallHit) =>
         h(NSpace, { size: 4, vertical: true }, {
           default: () => [
             h(NTag, { size: 'small', type: (sourceColor[row.source] || 'default') as any, bordered: false }, { default: () => row.source }),
@@ -273,7 +305,7 @@
       title: t('kbRecall.col.doc'),
       key: 'docTitle',
       width: 220,
-      render: (row: any) =>
+      render: (row: RecallHit) =>
         h(NText, {}, {
           default: () =>
             `${row.docTitle || t('kbRecall.unknownDoc')}${row.position === null || row.position === undefined ? '' : t('kbRecall.position', { n: row.position + 1 })}`,
@@ -283,7 +315,7 @@
       title: t('kbRecall.col.rankDetail'),
       key: 'rankDetail',
       width: 150,
-      render: (row: any) =>
+      render: (row: RecallHit) =>
         h(NText, { depth: 3, style: 'font-size: 12px' }, {
           default: () => [
             row.poolRank ? t('kbRecall.poolRank', { n: row.poolRank }) : null,
@@ -295,7 +327,7 @@
     {
       title: t('kbRecall.col.content'),
       key: 'content',
-      render: (row: any) =>
+      render: (row: RecallHit) =>
         h('pre', { class: 'recall-content' }, row.content + (row.truncated ? '\n…' : '')),
     },
   ])
@@ -305,7 +337,7 @@
     try {
       const res: any = await kbApi.search({}, { current: 1, size: 100 })
       const records = res?.data?.records || res?.records || []
-      kbOptions.value = records.map((item: any) => ({ label: item.title, value: item.uuid }))
+      kbOptions.value = records.map((item: KbOption) => ({ label: item.title, value: item.uuid }))
     } catch (e) {
       message.error(t('kbRecall.loadKbFailed'))
     } finally {
@@ -318,7 +350,7 @@
     resetOverrides()
     try {
       const res: any = await kbApi.getInfo(uuid)
-      kbConfig.value = res?.data || {}
+      kbConfig.value = (res?.data || {}) as Record<string, any>
     } catch (e) {
       kbConfig.value = {}
       message.error(t('kbRecall.loadKbFailed'))
@@ -343,8 +375,8 @@
       if (!result.value) {
         message.error(t('kbRecall.runFailed'))
       }
-    } catch (e: any) {
-      message.error(e?.message || t('kbRecall.runFailed'))
+    } catch (e: unknown) {
+      message.error((e instanceof Error ? e.message : '') || t('kbRecall.runFailed'))
     } finally {
       running.value = false
     }

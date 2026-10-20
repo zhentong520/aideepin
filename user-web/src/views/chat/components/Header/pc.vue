@@ -1,8 +1,9 @@
 <script lang="ts" setup>
 import { h, ref } from 'vue'
-import { NButton, NDropdown } from 'naive-ui'
+import PageHeaderBar from '@/components/common/PageHeaderBar.vue'
+import { SvgIcon } from '@/components/common'
 import EditConv from './EditConv.vue'
-import { ApiKeyModal, SvgIcon } from '@/components/common'
+import { ApiKeyModal } from '@/components/common'
 import { useAuthStore } from '@/store'
 import { t } from '@/locales'
 import { emptyCharacter } from '@/utils/functions'
@@ -17,12 +18,11 @@ interface Props {
    */
   title?: string
 }
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   character: () => emptyCharacter(),
   title: '',
 })
 const showEditModal = ref(false)
-
 const showApiKeyModal = ref(false)
 const authStore = useAuthStore()
 
@@ -39,7 +39,7 @@ const options = [
   },
 ]
 
-function handleSelect(key: string) {
+function handleSelect(key: string | number) {
   if (key === 'edit') {
     if (!authStore.checkLoginOrShow())
       return
@@ -54,24 +54,10 @@ function showOrCloseModal(show: boolean) {
 </script>
 
 <template>
-  <header
-    class="sticky top-0 left-0 right-0 z-30 border-b dark:border-neutral-800 bg-white/80 dark:bg-black/20 backdrop-blur"
-  >
-    <div class="relative flex items-center justify-between max-w-screen-xl px-4 m-auto h-12">
-      <div class="flex items-center flex-col mx-2">
-        <p class="text-sm">
-          {{ title || character?.title || '' }}
-        </p>
-      </div>
-      <NDropdown :options="options" @select="handleSelect">
-        <NButton quaternary circle size="small">
-          <template #icon>
-            <SvgIcon icon="ri:more-fill" />
-          </template>
-        </NButton>
-      </NDropdown>
-    </div>
-  </header>
-  <EditConv v-if="character" :show-modal="showEditModal" :character="character" @showModal="showOrCloseModal" />
-  <ApiKeyModal v-if="character" v-model:show="showApiKeyModal" type="character" :uuid="character.uuid" :title="character.title" />
+  <PageHeaderBar :title="title || props.character?.title || ''" :options="options" @select="handleSelect">
+    <template #modals>
+      <EditConv v-if="props.character" :show-modal="showEditModal" :character="props.character" @show-modal="showOrCloseModal" />
+      <ApiKeyModal v-if="props.character" v-model:show="showApiKeyModal" type="character" :uuid="props.character.uuid" :title="props.character.title" />
+    </template>
+  </PageHeaderBar>
 </template>

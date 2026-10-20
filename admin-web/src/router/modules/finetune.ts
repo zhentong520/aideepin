@@ -11,6 +11,7 @@ const routes: Array<RouteRecordRaw> = [
     component: Layout,
     meta: {
       title: 'route.finetuneManagement',
+      permissions: ['admin:finetune:view'],
       icon: renderIcon(Model),
       sort: 6,
     },

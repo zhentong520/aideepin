@@ -107,7 +107,7 @@ async function loadMarket() {
   loading.value = true
   loadingBar.start()
   try {
-    const res = await api.skillPublicSearch(keyword.value || '', 1, 100)
+    const res = await api.skillPublicSearch<PageResponse>(keyword.value || '', 1, 100)
     marketList.value = (res.data && res.data.records) || []
   } finally {
     loading.value = false

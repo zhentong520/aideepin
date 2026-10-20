@@ -119,7 +119,7 @@
   import { AiPlatformData, getColumns } from './platformColumns'
   const columns = getColumns()
   import { PlusOutlined } from '@vicons/antd'
-  import { getYesNo, getDefaultModelPlatforms } from '@/utils/constants'
+  import { getYesNo, getDefaultModelPlatforms } from '@/enums/modelOptions'
   const YES_NO = getYesNo()
   const DEFAULT_MODEL_PLATFORMS = getDefaultModelPlatforms()
   import { type FormRules, useDialog } from 'naive-ui'
@@ -160,7 +160,7 @@
     title: t('common.action'),
     key: 'action',
     fixed: 'right',
-    render(record) {
+    render(record: Recordable) {
       return h(TableAction as any, {
         style: 'button',
         actions: [
@@ -178,7 +178,7 @@
             },
           },
         ],
-        select: (key) => {
+        select: (key: string) => {
           if (key === 'delete') {
             dialog.warning({
               title: t('common.tip'),
@@ -191,7 +191,6 @@
                 handleDelete(record)
               },
               onNegativeClick: () => {
-                console.log('已取消')
               },
             })
           }
@@ -242,18 +241,17 @@
     editFormParams.id = ''
   }
 
-  function onCheckedRow(rowKeys) {
-    console.log(rowKeys)
+  function onCheckedRow(_rowKeys: Array<string | number>) {
   }
 
   function reloadTable() {
     actionRef.value.reload()
   }
 
-  function confirmForm(e) {
+  function confirmForm(e: Event) {
     e.preventDefault()
     formBtnLoading.value = true
-    formRef.value.validate(async (errors) => {
+    formRef.value.validate(async (errors: any) => {
       if (!errors) {
         if (editFormParams.id === '') {
           await api.addOne(editFormParams)
@@ -274,13 +272,11 @@
     })
   }
 
-  function handleSubmit(values: Recordable) {
-    console.log(values)
+  function handleSubmit(_values: Recordable) {
     reloadTable()
   }
 
-  function handleReset(values: Recordable) {
-    console.log(values)
+  function handleReset(_values: Recordable) {
   }
 
   async function handleDelete(record: Recordable) {

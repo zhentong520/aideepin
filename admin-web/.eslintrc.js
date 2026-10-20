@@ -50,7 +50,11 @@ module.exports = defineConfig({
     'vue/custom-event-name-casing': 'off',
     'no-use-before-define': 'off',
     '@typescript-eslint/no-use-before-define': 'off',
-    '@typescript-eslint/ban-ts-comment': 'off',
+    // T5-14：禁止新增 @ts-ignore/@ts-expect-error（历史债务已清零，见 types.ts 模块声明合并）
+    '@typescript-eslint/ban-ts-comment': [
+      'error',
+      { 'ts-ignore': 'allow-with-description', 'ts-expect-error': 'allow-with-description', minimumDescriptionLength: 8 },
+    ],
     '@typescript-eslint/ban-types': 'off',
     '@typescript-eslint/no-non-null-assertion': 'off',
     '@typescript-eslint/explicit-module-boundary-types': 'off',

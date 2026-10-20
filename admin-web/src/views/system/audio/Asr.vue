@@ -34,7 +34,7 @@
   import { ref, reactive, onMounted } from 'vue'
   import { useMessage } from 'naive-ui'
   import { AiModelData } from '/#/aiModel'
-  import { getDefaultModelPlatforms } from '@/utils/constants'
+  import { getDefaultModelPlatforms } from '@/enums/modelOptions'
   import api from '@/api/sysConfig.js'
   import modelApi from '@/api/aiModel'
   import { AsrConfig } from '/#/sysConfig'
@@ -61,23 +61,21 @@
 
   async function reloadConfig() {
     const { data } = await api.search({ names: ['asr_setting'] }, 1, 100)
-    console.log(data)
-    data.records.forEach((record) => {
+    data.records.forEach((record: any) => {
       formValue.value = JSON.parse(record.value) as AsrConfig
     })
 
     const { data: modelData } = await modelApi.search({ type: 'asr' }, { current: 1, size: 100 })
     if (modelData.records.length === 0) {
-      console.log('can not find asr model')
       return
     }
-    modelData.records.forEach((element) => {
+    modelData.records.forEach((element: any) => {
       modelOptions.push({ label: element.title, value: element.name })
       models.push({ ...element })
     })
   }
 
-  function handleModelChange(modelName) {
+  function handleModelChange(modelName: string) {
     formValue.value.model_name = modelName
     const md = models.find((model) => model.name === modelName)
     if (!md) {
@@ -91,7 +89,7 @@
     if (submitting.value) {
       return
     }
-    formRef.value.validate(async (errors) => {
+    formRef.value.validate(async (errors: any) => {
       if (errors) {
         message.error(t('common.fillCompleteInfo'))
       }

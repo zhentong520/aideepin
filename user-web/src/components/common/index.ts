@@ -9,5 +9,8 @@ import ImageModelSelector from './ImageModelSelector.vue'
 import ApiKeyModal from './ApiKeyModal.vue'
 import ApiDocPanel from './ApiDocPanel.vue'
 import UxState from './UxState.vue'
+import MessageBubble from './MessageBubble.vue'
+import AppSider from './AppSider.vue'
+import PageHeaderBar from './PageHeaderBar.vue'
 
-export { HoverButton, NaiveProvider, SvgIcon, UserAvatar, Setting, PromptStore, LLMSelector, ImageModelSelector, ApiKeyModal, ApiDocPanel, UxState }
+export { AppSider, PageHeaderBar, MessageBubble, HoverButton, NaiveProvider, SvgIcon, UserAvatar, Setting, PromptStore, LLMSelector, ImageModelSelector, ApiKeyModal, ApiDocPanel, UxState }

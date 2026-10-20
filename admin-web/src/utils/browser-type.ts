@@ -6,8 +6,8 @@
 export default function BrowserType(lang: 'zh-cn' | 'en' = 'en') {
   // 权重：系统 + 系统版本 > 平台 > 内核 + 载体 + 内核版本 + 载体版本 > 外壳 + 外壳版本
   const ua = navigator.userAgent.toLowerCase()
-  const testUa = (regexp) => regexp.test(ua)
-  const testVs = (regexp) =>
+  const testUa = (regexp: RegExp) => regexp.test(ua)
+  const testVs = (regexp: RegExp) =>
     ua
       .match(regexp)
       ?.toString()

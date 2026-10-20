@@ -19,9 +19,9 @@ export interface BasicColumn<T = InternalRowData> extends TableBaseColumn<T> {
 }
 
 export interface TableActionType {
-  reload: (opt) => Promise<void>
+  reload: (opt?: Record<string, any>) => Promise<void>
   emit?: any
-  getColumns: (opt?) => BasicColumn[]
+  getColumns: (opt?: any) => BasicColumn[]
   setColumns: (columns: BasicColumn[] | string[]) => void
 }
 

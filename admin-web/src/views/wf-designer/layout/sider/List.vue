@@ -4,11 +4,13 @@ import { storeToRefs } from 'pinia'
 import { NButton, NTabPane, NTabs } from 'naive-ui'
 import SubList from './SubList.vue'
 import { useAuthStore, useWfStore } from '@/wf/stores'
+import { useDesignerStore } from '../../useDesignerStore'
 import api from '@/wf/api'
 import { t } from '@/locales'
 const currentPage = ref<number>(1)
 const pageSize = 20
 const wfStore = useWfStore()
+const designerStore = useDesignerStore()
 const { activeUuid, myWorkflows, publicWorkflows, selectedType } = storeToRefs<any>(wfStore)
 const authStore = useAuthStore()
 const authStoreRef = ref(authStore)
@@ -29,29 +31,24 @@ async function loadWfComponents() {
   if (wfStore.wfComponents.length > 0)
     return
 
-  console.log('load wf components')
   const { data: components } = await api.workflowComponents<Workflow.WorkflowComponent[]>()
-  if (components && components.length > 0)
+  if (components && components.length > 0) {
     wfStore.setWorkflowComponents(components)
-  else
-    console.log('workflow components is null')
+  }
 }
 
 async function initMyList() {
   if (wfStore.loadingMyWorkflows || wfStore.myWorkflows.length > 0)
     return
-  console.log('load my workflows')
   wfStore.setLoadingMyWorkflows(true)
   try {
     const { data } = await api.workflowSearchMine<Workflow.InfoListResp>('', currentPage.value, pageSize)
-    console.log('loaded my workflows')
     if (data.records) {
       nextTick(() => {
         wfStore.appendWorkflows(data.records, true)
         // 首次打开工作流时
         if (activeUuid.value === 'default') {
-          console.log('首次打开工作流')
-          wfStore.setActiveAndGo(myWorkflows.value[0].uuid)
+          designerStore.setActiveAndGo(myWorkflows.value[0].uuid)
         }
       })
     }
@@ -78,7 +75,7 @@ async function initPublicList() {
 }
 
 function handleAdd(this: any) {
-  wfStore.setShowCreateView(true, '')
+  designerStore.setShowCreateView(true, '')
 }
 
 watch(
@@ -90,7 +87,6 @@ watch(
 )
 
 onMounted(() => {
-  console.log('workflow list onMounted')
   if (authStoreRef.value.token)
     initAll()
   else

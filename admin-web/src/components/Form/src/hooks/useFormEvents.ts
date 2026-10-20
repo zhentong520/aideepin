@@ -1,5 +1,6 @@
 import type { ComputedRef, Ref } from 'vue'
 import type { FormProps, FormSchema, FormActionType } from '../types/form'
+import type { FormInst } from 'naive-ui'
 import { unref, toRaw } from 'vue'
 import { isFunction } from '@/utils/is'
 
@@ -59,8 +60,7 @@ export function useFormEvents({
 
   //清空校验
   async function clearValidate() {
-    // @ts-ignore
-    await unref(formElRef)?.restoreValidation()
+    await (unref(formElRef) as unknown as FormInst | undefined)?.restoreValidation()
   }
 
   //重置

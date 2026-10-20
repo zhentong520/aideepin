@@ -1,7 +1,7 @@
 import { http } from '@/utils/http/axios'
 
 //获取table
-export function getTableList(params) {
+export function getTableList(params: Record<string, unknown>) {
   return http.request({
     url: '/table/list',
     method: 'get',

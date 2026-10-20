@@ -78,18 +78,18 @@
       title: t('finetune.artifactType'),
       key: 'type',
       width: 100,
-      render: (row) => h(NTag, { size: 'small', type: row.type === 'gguf' ? 'success' : 'info' }, { default: () => row.type }),
+      render: (row: any) => h(NTag, { size: 'small', type: row.type === 'gguf' ? 'success' : 'info' }, { default: () => row.type }),
     },
     { title: t('finetune.name'), key: 'name' },
     { title: 'Base Model', key: 'baseModel', width: 170 },
-    { title: 'Size', width: 100, render: (row) => bytesText(row.sizeBytes) },
+    { title: 'Size', width: 100, render: (row: any) => bytesText(row.sizeBytes) },
     { title: 'Path', key: 'externalPath', ellipsis: { tooltip: true } },
     { title: t('finetune.remark'), key: 'remark', ellipsis: { tooltip: true } },
     {
       title: t('finetune.actions'),
       key: 'actions',
       width: 240,
-      render: (row) =>
+      render: (row: any) =>
         h(NSpace, {}, {
           default: () => [
             h(

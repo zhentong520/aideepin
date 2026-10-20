@@ -1,12 +1,14 @@
 <script setup lang='ts'>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { NBreadcrumb, NBreadcrumbItem, NButton, NCard, NIcon, NInput, NInputNumber, NRadio, NRadioGroup, NSelect, NSpin, NTooltip, useDialog, useMessage } from 'naive-ui'
+import { NBreadcrumb, NBreadcrumbItem, NButton, NCard, NForm, NFormItem, NIcon, NInput, NInputNumber, NRadio, NRadioGroup, NSelect, NSpin, NTooltip, useDialog, useMessage } from 'naive-ui'
+import type { FormInst } from 'naive-ui'
 import { QuestionCircle16Regular } from '@vicons/fluent'
 import { CreateOutline } from '@vicons/ionicons5'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore, useKbStore } from '@/store'
 import { knowledgeBaseEmptyInfo } from '@/utils/functions'
 import { SPLIT_STRATEGY, TOKEN_ESTIMATOR } from '@/utils/constant'
+import { titleRules } from '@/utils/formRules'
 import { t } from '@/locales'
 import api from '@/api'
 
@@ -25,6 +27,9 @@ const loading = ref(false)
 const submitting = ref(false)
 const originalTitle = ref('')
 const itemBoxClass = 'space-y-1'
+// 标题校验（T5-08）：必填 + ≤100（与 maxlength 一致，后端 @NotBlank）
+const kbFormRef = ref<FormInst | null>(null)
+const kbRules = { title: titleRules(t('common.title'), 100) }
 
 // 知识库分类（2026-10-09 二开新增）
 const kbCategories = ref<{ id: number; name: string }[]>([])
@@ -79,6 +84,11 @@ function onTokenEstimatorChange(tokenEstimator: string) {
 }
 
 async function saveOrUpdateKb() {
+  try {
+    await kbFormRef.value?.validate()
+  } catch {
+    return
+  }
   if (tmpKb.ingestSplitStrategy === 'custom' && !tmpKb.ingestCustomSeparator?.trim()) {
     ms.warning(t('knowledgeBase.customSeparatorRequired'))
     return
@@ -166,8 +176,11 @@ onMounted(async () => {
         <NCard style="margin-top: 12px" hoverable>
           <div class="flex flex-col space-y-2">
             <div :class="itemBoxClass">
-              <div>{{ t('common.title') }}<span class="text-red-400"> *</span></div>
-              <NInput v-model:value="tmpKb.title" maxlength="100" :placeholder="t('store.title')" show-count />
+              <NForm ref="kbFormRef" :model="{ title: tmpKb.title }" :rules="kbRules" :show-label="false">
+                <NFormItem path="title" :show-require-mark="true">
+                  <NInput v-model:value="tmpKb.title" maxlength="100" :placeholder="t('store.title')" show-count />
+                </NFormItem>
+              </NForm>
             </div>
             <div :class="itemBoxClass">
               <div>{{ t('knowledgeBase.category') }}</div>

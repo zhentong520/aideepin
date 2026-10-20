@@ -35,7 +35,7 @@ async function load(msgUuid: string) {
 
   loading.value = true
   try {
-    const { data } = await api.memoryEmbeddingRef(msgUuid)
+    const { data } = await api.memoryEmbeddingRef<Chat.MemoryEmbedding[]>(msgUuid)
     chatStore.setMemoryRefs(msgUuid, data)
     // 加载完成后，若用户期间没切到别的消息，再刷新本地引用
     // Only refresh local state if the user hasn't switched to a different message in the meantime.

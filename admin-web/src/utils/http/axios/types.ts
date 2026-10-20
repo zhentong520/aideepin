@@ -1,6 +1,14 @@
 import { AxiosRequestConfig } from 'axios'
 import { AxiosTransform } from './axiosTransform'
 
+// vben 扩展：requestOptions 随请求配置透传到拦截器（Axios.ts / index.ts 消费），
+// 通过模块声明合并让 AxiosRequestConfig 具备该字段，替代 @ts-ignore
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    requestOptions?: RequestOptions
+  }
+}
+
 export interface CreateAxiosOptions extends AxiosRequestConfig {
   transform?: AxiosTransform
   requestOptions?: RequestOptions

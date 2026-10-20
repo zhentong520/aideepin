@@ -1,6 +1,13 @@
 import type { RouteRecordRaw, RouteMeta } from 'vue-router'
 import { defineComponent } from 'vue'
 
+// 路由权限声明扩展：meta.permissions 内的权限码命中任一即放行（见 asyncRoute.ts routeFilter）
+declare module 'vue-router' {
+  interface RouteMeta {
+    permissions?: string[]
+  }
+}
+
 export type Component<T = any> =
   | ReturnType<typeof defineComponent>
   | (() => Promise<typeof import('*.vue')>)

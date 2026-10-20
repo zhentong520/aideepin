@@ -16,19 +16,19 @@ import InputEditor from './InputEditor.vue'
 import RefGraph from './RefGraph.vue'
 import RefMemory from './RefMemory.vue'
 import LoginTip from '@/views/user/LoginTip.vue'
+import { useChatSse } from './composables/useChatSse'
 import { useBasicLayout } from '@/hooks/useBasicLayout'
 import { useAppStore, useAuthStore, useChatStore, useSceneStore } from '@/store'
+import { CHAT_MESSAGE_CONTENT_TYPE } from '@/utils/constant'
 import { getDefaultCharacter } from '@/store/modules/chat/helper'
-import { AUDIO_SYNTHESIZER_SIDE, CHAT_MESSAGE_CONTENT_TYPE } from '@/utils/constant'
 import { SvgIcon } from '@/components/common'
 import api from '@/api'
 import { t } from '@/locales'
 import { debounce } from '@/utils/functions/debounce'
 import { emptyAudioPlayState } from '@/utils/functions'
-let controller = new AbortController()
-
 const pageSize = 10
 const appStore = useAppStore()
+void appStore
 const route = useRoute()
 const ms = useMessage()
 const dialog = useDialog()
@@ -94,9 +94,21 @@ function messageComplelted(questionUuid: string) {
   })
 }
 
+// ==================== SSE 流式控制（T5-10 拆出，见 composables/useChatSse.ts） ====================
+const { fetchChatAPIOnce, stopStream, resetStream } = useChatSse({
+  ms,
+  messages,
+  currCharacter,
+  imageUuids,
+  appendChunk,
+  updateMessageSomeFields,
+  onReceiving: () => chatMessageReceiving(''),
+  onCompleted: () => messageComplelted(''),
+})
+
 function handleStop() {
   if (isChatting.value) {
-    controller.abort()
+    stopStream()
     isChatting.value = false
   }
   inputEditorRef.value?.handleStop()
@@ -117,7 +129,7 @@ async function handleEmbeddingRefClick(qaRecordUuid: string) {
   if (knowledgeEmbeddingRef.value.length === 0) {
     loaddingEmbeddingRef.value = true
     try {
-      const { data } = await api.knowledgeEmbeddingRef(qaRecordUuid)
+      const { data } = await api.knowledgeEmbeddingRef<KnowledgeBase.QaRecordEmbeddingRef[]>(qaRecordUuid)
       chatStore.setKnowledgeEmbeddingRefs(qaRecordUuid, data)
 
       // 显示最后一次点击的引用
@@ -133,143 +145,6 @@ async function handleGraphClick(msgUuid: string) {
   showRefGraphMsgUuid.value = msgUuid
 }
 
-const fetchChatAPIOnce = async (regenerateQuestionUuid: string, childAudioPlayState: AudioPlayState) => {
-  console.log('begin sseProcess')
-
-  const characterUuid = currCharacter.value.uuid
-  const character = chatStore.getCharacterByUuid(characterUuid)
-  if (!character) {
-    ms.error(t('chat.characterNotFound'))
-    return
-  }
-  // 2026-10-05：模型不再由用户选择。改为从「当前会话 → 场景 → 默认智能体」解析。
-  // 解析不到就明确报错，绝不回退到 appStore.selectedLLM 或空模型——
-  // 那会让请求带着空 modelName 发出去，表现为一个难以定位的服务端错误。
-  const model = sceneStore.resolveModelByCharacter(characterUuid)
-  if (!model) {
-    ms.error(t('chat.sceneModelNotBound'))
-    return
-  }
-  api.sseProcess({
-    options: {
-      prompt: '',
-      characterUuid,
-      regenerateQuestionUuid,
-      modelPlatform: model.modelPlatform,
-      modelName: model.modelName,
-      imageUrls: imageUuids.value,
-      audioUuid: '',
-      audioDuration: 0,
-    },
-    signal: controller.signal,
-    startCallback(chunk) {
-    },
-    stateChanged: (state) => {
-      const question = messages.value.find((q: { uuid: string }) => q.uuid === regenerateQuestionUuid)
-      if (!question)
-        return
-
-      question.state = new Map(Object.entries(JSON.parse(state)))
-    },
-    thinkingDataReceived: (chunk) => {
-      const question = messages.value.find((q: { uuid: string }) => q.uuid === regenerateQuestionUuid)
-      if (!question) {
-        ms.error(t('chat.questionNotFound'))
-        return
-      }
-      try {
-        for (let i = 0; i < chunk.length; i++) {
-          appendChunk(
-            characterUuid,
-            question.children[0].uuid,
-            chunk[i],
-            true, // thinking is true
-          )
-          chatMessageReceiving(question.uuid)
-        }
-      } catch (error) {
-        console.error(error)
-      }
-      // 推理阶段无需显示状态
-      question.state = new Map<string, string>()
-    },
-    messageReceived: (chunk) => {
-      const question = messages.value.find((q: { uuid: string }) => q.uuid === regenerateQuestionUuid)
-      if (!question) {
-        ms.error(t('chat.questionNotFound'))
-        return
-      }
-      try {
-        for (let i = 0; i < chunk.length; i++) {
-          appendChunk(
-            characterUuid,
-            question.children[0].uuid,
-            chunk[i],
-          )
-          chatMessageReceiving(question.uuid)
-        }
-      } catch (error) {
-        console.error(error)
-      }
-      const answerContentType = chatStore.answerContentType(character, question.audioUuid)
-      const ttsPartText = chunk.replace('\n', '')
-      if (ttsPartText && appStore.audioSynthesizerSide === AUDIO_SYNTHESIZER_SIDE.client && answerContentType === CHAT_MESSAGE_CONTENT_TYPE.audio && character.isAutoplayAnswer) {
-        // settimeout是防止执行太快导致 AudioMessage 中的 watch 没有触发
-        setTimeout(() => {
-          childAudioPlayState.msgPart = chunk
-        }, 0)
-      }
-    },
-    audioDataReceived(audioFrame) {
-      // AudioMessage 监听pcmPart的变化并决定要不要自动播放
-      if (appStore.audioSynthesizerSide !== AUDIO_SYNTHESIZER_SIDE.client && audioFrame)
-        childAudioPlayState.audioFrame = audioFrame
-    },
-    toolCallReceived: (data) => {
-      const question = messages.value.find((q: { uuid: string }) => q.uuid === regenerateQuestionUuid)
-      if (!question)
-        return
-      const answer = question.children[0]
-      if (!answer.toolCalls)
-        answer.toolCalls = []
-      answer.toolCalls.push(data)
-    },
-    doneCallback: (chunk) => {
-      const question = messages.value.find((q: { uuid: string }) => q.uuid === regenerateQuestionUuid)
-      if (!question) {
-        ms.error(t('chat.questionNotFound'))
-        return
-      }
-      const answer = question.children[0]
-      if (chunk.includes('[META]')) {
-        const meta = chunk.replace('[META]', '')
-        const metaData: Chat.MetaData = JSON.parse(meta)
-        updateMessageSomeFields(characterUuid, question.uuid, { ...metaData.question, inputTokens: metaData.question.inputTokens, loading: false, state: new Map<string, string>() })
-        // inputTokens/outputTokens 由 AnswerMeta 直接提供 | inputTokens/outputTokens provided directly by AnswerMeta
-        updateMessageSomeFields(characterUuid, answer.uuid, { ...metaData.answer, inputTokens: metaData.answer.inputTokens, outputTokens: metaData.answer.outputTokens, duration: metaData.answer.duration, uuid: answer.uuid, loading: false })
-        if (metaData.audioInfo) {
-          answer.audioPlayState.audioUrl = metaData.audioInfo.url
-          answer.audioDuration = metaData.audioInfo.duration
-          answer.audioUuid = metaData.audioInfo.uuid
-        }
-      } else {
-        updateMessageSomeFields(characterUuid, regenerateQuestionUuid, { loading: false })
-        updateMessageSomeFields(characterUuid, answer.uuid, { uuid: answer.uuid, loading: false })
-      }
-      messageComplelted(regenerateQuestionUuid)
-    },
-    errorCallback: (error) => {
-      ms.warning(error)
-      const question = messages.value.find((q: { uuid: string }) => q.uuid === regenerateQuestionUuid)
-      if (!question) {
-        ms.error(t('chat.questionNotFound'))
-        return
-      }
-      updateMessageSomeFields(characterUuid, question.children[0].uuid, { remark: `${t('common.systemTip')}${error}`, loading: false })
-    },
-  })
-}
-
 async function onRegenerate(questionUuid: string) {
   console.log(`onRegenerate,question uuid:${questionUuid}`)
   if (isChatting.value)
@@ -281,7 +156,7 @@ async function onRegenerate(questionUuid: string) {
     return
 
   isChatting.value = true
-  controller = new AbortController()
+  resetStream()
 
   try {
     const answerContentType = chatStore.answerContentType(currCharacter.value, message.audioUuid)
@@ -456,7 +331,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (isChatting.value)
-    controller.abort()
+    stopStream()
 })
 
 onActivated(async () => {

@@ -14,7 +14,7 @@ import {
 } from 'naive-ui'
 import { v4 as uuidv4 } from 'uuid'
 import { SvgIcon } from '@/components/common'
-import { getNameByInputType } from '@/utils/workflow-util'
+import { getNameByInputType } from '@/views/workflow/utils/workflow-util'
 import { useWfStore } from '@/store'
 import { t } from '@/locales'
 interface Props {

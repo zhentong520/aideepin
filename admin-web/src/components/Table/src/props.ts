@@ -38,7 +38,7 @@ export const basicProps = {
     default: null,
   },
   rowKey: {
-    type: [String, Function] as PropType<string | ((record) => string)>,
+    type: [String, Function] as PropType<string | ((record: any) => string)>,
     default: undefined,
   },
   pagination: {

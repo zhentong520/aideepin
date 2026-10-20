@@ -87,7 +87,7 @@
       componentProps: {
         placeholder: t('character.titlePlaceholder'),
         onInput: (e: any) => {
-          console.log(e)
+          console.error(e)
         },
       },
     },
@@ -130,7 +130,7 @@
     title: t('common.action'),
     key: 'action',
     fixed: 'right',
-    render(record) {
+    render(record: Recordable) {
       return h(TableAction as any, {
         style: 'button',
         actions: [
@@ -145,7 +145,7 @@
             key: 'deleteCharacter',
           },
         ],
-        select: (key) => {
+        select: (key: string) => {
           if (key === 'deleteCharacter') {
             dialog.warning({
               title: t('common.tip'),
@@ -158,7 +158,6 @@
                 handleDelete(record)
               },
               onNegativeClick: () => {
-                console.log('已取消')
               },
             })
           }
@@ -173,23 +172,22 @@
     schemas,
   })
 
-  const loadDataTable = async (res) => {
+  const loadDataTable = async (res: any) => {
     const resp = await characterApi.searchCharacters({ ...getFieldsValue() }, res)
     return resp.data
   }
 
-  function onCheckedRow(rowKeys) {
-    console.log(rowKeys)
+  function onCheckedRow(_rowKeys: Array<string | number>) {
   }
 
   function reloadTable() {
     actionRef.value.reload()
   }
 
-  function confirmEditForm(e) {
+  function confirmEditForm(e: Event) {
     e.preventDefault()
     formBtnLoading.value = true
-    formRef.value.validate(async (errors) => {
+    formRef.value.validate(async (errors: any) => {
       if (!errors) {
         await characterApi.editCharacter(editFormParams.uuid, editFormParams)
         window['$message'].success(t('common.editSuccess'))
@@ -215,13 +213,11 @@
     reloadTable()
   }
 
-  function handleSubmit(values: Recordable) {
-    console.log(values)
+  function handleSubmit(_values: Recordable) {
     reloadTable()
   }
 
-  function handleReset(values: Recordable) {
-    console.log(values)
+  function handleReset(_values: Recordable) {
   }
 </script>
 

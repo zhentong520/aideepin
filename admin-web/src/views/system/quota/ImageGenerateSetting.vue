@@ -47,7 +47,6 @@
   watch(
     () => props.quota.daily,
     () => {
-      console.log('imageGenerated', props.quota)
       formValue.daily = props.quota.daily
       formValue.monthly = props.quota.monthly
     },
@@ -57,7 +56,7 @@
     emit('reloadConfig')
   }
   function formSubmit() {
-    formRef.value.validate(async (errors) => {
+    formRef.value.validate(async (errors: any) => {
       await api.edit({ name: 'quota_by_image_daily', value: formValue.daily })
       await api.edit({ name: 'quota_by_image_monthly', value: formValue.monthly })
       if (!errors) {

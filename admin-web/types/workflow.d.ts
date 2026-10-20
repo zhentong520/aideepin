@@ -199,23 +199,6 @@ declare namespace Workflow {
     | SearchMetrics | KnowledgeRetrievalMetrics | MailMetrics | DocumentMetrics
     | McpMetrics | SkillMetrics
 
-  interface WorkflowState {
-    showCreateOrEditView: boolean
-    createOrEditWfUuid: string
-    selectedType: string
-    activeWorkflowInfo: WorkflowInfo
-    wfUuidToUIWorkflow: Map<string, UIWorkflow>
-    activeUuid: string
-    wfComponents: WorkflowComponent[]
-    myWorkflows: WorkflowInfo[]
-    publicWorkflows: WorkflowInfo[]
-    loadingMyWorkflows: boolean,
-    loadingPublicWorkflows: boolean,
-    wfUuidToWfRuntimeLoading: Map<string, boolean>
-    wfUuidToWfRuntimes: Map<string, WorkflowRuntime[]>
-    operators: Operator[]
-    submitting: boolean
-  }
 
   interface InfoListResp {
     total: number,

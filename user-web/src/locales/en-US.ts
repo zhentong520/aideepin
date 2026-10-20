@@ -94,6 +94,11 @@ export default {
     pleaseInputValue: 'Please enter value for: ',
     newCreate: 'Create',
     required: 'Required',
+    // Form validation system (T5-08): generic messages aligned with backend validation semantics
+    fieldRequired: '{field} is required',
+    fieldMaxLength: '{field} must be at most {max} characters',
+    fieldLengthRange: '{field} must be {min}-{max} characters',
+    passwordMinLength: 'Password must be at least {min} characters',
     type: 'Type',
     home: 'Home',
     input: 'Input',

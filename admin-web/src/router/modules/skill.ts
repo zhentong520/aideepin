@@ -11,6 +11,7 @@ const routes: Array<RouteRecordRaw> = [
     component: Layout,
     meta: {
       title: 'route.skillManagement',
+      permissions: ['admin:skill:view'],
       icon: renderIcon(ToolKit),
       sort: 7,
     },

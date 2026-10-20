@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { NAutoComplete, NButton, NCard, NInput, NModal, useMessage } from 'naive-ui'
-import { storeToRefs } from 'pinia'
 import { v4 as uuidv4 } from 'uuid'
 import { useChat } from './hooks/useChat'
 import { SvgIcon } from '@/components/common'
 import AudioRecorder from '@/components/AudioRecorder.vue'
-import { useAppStore, useAuthStore, useChatStore, usePromptStore, useSceneStore } from '@/store'
+import { useAppStore, useAuthStore, useChatStore, useSceneStore } from '@/store'
 import { useBasicLayout } from '@/hooks/useBasicLayout'
 import { emptyAudioPlayState, emptyChatMessage } from '@/utils/functions'
 import { AUDIO_SYNTHESIZER_SIDE, CHAT_MESSAGE_CONTENT_TYPE } from '@/utils/constant'
@@ -34,9 +33,9 @@ const chatStore = useChatStore()
 const sceneStore = useSceneStore()
 const authStore = useAuthStore()
 const ms = useMessage()
-const promptStore = usePromptStore()
 // 使用storeToRefs，保证store修改后，联想部分能够重新渲染
-const { promptList: promptTemplateList } = storeToRefs<any>(promptStore)
+// 「/」唤起的模板下拉候选：搜索结果仅本对话框使用，不进全局 store（T5-11）
+const promptTemplateList = ref<{ label: string; value: string }[]>([])
 const isChatting = ref<boolean>(false)
 const chattingMsg = ref<Chat.ChatMessage>(emptyChatMessage())
 const showAudioRecorderModal = ref<boolean>(false)

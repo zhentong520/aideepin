@@ -1,7 +1,9 @@
 <script setup lang='ts'>
 import { v4 as uuidv4 } from 'uuid'
 import { computed, onMounted, ref } from 'vue'
-import { NButton, NIcon, NImage, NInput, NModal, NSpace, NTabPane, NTabs, NTag, useMessage } from 'naive-ui'
+import { NButton, NForm, NFormItem, NIcon, NImage, NInput, NModal, NSpace, NTabPane, NTabs, NTag, useMessage } from 'naive-ui'
+import type { FormInst } from 'naive-ui'
+import { captchaRules, confirmPasswordRule, emailRules, passwordRules } from '@/utils/formRules'
 // import { useRouter } from 'vue-router'
 import { CheckmarkCircle } from '@vicons/ionicons5'
 import api from '@/api'
@@ -46,6 +48,25 @@ const registerReturnMsg = ref<string>('')
 
 const resetPasswordReturnMsg = ref<string>('')
 
+// 表单校验（T5-08，规则与后端 RegisterReq 等对齐）
+const loginFormRef = ref<FormInst | null>(null)
+const registerFormRef = ref<FormInst | null>(null)
+const forgotFormRef = ref<FormInst | null>(null)
+const loginRules = {
+  email: emailRules(t('common.email')),
+  password: passwordRules(t('common.password')),
+  captchaCode: captchaRules(t('common.captcha')),
+}
+const registerRules = {
+  email: emailRules(t('common.email')),
+  password: passwordRules(t('common.password')),
+  confirmPassword: [confirmPasswordRule(() => password.value, t('common.confirmPassword'))],
+  captchaCode: captchaRules(t('common.captcha')),
+}
+const forgotRules = {
+  email: emailRules(t('common.email')),
+}
+
 const show = computed({
   get: () => props.visible,
   set: (visible: boolean) => emit('update:visible', visible),
@@ -66,13 +87,12 @@ function handlePress(event: KeyboardEvent) {
   }
 }
 
-const confirmPasswordStatus = computed(() => {
-  if (!password.value || !confirmPassword.value)
-    return undefined
-  return password.value !== confirmPassword.value ? 'error' : 'success'
-})
-
 async function handleLogin() {
+  try {
+    await loginFormRef.value?.validate()
+  } catch {
+    return
+  }
   const name = email.value.trim()
   const pwd = password.value.trim()
   if (!name || !pwd) {
@@ -106,6 +126,11 @@ async function handleLogin() {
 }
 
 async function handleRegister() {
+  try {
+    await registerFormRef.value?.validate()
+  } catch {
+    return
+  }
   const mail = email.value.trim()
   const pwd = password.value.trim()
   const confirmPwd = confirmPassword.value.trim()
@@ -130,6 +155,11 @@ async function handleRegister() {
 }
 
 async function handleForgotPassword() {
+  try {
+    await forgotFormRef.value?.validate()
+  } catch {
+    return
+  }
   const name = email.value.trim()
 
   if (!name)
@@ -161,86 +191,104 @@ async function handleForgotPassword() {
 
         <NTabs v-model:value="activeTab" default-value="login" type="line">
           <NTabPane name="login" :tab="t('common.login')">
-            <NSpace vertical>
-              <NInput v-model:value="email" type="text" :placeholder="t('common.email')" :input-props="{ autocomplete: 'on' }" />
-              <NInput
-                v-model:value="password" type="password" show-password-on="click"
-                :placeholder="t('common.password')" @keypress="handlePress"
-              />
-              <NSpace :wrap-item="false">
-                <NInput
-                  v-if="loginCaptchaId" v-model:value="loginCaptchaCode" style="flex:1;height:40px;"
-                  :placeholder="t('common.captcha')"
-                />
-                <NImage
-                  v-if="loginCaptchaId"
-                  :src="`/api/auth/login/captcha?captchaId=${loginCaptchaId}&t_${captchaTimestamp}`"
-                  @click="captchaTimestamp = new Date().getTime()"
-                />
+            <NForm ref="loginFormRef" :model="{ email, password, captchaCode: loginCaptchaCode }" :rules="loginRules" :show-label="false">
+              <NSpace vertical>
+                <NFormItem path="email">
+                  <NInput v-model:value="email" type="text" :placeholder="t('common.email')" :input-props="{ autocomplete: 'on' }" />
+                </NFormItem>
+                <NFormItem path="password">
+                  <NInput
+                    v-model:value="password" type="password" show-password-on="click"
+                    :placeholder="t('common.password')" @keypress="handlePress"
+                  />
+                </NFormItem>
+                <NFormItem v-if="loginCaptchaId" path="captchaCode" :show-feedback="false">
+                  <NSpace :wrap-item="false">
+                    <NInput v-model:value="loginCaptchaCode" style="flex:1;height:40px;" :placeholder="t('common.captcha')" />
+                    <NImage
+                      :src="`/api/auth/login/captcha?captchaId=${loginCaptchaId}&t_${captchaTimestamp}`"
+                      @click="captchaTimestamp = new Date().getTime()"
+                    />
+                  </NSpace>
+                </NFormItem>
+                <NSpace justify="space-between">
+                  <NButton type="primary" size="medium" :disabled="disabled" :loading="loading" @click="handleLogin">
+                    {{ t('common.login') }}
+                  </NButton>
+                  <NButton text type="primary" @click="activeTab = 'forgotPassword'">
+                    {{ t('common.forgotPassword') }}
+                  </NButton>
+                </NSpace>
               </NSpace>
-              <NSpace justify="space-between">
-                <NButton type="primary" size="medium" :disabled="disabled" :loading="loading" @click="handleLogin">
-                  {{ t('common.login') }}
-                </NButton>
-                <NButton text type="primary" @click="activeTab = 'forgotPassword'">
-                  {{ t('common.forgotPassword') }}
-                </NButton>
-              </NSpace>
-            </NSpace>
+            </NForm>
           </NTabPane>
 
           <NTabPane name="register" :tab="t('common.register')">
-            <NSpace vertical>
-              <NInput v-model:value="email" type="text" size="large" :placeholder="t('common.email')" />
-              <NInput
-                v-model:value="password" type="password" size="large" show-password-on="click"
-                :placeholder="t('common.password')"
-              />
-              <NInput
-                v-model:value="confirmPassword" type="password" size="large" show-password-on="click"
-                :placeholder="t('common.confirmPassword')" :status="confirmPasswordStatus"
-              />
-              <NSpace :wrap-item="false">
-                <NInput
-                  v-if="registerCaptchaId" v-model:value="registerCaptchaCode" size="large"
-                  style="flex:1;height:40px;" :placeholder="t('common.captcha')"
-                />
-                <NImage
-                  v-if="registerCaptchaId" object-fit="fill"
-                  :src="`/api/auth/register/captcha?captchaId=${registerCaptchaId}&_t=${captchaTimestamp}`"
-                  @click="captchaTimestamp = new Date().getTime()"
-                />
+            <NForm ref="registerFormRef" :model="{ email, password, confirmPassword, captchaCode: registerCaptchaCode }" :rules="registerRules" :show-label="false">
+              <NSpace vertical>
+                <NFormItem path="email">
+                  <NInput v-model:value="email" type="text" size="large" :placeholder="t('common.email')" />
+                </NFormItem>
+                <NFormItem path="password">
+                  <NInput
+                    v-model:value="password" type="password" size="large" show-password-on="click"
+                    :placeholder="t('common.password')"
+                  />
+                </NFormItem>
+                <NFormItem path="confirmPassword">
+                  <NInput
+                    v-model:value="confirmPassword" type="password" size="large" show-password-on="click"
+                    :placeholder="t('common.confirmPassword')"
+                  />
+                </NFormItem>
+                <NFormItem v-if="registerCaptchaId" path="captchaCode" :show-feedback="false">
+                  <NSpace :wrap-item="false">
+                    <NInput
+                      v-model:value="registerCaptchaCode" size="large"
+                      style="flex:1;height:40px;" :placeholder="t('common.captcha')"
+                    />
+                    <NImage
+                      object-fit="fill"
+                      :src="`/api/auth/register/captcha?captchaId=${registerCaptchaId}&_t=${captchaTimestamp}`"
+                      @click="captchaTimestamp = new Date().getTime()"
+                    />
+                  </NSpace>
+                </NFormItem>
+                <NSpace v-if="registerReturnMsg">
+                  <NTag :type="registerReturnSuccess ? 'success' : 'error'">
+                    {{ registerReturnMsg }}
+                    <template #icon>
+                      <NIcon :component="CheckmarkCircle" />
+                    </template>
+                  </NTag>
+                </NSpace>
+                <NButton
+                  type="primary" size="medium" :disabled="disabled || password !== confirmPassword"
+                  :loading="loading" @click="handleRegister"
+                >
+                  {{ t('common.register') }}
+                </NButton>
               </NSpace>
-              <NSpace v-if="registerReturnMsg">
-                <NTag :type="registerReturnSuccess ? 'success' : 'error'">
-                  {{ registerReturnMsg }}
+            </NForm>
+          </NTabPane>
+
+          <NTabPane name="forgotPassword" :tab="t('common.findMyPassword')">
+            <NForm ref="forgotFormRef" :model="{ email }" :rules="forgotRules" :show-label="false">
+              <NSpace vertical>
+                <NFormItem path="email">
+                  <NInput v-model:value="email" type="text" size="large" :placeholder="t('common.email')" />
+                </NFormItem>
+                <NTag v-if="resetPasswordReturnMsg" :type="resetPasswordReturnMsg ? 'success' : 'error'">
+                  {{ resetPasswordReturnMsg }}
                   <template #icon>
                     <NIcon :component="CheckmarkCircle" />
                   </template>
                 </NTag>
+                <NButton type="primary" :disabled="email.length <= 0" :loading="loading" @click="handleForgotPassword">
+                  {{ t('common.resetPassword') }}
+                </NButton>
               </NSpace>
-              <NButton
-                type="primary" size="medium" :disabled="disabled || password !== confirmPassword"
-                :loading="loading" @click="handleRegister"
-              >
-                {{ t('common.register') }}
-              </NButton>
-            </NSpace>
-          </NTabPane>
-
-          <NTabPane name="forgotPassword" :tab="t('common.findMyPassword')">
-            <NSpace vertical>
-              <NInput v-model:value="email" type="text" size="large" :placeholder="t('common.email')" />
-              <NTag v-if="resetPasswordReturnMsg" :type="resetPasswordReturnMsg ? 'success' : 'error'">
-                {{ resetPasswordReturnMsg }}
-                <template #icon>
-                  <NIcon :component="CheckmarkCircle" />
-                </template>
-              </NTag>
-              <NButton type="primary" :disabled="email.length <= 0" :loading="loading" @click="handleForgotPassword">
-                {{ t('common.resetPassword') }}
-              </NButton>
-            </NSpace>
+            </NForm>
           </NTabPane>
         </NTabs>
       </div>

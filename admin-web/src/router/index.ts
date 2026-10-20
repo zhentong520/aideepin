@@ -14,8 +14,8 @@ const routeModuleList: RouteRecordRaw[] = Object.keys(modules).reduce((list, key
   return [...list, ...modList]
 }, [])
 
-function sortRoute(a, b) {
-  return (a.meta?.sort ?? 0) - (b.meta?.sort ?? 0)
+function sortRoute(a: RouteRecordRaw, b: RouteRecordRaw) {
+  return (Number((a.meta as Record<string, unknown>)?.sort) || 0) - (Number((b.meta as Record<string, unknown>)?.sort) || 0)
 }
 
 routeModuleList.sort(sortRoute)

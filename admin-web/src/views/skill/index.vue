@@ -184,72 +184,97 @@
     skillAdd,
     skillDel,
     skillDelBatch,
-    skillDeleteFile,
-    skillDetail,
     skillEdit,
     skillEnable,
     skillEnableBatch,
     skillExportBatch,
     skillExportZip,
-    skillFileContent,
-    skillFiles,
     skillImportZip,
-    skillRenameFile,
-    skillSaveFile,
     skillSearch,
   } from '@/api/skill';
   import CodeEditor from '@/components/CodeEditor/index.vue';
+  import { useSkillStructure } from './composables/useSkillStructure';
 
   const { t } = useI18n();
   const dialog = useDialog();
   const message = useMessage();
 
   const loading = ref(false);
-  const list = ref<any[]>([]);
+  const list = ref<SkillRow[]>([]);
   const searchKeyword = ref('');
   const pagination = reactive({ page: 1, pageSize: 10, itemCount: 0 });
 
   // 多选（批量导出用）。分页/搜索/增删后都会重置，避免把上一批的 uuid 静默带进下一次导出。
   const checkedKeys = ref<string[]>([]);
 
+  /** 技能列表行 */
+  interface SkillRow {
+    id: number;
+    uuid: string;
+    name: string;
+    title: string;
+    description: string;
+    version: string;
+    content: string;
+    hasScripts: boolean;
+    source: string;
+    isEnable: boolean;
+  }
+
   /** 行唯一键：uuid 而非 id，导出接口按 uuid 取数据 */
-  function rowKey(row: any) {
+  function rowKey(row: SkillRow) {
     return row.uuid;
   }
 
   const editVisible = ref(false);
   const saving = ref(false);
-  const editForm = reactive<any>({ id: null, name: '', title: '', description: '', version: '', content: '' });
+  const editForm = reactive<{ id: number | null; name: string; title: string; description: string; version: string; content: string }>({
+    id: null,
+    name: '',
+    title: '',
+    description: '',
+    version: '',
+    content: '',
+  });
 
   const importVisible = ref(false);
   const importing = ref(false);
-  const importFile = ref<any>(null);
+  const importFile = ref<File | null>(null);
 
-  // 技能包结构抽屉
-  const structVisible = ref(false);
-  const structLoading = ref(false);
-  const structSkill = reactive<any>({ uuid: '', name: '' });
-  const fileItems = ref<any[]>([]);
-  const treeData = ref<any[]>([]);
-  const selectedKeys = ref<string[]>([]);
-  const activeFile = ref<any>(null);
-  const fileContent = ref('');
-  const contentLoading = ref(false);
-
-  // 在线编辑 / 新建文件
-  const editing = ref(false);
-  const editBuffer = ref('');
-  const savingFile = ref(false);
-  const createFileVisible = ref(false);
-  const creatingFile = ref(false);
-  const newFilePath = ref('');
-  const newFileContent = ref('');
-
-  // 重命名 / 移动
-  const renameVisible = ref(false);
-  const renaming = ref(false);
-  const renameFrom = ref('');
-  const renameTo = ref('');
+  // 技能包结构抽屉（逻辑在 useSkillStructure，保存/删除后回刷列表）
+  const {
+    structVisible,
+    structLoading,
+    structSkill,
+    fileItems,
+    treeData,
+    selectedKeys,
+    activeFile,
+    fileContent,
+    contentLoading,
+    editing,
+    editBuffer,
+    savingFile,
+    createFileVisible,
+    creatingFile,
+    newFilePath,
+    newFileContent,
+    renameVisible,
+    renaming,
+    renameFrom,
+    renameTo,
+    openStructure,
+    onSelectKey,
+    startEdit,
+    cancelEdit,
+    saveEdit,
+    doDeleteFile,
+    openCreateFile,
+    doCreateFile,
+    openRename,
+    doRename,
+    copyContent,
+  } = useSkillStructure({ t, message, dialog, reloadList: load });
 
   const columns = [
     { type: 'selection' },
@@ -258,7 +283,7 @@
       title: 'name',
       key: 'name',
       width: 180,
-      render: (row: any) => h(NTag, { size: 'small', type: 'info' }, { default: () => row.name }),
+      render: (row: SkillRow) => h(NTag, { size: 'small', type: 'info' }, { default: () => row.name }),
     },
     { title: t('finetune.name'), key: 'title' },
     { title: t('skill.descriptionLabel'), key: 'description', ellipsis: { tooltip: true } },
@@ -266,25 +291,25 @@
       title: t('skill.hasScripts'),
       key: 'hasScripts',
       width: 100,
-      render: (row: any) => h(NTag, { size: 'small', type: row.hasScripts ? 'success' : 'default' }, { default: () => (row.hasScripts ? 'scripts' : '-') }),
+      render: (row: SkillRow) => h(NTag, { size: 'small', type: row.hasScripts ? 'success' : 'default' }, { default: () => (row.hasScripts ? 'scripts' : '-') }),
     },
     {
       title: t('skill.source'),
       key: 'source',
       width: 90,
-      render: (row: any) => h(NTag, { size: 'small' }, { default: () => row.source }),
+      render: (row: SkillRow) => h(NTag, { size: 'small' }, { default: () => row.source }),
     },
     {
       title: t('skill.status'),
       key: 'isEnable',
       width: 90,
-      render: (row: any) => h(NTag, { size: 'small', type: row.isEnable ? 'success' : 'error' }, { default: () => (row.isEnable ? 'ON' : 'OFF') }),
+      render: (row: SkillRow) => h(NTag, { size: 'small', type: row.isEnable ? 'success' : 'error' }, { default: () => (row.isEnable ? 'ON' : 'OFF') }),
     },
     {
       title: t('common.action'),
       key: 'actions',
       width: 380,
-      render: (row: any) =>
+      render: (row: SkillRow) =>
         h(NSpace, {}, {
           default: () => [
             h(NButton, { size: 'small', onClick: () => openEdit(row) }, { default: () => t('common.edit') }),
@@ -328,7 +353,7 @@
     editVisible.value = true;
   }
 
-  function openEdit(row: any) {
+  function openEdit(row: SkillRow) {
     Object.assign(editForm, { id: row.id, name: row.name, title: row.title, description: row.description, version: row.version, content: row.content });
     editVisible.value = true;
   }
@@ -336,10 +361,11 @@
   async function doSave() {
     saving.value = true;
     try {
-      if (editForm.id) {
-        await skillEdit({ ...editForm });
+      const { id, ...payload } = editForm;
+      if (id) {
+        await skillEdit({ ...payload, id });
       } else {
-        await skillAdd({ ...editForm });
+        await skillAdd(payload);
       }
       message.success(t('common.operationSuccess'));
       editVisible.value = false;
@@ -349,12 +375,13 @@
     }
   }
 
-  function beforeUpload({ file }: any) {
+  function beforeUpload({ file }: { file: { file: File | null } }) {
     importFile.value = file.file;
     return false;
   }
 
   async function doImport() {
+    if (!importFile.value) return;
     importing.value = true;
     try {
       const fd = new FormData();
@@ -369,7 +396,7 @@
     }
   }
 
-  function doEnable(row: any) {
+  function doEnable(row: SkillRow) {
     dialog.warning({
       title: t('common.tip'),
       content: row.isEnable ? t('skill.disableConfirm') : t('skill.enableConfirm'),
@@ -383,7 +410,7 @@
     });
   }
 
-  function doDel(row: any) {
+  function doDel(row: SkillRow) {
     dialog.warning({
       title: t('common.tip'),
       content: t('skill.delConfirm'),
@@ -397,276 +424,13 @@
     });
   }
 
-  /** 打开技能包结构抽屉；默认选中 SKILL.md */
-  async function openStructure(row: any) {
-    structSkill.uuid = row.uuid;
-    structSkill.name = row.name;
-    structVisible.value = true;
-    editing.value = false;
-    editBuffer.value = '';
-    await reloadStructure();
-  }
-
-  /**
-   * 重新拉取文件清单并保持当前选中（keepPath 不存在时回落 SKILL.md）。
-   * 保存 / 新建 / 删除三处都走这里，避免各写一套「刷新 + 复位选中」后行为漂移。
-   */
-  async function reloadStructure(keepPath?: string) {
-    structLoading.value = true;
-    try {
-      const res: any = await skillFiles(structSkill.uuid);
-      fileItems.value = res.data || [];
-      treeData.value = buildTree(fileItems.value);
-      const keep = keepPath ? fileItems.value.find((item: any) => item.path === keepPath) : null;
-      const fallback = fileItems.value.find((item: any) => item.path.toLowerCase() === 'skill.md') || fileItems.value[0];
-      const target = keep || fallback;
-      if (target) {
-        await selectFile(target.path);
-      } else {
-        selectedKeys.value = [];
-        activeFile.value = null;
-        fileContent.value = '';
-      }
-    } catch (e) {
-      message.error(t('skill.loadFailed'));
-    } finally {
-      structLoading.value = false;
-    }
-  }
-
-  /** 选中并加载某个文件的内容 */
-  async function selectFile(path: string) {
-    selectedKeys.value = [path];
-    const item = fileItems.value.find((it: any) => it.path === path);
-    if (!item) {
-      return;
-    }
-    activeFile.value = item;
-    fileContent.value = '';
-    if (!item.textual) {
-      return;
-    }
-    contentLoading.value = true;
-    try {
-      const res: any = await skillFileContent(structSkill.uuid, item.path);
-      fileContent.value = typeof res.data === 'string' ? res.data : '';
-    } catch (e) {
-      message.error(t('skill.loadFailed'));
-    } finally {
-      contentLoading.value = false;
-    }
-  }
-
-  /**
-   * 扁平路径 → 树。目录节点 key 前缀 d:，叶子节点 key 即文件相对路径，
-   * 这样点击叶子能直接回查 fileItems 拿到 textual/virtual 等元信息。
-   */
-  function buildTree(items: any[]) {
-    const roots: any[] = [];
-    const dirMap: Record<string, any> = {};
-    items.forEach((item) => {
-      const parts = String(item.path).split('/');
-      let parent = roots;
-      let cur = '';
-      for (let i = 0; i < parts.length - 1; i++) {
-        cur = cur ? `${cur}/${parts[i]}` : parts[i];
-        if (!dirMap[cur]) {
-          const node = { key: `d:${cur}`, label: parts[i], isLeaf: false, children: [] };
-          dirMap[cur] = node;
-          parent.push(node);
-        }
-        parent = dirMap[cur].children;
-      }
-      parent.push({ key: item.path, label: parts[parts.length - 1], isLeaf: true });
-    });
-    return roots;
-  }
-
-  /**
-   * 树选中回调。编辑态下切换文件会丢未保存内容，先弹确认；用户取消时把受控的
-   * selectedKeys 复位回原文件，避免左侧高亮与右侧内容不一致。
-   */
-  async function onSelectKey(keys: string[]) {
-    const key = keys && keys[0];
-    if (!key || key.startsWith('d:')) {
-      return;
-    }
-    if (key === (activeFile.value && activeFile.value.path)) {
-      selectedKeys.value = [key];
-      return;
-    }
-    if (editing.value && editBuffer.value !== fileContent.value) {
-      selectedKeys.value = activeFile.value ? [activeFile.value.path] : [];
-      dialog.warning({
-        title: t('common.tip'),
-        content: t('skill.discardConfirm'),
-        positiveText: t('common.confirm'),
-        negativeText: t('common.cancel'),
-        onPositiveClick: async () => {
-          editing.value = false;
-          await selectFile(key);
-        },
-      });
-      return;
-    }
-    editing.value = false;
-    await selectFile(key);
-  }
-
-  function startEdit() {
-    if (!activeFile.value || !activeFile.value.textual) {
-      return;
-    }
-    editBuffer.value = fileContent.value;
-    editing.value = true;
-  }
-
-  function cancelEdit() {
-    editing.value = false;
-    editBuffer.value = '';
-  }
-
-  /** 保存编辑中的文件。虚拟 SKILL.md 改的是技能元信息，故保存后需同步列表与抽屉标题 */
-  async function saveEdit() {
-    const path = activeFile.value && activeFile.value.path;
-    if (!path) {
-      return;
-    }
-    if (editBuffer.value === fileContent.value) {
-      editing.value = false;
-      return;
-    }
-    savingFile.value = true;
-    try {
-      await skillSaveFile(structSkill.uuid, path, editBuffer.value);
-      message.success(t('skill.fileSaved'));
-      editing.value = false;
-      await reloadStructure(path);
-      await load();
-      await syncStructSkillName();
-    } catch (e) {
-      message.error(t('skill.saveFailed'));
-    } finally {
-      savingFile.value = false;
-    }
-  }
-
-  /** 编辑 SKILL.md 可能改了 name/description，回读一次让抽屉标题跟上 */
-  async function syncStructSkillName() {
-    try {
-      const res: any = await skillDetail(structSkill.uuid);
-      if (res && res.data && res.data.name) {
-        structSkill.name = res.data.name;
-      }
-    } catch (e) {
-      /* 标题同步失败不影响主流程 */
-    }
-  }
-
-  function doDeleteFile() {
-    const path = activeFile.value && activeFile.value.path;
-    if (!path) {
-      return;
-    }
-    dialog.warning({
-      title: t('common.tip'),
-      content: t('skill.deleteFileConfirm', { path }),
-      positiveText: t('common.confirm'),
-      negativeText: t('common.cancel'),
-      onPositiveClick: async () => {
-        try {
-          await skillDeleteFile(structSkill.uuid, path);
-          message.success(t('common.deleteSuccess'));
-          editing.value = false;
-          await reloadStructure();
-          await load();
-        } catch (e) {
-          message.error(t('skill.deleteFailed'));
-        }
-      },
-    });
-  }
-
-  function openCreateFile() {
-    newFilePath.value = '';
-    newFileContent.value = '';
-    createFileVisible.value = true;
-  }
-
-  async function doCreateFile() {
-    const path = String(newFilePath.value || '').replace(/\\/g, '/').trim();
-    if (!path) {
-      message.error(t('skill.filePathRequired'));
-      return;
-    }
-    // 已存在同名文件时后端会覆盖，这里直接拦下并引导用户去编辑，避免误覆盖脚本
-    if (fileItems.value.some((it: any) => it.path === path)) {
-      message.error(t('skill.fileExists'));
-      return;
-    }
-    creatingFile.value = true;
-    try {
-      await skillSaveFile(structSkill.uuid, path, newFileContent.value);
-      message.success(t('common.operationSuccess'));
-      createFileVisible.value = false;
-      await reloadStructure(path);
-      await load();
-    } catch (e) {
-      message.error(t('skill.saveFailed'));
-    } finally {
-      creatingFile.value = false;
-    }
-  }
-
-  function openRename() {
-    const path = activeFile.value && activeFile.value.path;
-    if (!path) {
-      return;
-    }
-    renameFrom.value = path;
-    renameTo.value = path;
-    renameVisible.value = true;
-  }
-
-  /** 重命名 / 移动：改目录与改名是同一个操作，只是新路径带上了别的目录 */
-  async function doRename() {
-    const from = renameFrom.value;
-    const to = String(renameTo.value || '').replace(/\\/g, '/').trim();
-    if (!to) {
-      message.error(t('skill.filePathRequired'));
-      return;
-    }
-    if (to === from) {
-      renameVisible.value = false;
-      return;
-    }
-    // 后端是「目标已存在即拒绝」的语义，这里先拦一次给出更直白的提示
-    if (fileItems.value.some((it: any) => it.path === to)) {
-      message.error(t('skill.fileExists'));
-      return;
-    }
-    renaming.value = true;
-    try {
-      await skillRenameFile(structSkill.uuid, from, to);
-      message.success(t('skill.fileRenamed'));
-      renameVisible.value = false;
-      editing.value = false;
-      await reloadStructure(to);
-      await load();
-    } catch (e) {
-      message.error(t('skill.renameFailed'));
-    } finally {
-      renaming.value = false;
-    }
-  }
-
   /**
    * 勾选行对应的技能 id。
    * checkedKeys 存的是 uuid（表格 row-key），而启停/删除接口按 id 操作，这里做一次映射；
    * 只从当前页 list 里取，勾选残留不会变成对不存在行的操作。
    */
   function checkedIds(): number[] {
-    return list.value.filter((row: any) => checkedKeys.value.includes(row.uuid)).map((row: any) => row.id);
+    return list.value.filter((row) => checkedKeys.value.includes(row.uuid)).map((row) => row.id);
   }
 
   async function doBatchEnable(isEnable: boolean) {
@@ -707,17 +471,8 @@
     });
   }
 
-  async function copyContent() {
-    try {
-      await navigator.clipboard.writeText(fileContent.value);
-      message.success(t('extApi.copySuccess'));
-    } catch (e) {
-      message.error(t('skill.loadFailed'));
-    }
-  }
-
   /** 导出技能包 zip：原生响应拿 Blob，出错时后端返回的是 JSON，需先识别再提示 */
-  async function doExport(row: any) {
+  async function doExport(row: SkillRow) {
     try {
       const resp: any = await skillExportZip(row.uuid);
       saveBlobResponse(resp, `${row.name || 'skill'}.zip`);

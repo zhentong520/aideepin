@@ -3,12 +3,14 @@ import { onActivated, onUnmounted, ref, watch } from 'vue'
 import { NIcon } from 'naive-ui'
 import { Cloud32Regular, LockClosed32Regular } from '@vicons/fluent'
 import { useWfStore } from '@/wf/stores'
+import { useDesignerStore } from '../../useDesignerStore'
 import { SvgIcon } from '@/wf/components'
 import { useScroll } from '@/wf/hooks'
 import { useBasicLayout } from '@/wf/hooks'
 import { t } from '@/locales'
 const props = defineProps<Props>()
 const wfStore = useWfStore()
+const designerStore = useDesignerStore()
 const { scrollRef, scrollTo, scrollToTop } = useScroll()
 const mouseEnterKbUuid = ref<string>('')
 const { isMobile } = useBasicLayout()
@@ -20,7 +22,7 @@ interface Props {
 async function handleSelect({ uuid }: Workflow.WorkflowInfo) {
   if (props.activeWfUuid === uuid)
     return
-  wfStore.setActiveAndGo(uuid)
+  designerStore.setActiveAndGo(uuid)
 }
 
 async function handleScroll(event: any) {
@@ -80,7 +82,7 @@ onUnmounted(() => {
             <button class="p-1">
               <SvgIcon
                 :icon="(!item.isPublic) ? 'carbon:edit' : 'carbon:information'"
-                @click.stop="wfStore.setShowCreateView(true, item.uuid)"
+                @click.stop="designerStore.setShowCreateView(true, item.uuid)"
               />
             </button>
           </div>

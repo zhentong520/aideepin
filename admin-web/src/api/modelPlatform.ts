@@ -1,6 +1,6 @@
 import { http } from '@/utils/http/axios'
 
-function search(data, params: { current: number; size: number }) {
+function search(data: any, params: { current: number; size: number }) {
   return http.request({
     url: `/admin/model-platform/search?currentPage=${params.current}&pageSize=${params.size}`,
     method: 'post',
@@ -8,7 +8,7 @@ function search(data, params: { current: number; size: number }) {
   })
 }
 
-function addOne(data) {
+function addOne(data: any) {
   return http.request({
     url: '/admin/model-platform/add',
     method: 'post',
@@ -16,7 +16,7 @@ function addOne(data) {
   })
 }
 
-function edit(data) {
+function edit(data: any) {
   return http.request({
     url: '/admin/model-platform/edit',
     method: 'post',

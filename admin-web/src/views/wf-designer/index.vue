@@ -10,14 +10,12 @@ import { useBasicLayout } from '@/wf/hooks'
 import { useAuthStore, useWfStore } from '@/wf/stores'
 import { emptyWorkflowInfo } from '@/wf/utils/functions'
 
-console.log('workflow index')
 const route = useRoute()
 const workflowStore = useWfStore()
 const authStore = useAuthStore()
 const { isMobile } = useBasicLayout()
 const { uuid: currWfUuid, viewType } = route.params as { uuid: string; viewType: string }
 const selectedViewType = ref(!viewType ? 'instanceList' : viewType)
-console.log('authStore.token', authStore.token)
 const currWorkflowInfo = computed(() => {
   return workflowStore.getWorkflowInfo(currWfUuid) || emptyWorkflowInfo()
 })

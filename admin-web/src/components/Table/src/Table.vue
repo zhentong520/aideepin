@@ -191,19 +191,19 @@
       })
 
       //页码切换
-      function updatePage(page) {
+      function updatePage(page: number) {
         setPagination({ page: page })
         reload()
       }
 
       //分页数量切换
-      function updatePageSize(size) {
+      function updatePageSize(size: number) {
         setPagination({ page: 1, pageSize: size })
         reload()
       }
 
       //密度切换
-      function densitySelect(e) {
+      function densitySelect(e: string) {
         state.tableSize = e
       }
 

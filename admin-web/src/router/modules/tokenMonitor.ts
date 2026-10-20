@@ -22,6 +22,7 @@ const routes: Array<RouteRecordRaw> = [
     component: Layout,
     meta: {
       title: 'route.tokenMonitor',
+      permissions: ['admin:tokenMonitor:view'],
       icon: renderIcon(LineChartOutlined),
       sort: 6,
     },

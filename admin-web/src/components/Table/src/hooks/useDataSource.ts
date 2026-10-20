@@ -6,8 +6,8 @@ import { APISETTING } from '../const'
 
 export function useDataSource(
   propsRef: ComputedRef<BasicTableProps>,
-  { getPaginationInfo, setPagination, setLoading, tableData },
-  emit
+  { getPaginationInfo, setPagination, setLoading, tableData }: any,
+  emit: any
 ) {
   const dataSourceRef = ref<Recordable[]>([])
 
@@ -43,7 +43,7 @@ export function useDataSource(
     return unref(dataSourceRef)
   })
 
-  async function fetch(opt?) {
+  async function fetch(opt?: Record<string, any>): Promise<any> {
     try {
       setLoading(true)
       const { request, pagination, beforeRequest, afterRequest }: any = unref(propsRef)
@@ -54,7 +54,7 @@ export function useDataSource(
       const totalField = APISETTING.totalField
       const listField = APISETTING.listField
       const itemCount = APISETTING.countField
-      let pageParams = {}
+      let pageParams: Record<string, any> = {}
       const { page = 1, pageSize = 10 } = unref(getPaginationInfo) as PaginationProps
 
       if ((isBoolean(pagination) && !pagination) || isBoolean(getPaginationInfo)) {
@@ -126,7 +126,7 @@ export function useDataSource(
     }, 16)
   })
 
-  function setTableData(values) {
+  function setTableData(values: Recordable[]) {
     dataSourceRef.value = values
   }
 
@@ -134,7 +134,7 @@ export function useDataSource(
     return getDataSourceRef.value
   }
 
-  async function reload(opt?) {
+  async function reload(opt?: Record<string, any>) {
     await fetch(opt)
   }
 

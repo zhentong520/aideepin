@@ -4,7 +4,7 @@ import { NInput } from 'naive-ui'
 import { useWfStore } from '@/store'
 import { t } from '@/locales'
 import { SvgIcon } from '@/components/common'
-import { getNodeConfigSummary } from '@/utils/workflow-util'
+import { getNodeConfigSummary } from '@/views/workflow/utils/workflow-util'
 // T5-03：面板数据源 —— 图标/图标色/色条色/标题从节点描述文件按 type 读取
 // T3-08：面板 UI 重构 —— customPanel 节点沿用原属性组件，其余由 SchemaForm 按 configSchema 生成三段式表单
 import { getWfNodeDescriptor } from './components/nodes/descriptor'

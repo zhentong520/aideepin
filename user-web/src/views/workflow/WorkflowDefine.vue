@@ -19,7 +19,7 @@ import type { WfReplayEvent } from '@/views/workflow/components/wf-replay'
 import WfDefineRightPanel from '@/views/workflow/WfDefineRightPanel.vue'
 import WfDefineSidebar from '@/views/workflow/WfDefineSiderbar.vue'
 import { emptyWorkflowInfo } from '@/utils/functions'
-import { autoLayoutWorkflow, buildUiEdge, createNewEdge, createNewNode, getComponentTitle, rebuildUiWorkflow, remapClonedNodeConfig, wfNodeToUiNode } from '@/utils/workflow-util'
+import { autoLayoutWorkflow, buildUiEdge, createNewEdge, createNewNode, getComponentTitle, rebuildUiWorkflow, remapClonedNodeConfig, wfNodeToUiNode } from '@/views/workflow/utils/workflow-util'
 import { getWorkflowHistory, isSameWfSnapshot, pushWorkflowHistory, takeWfSnapshot } from '@/utils/workflow-history'
 import type { WfSnapshot } from '@/utils/workflow-history'
 import { validateWorkflow } from '@/utils/workflow-validate'
@@ -669,7 +669,7 @@ async function onSave() {
 
   submitting.value = true
   try {
-    const { data: updatedWorkflow } = await api.workflowUpdate(props.workflow)
+    const { data: updatedWorkflow } = await api.workflowUpdate<Workflow.WorkflowInfo>(props.workflow)
     ms.success(t('common.saveSuccessTip'))
     // 只需要更新新增节点和边的id
     wfStore.updateNodesAndEdgesId(props.workflow.uuid, updatedWorkflow)

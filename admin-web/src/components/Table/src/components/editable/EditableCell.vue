@@ -126,7 +126,7 @@
           }
         }
 
-        const onEvent: any = editComponent ? EventEnum[editComponent] : undefined
+        const onEvent: any = editComponent ? (EventEnum as Record<string, string>)[editComponent] : undefined
 
         return {
           placeholder: createPlaceholderMessage(unref(getComponent)),

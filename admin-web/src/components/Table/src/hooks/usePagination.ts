@@ -33,7 +33,7 @@ export function usePagination(refProps: ComputedRef<BasicTableProps>) {
       pageSizes: PAGESIZES, // 每页条数
       showSizePicker: true,
       showQuickJumper: true,
-      prefix: (pagingInfo) => t('table.totalCount', { count: pagingInfo.itemCount }),
+      prefix: (pagingInfo: any) => t('table.totalCount', { count: pagingInfo.itemCount }),
       ...(isBoolean(pagination) ? {} : pagination),
       ...unref(configRef),
     }

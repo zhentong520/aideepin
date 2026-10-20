@@ -4,6 +4,7 @@ import { NButton, NDropdown, NTag, useMessage } from 'naive-ui'
 import { ApiKeyModal, HoverButton, SvgIcon } from '@/wf/components'
 import { emptyWorkflowInfo } from '@/wf/utils/functions'
 import { useAuthStore, useUserStore, useWfStore } from '@/wf/stores'
+import { useDesignerStore } from '../useDesignerStore'
 import api from '@/wf/api'
 import { t } from '@/locales'
 interface Props {
@@ -18,6 +19,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emit>()
 const ms = useMessage()
 const wfStore = useWfStore()
+const designerStore = useDesignerStore()
 const authStore = useAuthStore()
 const userStore = useUserStore()
 const showViewType = ref<string>('instanceList')
@@ -73,7 +75,7 @@ function toogleView() {
 function showEditView() {
   if (!authStore.checkLoginOrShow())
     return
-  wfStore.setShowCreateView(true, props.workflow.uuid)
+  designerStore.setShowCreateView(true, props.workflow.uuid)
 }
 
 async function onCopy() {

@@ -4,7 +4,7 @@ import { NSelect } from 'naive-ui'
 import type { VNodeChild } from 'vue'
 import type { SelectGroupOption, SelectOption } from 'naive-ui'
 import { emptyWorkflowInfo } from '@/utils/functions'
-import { getIconByComponentName, getIconClassByComponentName } from '@/utils/workflow-util'
+import { getIconByComponentName, getIconClassByComponentName } from '@/views/workflow/utils/workflow-util'
 import { SvgIcon } from '@/components/common'
 import { t } from '@/locales'
 interface Props {

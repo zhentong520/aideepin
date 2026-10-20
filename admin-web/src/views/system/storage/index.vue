@@ -55,13 +55,12 @@
   const typeTitle = computed(
     () => typeTabList.value.find((item) => item.key === type.value)?.name || ''
   )
-  function switchType(e) {
+  function switchType(e: { key: number }) {
     type.value = e.key
   }
   async function loadData() {
     const { data: records } = await api.search({ names: ['storage_location'] }, 1, 10)
     if (records.length === 0) {
-      console.log('can not find storage_location confing')
       return
     }
     selectedStorageLocation.value = parseInt(records[0].value)

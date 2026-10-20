@@ -4,7 +4,7 @@ import type { NodeProps } from '@vue-flow/core'
 import CommonNodeHeader from '../CommonNodeHeader.vue'
 import { useWfStore } from '@/store'
 import { t } from '@/locales'
-import { getInputLabelFromParamName } from '@/utils/workflow-util'
+import { getInputLabelFromParamName } from '@/views/workflow/utils/workflow-util'
 
 interface WfProps {
   workflow: Workflow.WorkflowInfo

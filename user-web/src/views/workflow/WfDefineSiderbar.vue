@@ -2,7 +2,7 @@
 import { t } from '@/locales'
 import { useWfStore } from '@/store'
 import { SvgIcon } from '@/components/common'
-import { getComponentTitle, getIconByComponentName, getIconClassByComponentName } from '@/utils/workflow-util'
+import { getComponentTitle, getIconByComponentName, getIconClassByComponentName } from '@/views/workflow/utils/workflow-util'
 // T3-14：内置节点模板（可整体拖入画布）
 import { wfNodePresets } from './components/nodes'
 import { localizedText } from './components/wf-vars'

@@ -1,6 +1,6 @@
 import { http } from '@/utils/http/axios'
 
-function searchPresetCharacters(data, params: { current: number; size: number }) {
+function searchPresetCharacters(data: any, params: { current: number; size: number }) {
   return http.request({
     url: `/admin/character-preset/search?currentPage=${params.current}&pageSize=${params.size}`,
     method: 'post',
@@ -8,7 +8,7 @@ function searchPresetCharacters(data, params: { current: number; size: number })
   })
 }
 
-function addPresetCharacter(data) {
+function addPresetCharacter(data: any) {
   return http.request({
     url: '/admin/character-preset/addOne',
     method: 'post',
@@ -16,7 +16,7 @@ function addPresetCharacter(data) {
   })
 }
 
-function editPresetCharacter(uuid: string, data) {
+function editPresetCharacter(uuid: string, data: any) {
   return http.request({
     url: `/admin/character-preset/edit/${uuid}`,
     method: 'post',
@@ -31,7 +31,7 @@ function deletePresetCharacter(uuid: string) {
   })
 }
 
-function searchCharacters(data, params: { current: number; size: number }) {
+function searchCharacters(data: any, params: { current: number; size: number }) {
   return http.request({
     url: `/admin/character/search?currentPage=${params.current}&pageSize=${params.size}`,
     method: 'post',
@@ -39,7 +39,7 @@ function searchCharacters(data, params: { current: number; size: number }) {
   })
 }
 
-function editCharacter(uuid: string, data) {
+function editCharacter(uuid: string, data: any) {
   return http.request({
     url: `/admin/character/edit/${uuid}`,
     method: 'post',

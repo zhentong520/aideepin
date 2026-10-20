@@ -68,8 +68,7 @@ export class VAxios {
       conf = beforeRequestHook(conf, opt)
     }
 
-    //这里重新 赋值成最新的配置
-    // @ts-ignore
+    //这里重新 赋值成最新的配置（requestOptions 由 types.ts 中的 axios 模块声明合并提供）
     conf.requestOptions = opt
 
     return new Promise((resolve, reject) => {

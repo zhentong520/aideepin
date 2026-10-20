@@ -191,7 +191,7 @@
     title: t('common.action'),
     key: 'action',
     fixed: 'right',
-    render(record) {
+    render(record: Recordable) {
       return h(TableAction as any, {
         style: 'button',
         actions: [
@@ -239,12 +239,12 @@
     editFormParams.isAdmin = false
   }
 
-  const loadDataTable = async (res) => {
+  const loadDataTable = async (res: any) => {
     const resp = await userApi.search({ ...getFieldsValue() }, res)
     return resp.data
   }
 
-  function onCheckedRow(_rowKeys) {
+  function onCheckedRow(_rowKeys: Array<string | number>) {
     // 选中行回调
   }
 
@@ -252,10 +252,10 @@
     actionRef.value.reload()
   }
 
-  function confirmEditForm(e) {
+  function confirmEditForm(e: Event) {
     e.preventDefault()
     formBtnLoading.value = true
-    formRef.value.validate(async (errors) => {
+    formRef.value.validate(async (errors: any) => {
       try {
         if (!errors) {
           if (editFormParams.uuid === '') {

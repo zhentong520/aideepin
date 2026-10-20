@@ -206,16 +206,16 @@
       title: t('finetune.sp.status'),
       key: 'status',
       width: 120,
-      render: (row) => h(NTag, { size: 'small', type: statusTagType(row.status) }, { default: () => t(`finetune.sp.status_${row.status}`) }),
+      render: (row: any) => h(NTag, { size: 'small', type: statusTagType(row.status) }, { default: () => t(`finetune.sp.status_${row.status}`) }),
     },
     { title: t('finetune.sp.qualityNote'), key: 'qualityNote', ellipsis: { tooltip: true } },
-    { title: t('finetune.sp.datasetId'), key: 'datasetId', width: 110, render: (row) => (row.datasetId > 0 ? row.datasetId : '-') },
+    { title: t('finetune.sp.datasetId'), key: 'datasetId', width: 110, render: (row: any) => (row.datasetId > 0 ? row.datasetId : '-') },
     { title: t('finetune.createTime'), key: 'createTime', width: 170 },
     {
       title: t('finetune.actions'),
       key: 'actions',
       width: 170,
-      render: (row) =>
+      render: (row: any) =>
         h('div', {}, [
           h(
             NButton,

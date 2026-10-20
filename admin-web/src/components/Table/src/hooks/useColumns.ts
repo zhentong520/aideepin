@@ -36,7 +36,7 @@ export function useColumns(propsRef: ComputedRef<BasicTableProps>) {
     return isIfShow
   }
 
-  const renderTooltip = (trigger, content) => {
+  const renderTooltip = (trigger: any, content: any) => {
     return h(NTooltip, null, {
       trigger: () => trigger,
       default: () => content,
@@ -47,10 +47,10 @@ export function useColumns(propsRef: ComputedRef<BasicTableProps>) {
     const pageColumns = unref(getColumnsRef)
     const columns = cloneDeep(pageColumns)
     return columns
-      .filter((column) => {
+      .filter((column: any) => {
         return hasPermission(column.auth as string[]) && isIfShow(column)
       })
-      .map((column) => {
+      .map((column: any) => {
         //默认 ellipsis 为true
         column.ellipsis = typeof column.ellipsis === 'undefined' ? { tooltip: true } : false
         const { edit } = column
@@ -130,14 +130,14 @@ export function useColumns(propsRef: ComputedRef<BasicTableProps>) {
   //获取
   function getColumns(): BasicColumn[] {
     const columns = toRaw(unref(getColumnsRef))
-    return columns.map((item) => {
+    return columns.map((item: BasicColumn) => {
       return { ...item, title: item.title, key: item.key, fixed: item.fixed || undefined }
     })
   }
 
   //获取原始
   function getCacheColumns(isKey?: boolean): any[] {
-    return isKey ? cacheColumns.map((item) => item.key) : cacheColumns
+    return isKey ? cacheColumns.map((item: BasicColumn) => item.key) : cacheColumns
   }
 
   //更新原始数据单个字段

@@ -37,7 +37,7 @@ export const useUserStore = defineStore({
     setAvatar(avatar: string) {
       this.avatar = avatar
     },
-    setPermissions(permissions) {
+    setPermissions(permissions: string[]) {
       this.permissions = permissions
     },
     setUserInfo(info: UserInfoType) {
@@ -58,7 +58,7 @@ export const useUserStore = defineStore({
         this.setToken(data.token)
         this.setUserInfo(data)
       } else {
-        console.log(`login fail, erroCode:${code},errorMessage:${message}`)
+        console.error(`login fail, erroCode:${code},errorMessage:${message}`)
       }
       return response
     },

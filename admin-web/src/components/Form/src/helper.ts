@@ -26,7 +26,7 @@ function genType() {
  */
 export const dateItemType = genType()
 
-export function defaultType(component) {
+export function defaultType(component: string) {
   if (component === 'NInput') return ''
   if (component === 'NInputNumber') return null
   return [

@@ -87,12 +87,11 @@
     onMounted,
     nextTick,
   } from 'vue'
-  import { useRoute, useRouter } from 'vue-router'
+  import { useRoute, useRouter, type RouteLocationNormalizedLoaded } from 'vue-router'
   import { storage } from '@/utils/Storage'
   import { TABS_ROUTES } from '@/store/mutation-types'
   import { useTabsViewStore } from '@/store/modules/tabsView'
   import { useAsyncRouteStore } from '@/store/modules/asyncRoute'
-  import { RouteItem } from '@/store/modules/tabsView'
   import { useProjectSetting } from '@/hooks/setting/useProjectSetting'
   import { useMessage } from 'naive-ui'
   import Draggable from 'vuedraggable'
@@ -112,6 +111,7 @@
   import { useProjectSettingStore } from '@/store/modules/projectSetting'
   import { useThemeVars } from 'naive-ui'
   import { useGo } from '@/hooks/web/usePage'
+  import type { RouteItem } from '@/store/modules/tabsView'
   import { t } from '@/locales'
 
   export default defineComponent({
@@ -165,9 +165,9 @@
       })
 
       // 获取简易的路由对象
-      const getSimpleRoute = (route): RouteItem => {
+      const getSimpleRoute = (route: RouteLocationNormalizedLoaded): RouteItem => {
         const { fullPath, hash, meta, name, params, path, query } = route
-        return { fullPath, hash, meta, name, params, path, query }
+        return { fullPath, hash, meta, name: (name ?? '') as string, params, path, query }
       }
 
       const isMixMenuNoneSub = computed(() => {
@@ -254,9 +254,10 @@
       tabsViewStore.initTabs(cacheRoutes)
 
       //监听滚动条
-      function onScroll(e) {
+      function onScroll(e: Event) {
+        const target = e.target as HTMLElement
         let scrollTop =
-          e.target.scrollTop ||
+          target.scrollTop ||
           document.documentElement.scrollTop ||
           window.pageYOffset ||
           document.body.scrollTop // 滚动条偏移量
@@ -307,7 +308,7 @@
       })
 
       // 关闭当前页面
-      const removeTab = (route) => {
+      const removeTab = (route: RouteItem) => {
         if (tabsList.value.length === 1) {
           return message.warning(t('layout.tabsView.lastTabWarning'))
         }
@@ -334,7 +335,7 @@
       provide('reloadPage', reloadPage)
 
       // 关闭左侧
-      const closeLeft = (route) => {
+      const closeLeft = (route: RouteItem) => {
         tabsViewStore.closeLeftTabs(route)
         state.activeKey = route.fullPath
         router.replace(route.fullPath)
@@ -342,7 +343,7 @@
       }
 
       // 关闭右侧
-      const closeRight = (route) => {
+      const closeRight = (route: RouteItem) => {
         tabsViewStore.closeRightTabs(route)
         state.activeKey = route.fullPath
         router.replace(route.fullPath)
@@ -350,7 +351,7 @@
       }
 
       // 关闭其他
-      const closeOther = (route) => {
+      const closeOther = (route: RouteItem) => {
         tabsViewStore.closeOtherTabs(route)
         state.activeKey = route.fullPath
         router.replace(route.fullPath)
@@ -365,7 +366,7 @@
       }
 
       //tab 操作
-      const closeHandleSelect = (key) => {
+      const closeHandleSelect = (key: string) => {
         switch (key) {
           //刷新
           case '1':
@@ -373,11 +374,11 @@
             break
           //关闭
           case '2':
-            removeTab(route)
+            removeTab(getSimpleRoute(route))
             break
           //关闭其他
           case '3':
-            closeOther(route)
+            closeOther(getSimpleRoute(route))
             break
           //关闭所有
           case '4':
@@ -392,7 +393,7 @@
        * @param value 要滚动到的位置
        * @param amplitude 每次滚动的长度
        */
-      function scrollTo(value: number, amplitude: number) {
+      function scrollTo(value: number, amplitude: number): void {
         const currentScroll = navScroll.value.scrollLeft
         const scrollWidth =
           (amplitude > 0 && currentScroll + amplitude >= value) ||
@@ -401,7 +402,7 @@
             : currentScroll + amplitude
         navScroll.value && navScroll.value.scrollTo(scrollWidth, 0)
         if (scrollWidth === value) return
-        return window.requestAnimationFrame(() => scrollTo(value, amplitude))
+        window.requestAnimationFrame(() => scrollTo(value, amplitude))
       }
 
       function scrollPrev() {
@@ -455,7 +456,7 @@
         updateNavScroll(true)
       }
 
-      function handleContextMenu(e, item) {
+      function handleContextMenu(e: MouseEvent, item: RouteItem) {
         e.preventDefault()
         isCurrent.value = PageEnum.BASE_HOME_REDIRECT === item.path
         state.showDropdown = false
@@ -471,17 +472,17 @@
       }
 
       //tags 跳转页面
-      function goPage(e) {
+      function goPage(e: RouteItem) {
         const { fullPath } = e
         if (fullPath === route.fullPath) return
-        state.activeKey = fullPath
-        go(e, true)
+        state.activeKey = fullPath as string
+        go(e.fullPath as string, true)
       }
 
       //删除tab
-      function closeTabItem(e) {
+      function closeTabItem(e: RouteItem) {
         const { fullPath } = e
-        const routeInfo = tabsList.value.find((item) => item.fullPath == fullPath)
+        const routeInfo = tabsList.value.find((item: RouteItem) => item.fullPath == fullPath)
         removeTab(routeInfo)
       }
 

@@ -14,6 +14,7 @@ import WfDefineSidebar from '@/views/wf-designer/WfDefineSiderbar.vue'
 import { emptyWorkflowInfo } from '@/wf/utils/functions'
 import { createNewEdge, createNewNode } from '@/wf/utils/workflow-util'
 import { useUserStore, useWfStore } from '@/wf/stores'
+import { useDesignerStore } from './useDesignerStore'
 import api from '@/wf/api'
 import { t } from '@/locales'
 interface Props {
@@ -29,6 +30,7 @@ const submitting = ref<boolean>(false)
 const hidePropertyPanel = ref<boolean>(true)
 const selectedWfNode = ref<Workflow.WorkflowNode>()
 const wfStore = useWfStore()
+const designerStore = useDesignerStore()
 const userStore = useUserStore()
 
 const saveDisabledTip = computed(() => {
@@ -41,15 +43,14 @@ const saveDisabledTip = computed(() => {
 
 const { onInit, fitView, onConnect, onNodeClick, onEdgeClick, onNodesChange, onEdgesChange, onNodeDragStop, addSelectedNodes, project } = useVueFlow()
 
-const uw = wfStore.wfUuidToUIWorkflow.get(props.workflow.uuid) || { nodes: [] as Array<Node>, edges: [] as Array<Edge> }
-wfStore.wfUuidToUIWorkflow.set(props.workflow.uuid, uw)
+const uw = designerStore.wfUuidToUIWorkflow.get(props.workflow.uuid) || { nodes: [] as Array<Node>, edges: [] as Array<Edge> }
+designerStore.wfUuidToUIWorkflow.set(props.workflow.uuid, uw)
 const uiWorkflow = reactive(uw)
 
 function renderGraph() {
   if (uiWorkflow.nodes.length > 0)
     return
 
-  console.log('renderGraph')
   const initX = 10
   const initY = 50
   const wfNodes = props.workflow.nodes
@@ -92,7 +93,6 @@ onNodesChange((changes: NodeChange[]) => {
     if ('selected' in change) {
       if (!change.selected && selectedWfNode.value?.uuid === change.id) {
         nodeUnSelected = true
-        console.log('node selected', change.id)
       }
     }
     // else if ('dragging' in change) {
@@ -110,9 +110,8 @@ onNodesChange((changes: NodeChange[]) => {
     hidePropertyPanel.value = true
 })
 
-onEdgesChange((changes) => {
+onEdgesChange((_changes) => {
   // changes are arrays of type `EdgeChange`
-  console.log(changes)
 })
 
 /**
@@ -121,7 +120,6 @@ onEdgesChange((changes) => {
  * You can add additional properties to your new edge (like a type or label) or block the creation altogether by not calling `addEdges`
  */
 onConnect((connection) => {
-  console.log('onConnect', connection)
   createNewEdge({
     workflow: props.workflow,
     uiWorkflow,
@@ -133,7 +131,6 @@ onConnect((connection) => {
 
 // any event that is emitted from the `<VueFlow />` component can be listened to using the `onEventName` method
 onInit(() => {
-  console.log('onInit')
   // `instance` is the same type as the return of `useVueFlow` (VueFlowStore)
   nextTick(() => {
     fitView()
@@ -183,9 +180,8 @@ function onDrop(event: DragEvent) {
  * 3. the node that initiated the drag
  * 4. any intersections with other nodes
  */
-onNodeDragStop(({ event, nodes, node }) => {
+onNodeDragStop(({ node }) => {
   // selectedWfNode.value = node.data
-  console.log('Node drag stop:', nodes, node, event)
   if (node) {
     node.data.positionX = node.position.x
     node.data.positionY = node.position.y
@@ -194,8 +190,7 @@ onNodeDragStop(({ event, nodes, node }) => {
 })
 
 // Node click event handler
-onNodeClick(({ event, node }) => {
-  console.log('Node clicked:', node, event)
+onNodeClick(({ node }) => {
   if (node.selected) {
     hidePropertyPanel.value = false
     selectedWfNode.value = node.data
@@ -203,8 +198,7 @@ onNodeClick(({ event, node }) => {
 })
 
 // Edge click event handler
-onEdgeClick(({ event, edge }) => {
-  console.log('Edge clicked:', edge, event)
+onEdgeClick(() => {
   if (selectedWfNode.value)
     hidePropertyPanel.value = false
 })
@@ -224,14 +218,13 @@ async function onSave() {
     // 只需要更新新增节点和边的id
     wfStore.updateNodesAndEdgesId(props.workflow.uuid, updatedWorkflow)
   } catch (e) {
-    console.log(e)
+    console.error(e)
   } finally {
     submitting.value = false
   }
 }
 
 onMounted(() => {
-  console.log('workflow define onMounted', this)
   nextTick(() => {
     if (wfStore.wfComponents.length === 0) {
       setTimeout(() => {
@@ -244,7 +237,6 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  console.log('workflow define onUnMounted', this)
 })
 </script>
 

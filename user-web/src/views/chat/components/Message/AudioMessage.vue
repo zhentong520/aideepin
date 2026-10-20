@@ -183,7 +183,7 @@ function handleSelect(key: 'delete' | 'showText' | 'showAudio') {
       audioPlayState.showText = true
       if (!audioPlayState.text) {
         asRawText.value = false
-        api.messageTextByAudio(audioPlayState.audioUuid).then((res) => {
+        api.messageTextByAudio<string>(audioPlayState.audioUuid).then((res) => {
           audioPlayState.text = res.data
         })
       }

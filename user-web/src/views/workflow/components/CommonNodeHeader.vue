@@ -2,7 +2,7 @@
 import { computed, h } from 'vue'
 import { NDropdown, NTooltip } from 'naive-ui'
 import { SvgIcon } from '@/components/common'
-import { getIconByComponentName, getIconClassByComponentName, getNodeColorByComponentName, getNodeConfigSummary } from '@/utils/workflow-util'
+import { getIconByComponentName, getIconClassByComponentName, getNodeColorByComponentName, getNodeConfigSummary } from '@/views/workflow/utils/workflow-util'
 import { getNodeValidationIssues } from '@/utils/workflow-validate'
 import { getWfNodeDescriptor } from '../components/nodes/descriptor'
 import { useWfStore } from '@/store'

@@ -56,7 +56,7 @@
     emit('reloadConfig')
   }
   function formSubmit() {
-    formRef.value.validate(async (errors) => {
+    formRef.value.validate(async (errors: any) => {
       await api.edit({
         name: 'request_image_rate_limit',
         value: JSON.stringify({ times: formValue.times, minutes: formValue.minutes }),

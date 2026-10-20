@@ -9,7 +9,7 @@ import { configHtmlPlugin } from './html';
 import { configMockPlugin } from './mock';
 import { configCompressPlugin } from './compress';
 
-export function createVitePlugins(viteEnv: ViteEnv, isBuild: boolean, prodMock) {
+export function createVitePlugins(viteEnv: ViteEnv, isBuild: boolean, prodMock: boolean) {
   const { VITE_USE_MOCK, VITE_BUILD_COMPRESS, VITE_BUILD_COMPRESS_DELETE_ORIGIN_FILE } = viteEnv;
 
   const vitePlugins: (Plugin | Plugin[] | PluginOption[])[] = [

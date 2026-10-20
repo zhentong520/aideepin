@@ -258,8 +258,6 @@ declare namespace Chat {
 	}
 
 	interface GalleryState {
-		loadingUuid: string
-		loading: boolean
 		publicDraws: Draw[]
 		myStarDraws: Draw[]
 	}

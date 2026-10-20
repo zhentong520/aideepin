@@ -317,7 +317,7 @@
             </n-button>
             <n-button v-if="catForm.id" @click="resetCatForm">{{ t('common.cancel') }}</n-button>
           </n-space>
-          <n-data-table :columns="catColumns" :data="categories" :row-key="(r) => r.id" size="small" />
+          <n-data-table :columns="catColumns" :data="categories" :row-key="(r: any) => r.id" size="small" />
         </n-space>
       </div>
     </n-modal>
@@ -480,7 +480,7 @@
       title: t('common.action'),
       key: 'action',
       width: 130,
-      render(row) {
+      render(row: Recordable) {
         return h(TableAction as any, {
           style: 'button',
           actions: [
@@ -569,7 +569,7 @@
     title: t('common.action'),
     key: 'action',
     fixed: 'right',
-    render(record) {
+    render(record: Recordable) {
       return h(TableAction as any, {
         style: 'button',
         actions: [
@@ -597,7 +597,7 @@
             key: 'delete',
           },
         ],
-        select: (key) => {
+        select: (key: string) => {
           if (key === 'rebuildKeywordIndex') {
             handleRebuildKeywordIndex(record)
           } else if (key === 'delete') {
@@ -627,12 +627,12 @@
     schemas,
   })
 
-  const loadDataTable = async (res) => {
+  const loadDataTable = async (res: any) => {
     const resp = await api.search({ ...getFieldsValue() }, res)
     return resp.data
   }
 
-  function onCheckedRow(_rowKeys) {
+  function onCheckedRow(_rowKeys: Array<string | number>) {
     // 选中行回调
   }
 
@@ -640,10 +640,10 @@
     actionRef.value.reload()
   }
 
-  function confirmForm(e) {
+  function confirmForm(e: Event) {
     e.preventDefault()
     formBtnLoading.value = true
-    formRef.value.validate(async (errors) => {
+    formRef.value.validate(async (errors: any) => {
       if (!errors) {
         await api.edit({ ...editFormParams, isPublic: editFormParams.isPublic })
         window['$message'].success(t('common.editSuccess'))
@@ -747,7 +747,7 @@
       { current: 1, size: 100 }
     )
     if (resp && resp.records) {
-      resp.records.forEach((item) => {
+      resp.records.forEach((item: any) => {
         aiModelOpts.value.push({ label: item.name, value: item.id })
       })
     }
@@ -757,7 +757,7 @@
     )
     rerankModelOpts.value = [{ label: t('common.no'), value: 0 }]
     if (rerankResp && rerankResp.records) {
-      rerankResp.records.forEach((item) => {
+      rerankResp.records.forEach((item: any) => {
         rerankModelOpts.value.push({ label: item.name, value: item.id })
       })
     }

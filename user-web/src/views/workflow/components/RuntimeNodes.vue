@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { NImage, NImageGroup } from 'naive-ui'
 import { SvgIcon } from '@/components/common'
-import { getIconByComponentName, getIconClassByComponentName } from '@/utils/workflow-util'
+import { getIconByComponentName, getIconClassByComponentName } from '@/views/workflow/utils/workflow-util'
 // T5-03（第六处收敛点）：指标 chip 由节点描述文件 metrics 声明驱动，新增节点在 descriptor.ts 声明 metrics 即可显示
 import { getWfNodeDescriptor } from '@/views/workflow/components/nodes/descriptor'
 import { useAuthStore } from '@/store'

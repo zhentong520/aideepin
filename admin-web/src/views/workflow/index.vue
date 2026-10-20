@@ -85,7 +85,7 @@
       componentProps: {
         placeholder: t('common.title'),
         onInput: (e: any) => {
-          console.log(e)
+          console.error(e)
         },
       },
     },
@@ -105,7 +105,7 @@
           },
         ],
         onUpdateValue: (e: any) => {
-          console.log(e)
+          console.error(e)
         },
       },
     },
@@ -125,7 +125,7 @@
           },
         ],
         onUpdateValue: (e: any) => {
-          console.log(e)
+          console.error(e)
         },
       },
     },
@@ -168,7 +168,7 @@
     title: t('common.action'),
     key: 'action',
     fixed: 'right',
-    render(record) {
+    render(record: Recordable) {
       return h(TableAction as any, {
         style: 'button',
         actions: [
@@ -201,7 +201,7 @@
             key: 'delete',
           },
         ],
-        select: (key) => {
+        select: (key: string) => {
           if (key === 'delete') {
             dialog.warning({
               title: t('common.tip'),
@@ -214,7 +214,6 @@
                 handleDel(record)
               },
               onNegativeClick: () => {
-                console.log('已取消')
               },
             })
           }
@@ -229,23 +228,22 @@
     schemas,
   })
 
-  const loadDataTable = async (res) => {
+  const loadDataTable = async (res: any) => {
     const resp = await workflowApi.search({ ...getFieldsValue() }, res)
     return resp.data
   }
 
-  function onCheckedRow(rowKeys) {
-    console.log(rowKeys)
+  function onCheckedRow(_rowKeys: Array<string | number>) {
   }
 
   function reloadTable() {
     actionRef.value.reload()
   }
 
-  function confirmEditForm(e) {
+  function confirmEditForm(e: Event) {
     e.preventDefault()
     formBtnLoading.value = true
-    formRef.value.validate(async (errors) => {
+    formRef.value.validate(async (errors: any) => {
       if (!errors) {
         await workflowApi.updateBaseInfo(editFormParams)
         window['$message'].success(t('common.editSuccess'))
@@ -278,13 +276,11 @@
     reloadTable()
   }
 
-  function handleSubmit(values: Recordable) {
-    console.log(values)
+  function handleSubmit(_values: Recordable) {
     reloadTable()
   }
 
-  function handleReset(values: Recordable) {
-    console.log(values)
+  function handleReset(_values: Recordable) {
   }
 
   async function handleDel(record: Recordable) {

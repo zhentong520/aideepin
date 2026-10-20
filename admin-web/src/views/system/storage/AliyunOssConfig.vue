@@ -57,7 +57,7 @@
 
   async function loadData() {
     const { data: records } = await api.search({ keyword: 'storage_location_ali_oss' }, 1, 10)
-    records.forEach((element) => {
+    records.forEach((element: any) => {
       const val = element.value
       if (element.name === 'storage_location_ali_oss') {
         const jsonVal = JSON.parse(val)
@@ -66,14 +66,12 @@
     })
   }
   function formSubmit() {
-    console.log(formValue.value)
-    console.log(JSON.stringify(formValue.value))
     if (loading.value) return
     loading.value = true
     setTimeout(() => {
       loading.value = false
     }, 2000)
-    formRef.value.validate(async (errors) => {
+    formRef.value.validate(async (errors: any) => {
       await api.edit({ name: 'storage_location_ali_oss', value: JSON.stringify(formValue.value) })
       if (!errors) {
         loadData()
@@ -89,7 +87,7 @@
     setTimeout(() => {
       loading.value = false
     }, 2000)
-    formRef.value.validate(async (errors) => {
+    formRef.value.validate(async (errors: any) => {
       if (!errors) {
         await api.edit({ name: 'storage_location', value: '2' })
         message.success(t('system.aliyunOssSuccess'))

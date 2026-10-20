@@ -31,7 +31,11 @@ export function wrapperEnv(envConf: Recordable): ViteEnv {
     if (envName === 'VITE_PROXY') {
       try {
         realName = JSON.parse(realName);
-      } catch (error) {}
+      } catch (error) {
+        throw new Error(
+          `[admin-web] VITE_PROXY 配置非法，无法 JSON.parse: "${envConf[envName]}"，应为形如 [["/api","http://localhost:9999"]] 的 JSON`
+        );
+      }
     }
     ret[envName] = realName;
     process.env[envName] = realName;

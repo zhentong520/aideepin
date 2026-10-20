@@ -176,7 +176,7 @@
         )
       })
 
-      function getComponentProps(schema) {
+      function getComponentProps(schema: any) {
         const compProps = schema.componentProps ?? {}
         const component = schema.component
         return {
@@ -192,7 +192,7 @@
           rules: {},
         }
         const schemas: any = formProps.schemas || []
-        schemas.forEach((item) => {
+        schemas.forEach((item: any) => {
           if (item.rules && isArray(item.rules)) {
             rulesObj.rules[item.field] = item.rules
           }

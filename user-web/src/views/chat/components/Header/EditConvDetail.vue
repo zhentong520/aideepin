@@ -28,7 +28,7 @@ const skillOptions = ref<any[]>([])
 
 async function loadSkillOptions() {
   try {
-    const res = await api.skillPublicSearch('', 1, 100)
+    const res = await api.skillPublicSearch<PageResponse>('', 1, 100)
     skillOptions.value = ((res.data && res.data.records) || []).filter((s: any) => s.isEnable)
   } catch (e) {
     skillOptions.value = []

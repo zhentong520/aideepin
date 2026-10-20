@@ -1,9 +1,10 @@
 <script setup lang='ts'>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { NAlert, NBreadcrumb, NBreadcrumbItem, NButton, NCard, NCheckbox, NInput, NInputNumber, NSelect, NSpace, NSpin, NUpload, useDialog, useMessage } from 'naive-ui'
-import type { UploadFileInfo } from 'naive-ui'
+import { NAlert, NBreadcrumb, NBreadcrumbItem, NButton, NCard, NCheckbox, NForm, NFormItem, NInput, NInputNumber, NSelect, NSpace, NSpin, NUpload, useDialog, useMessage } from 'naive-ui'
+import type { FormInst, UploadFileInfo } from 'naive-ui'
 import { useRoute, useRouter } from 'vue-router'
 import { knowledgeBaseEmptyInfo, knowledgeBaseEmptyItem } from '@/utils/functions'
+import { titleRules } from '@/utils/formRules'
 import { t } from '@/locales'
 import api from '@/api'
 
@@ -63,8 +64,16 @@ const pageTitle = computed(() => {
 
 // 控制 input 按钮
 const inputStatus = computed(() => tmpItem.title.trim().length < 1 && !submitting.value)
+// 标题校验（T5-08）：必填 + ≤100
+const docFormRef = ref<FormInst | null>(null)
+const docRules = { title: titleRules(t('store.title'), 100) }
 
 async function saveOrUpdate() {
+  try {
+    await docFormRef.value?.validate()
+  } catch {
+    return
+  }
   // 破坏性生成在保存前需二次确认：已有问答对=清空重建；从其他模式切到 qa=丢弃现有分段
   // 并由 AI 生成（切模式时复选框是自动勾上的，用户未必意识到已开启生成）
   if (tmpItem.segmentMode === 'qa' && tmpItem.autoGenerateQa && (hasQaPairs.value || segmentModeChanged.value)) {
@@ -151,7 +160,11 @@ onMounted(async () => {
       <NSpin :show="loading">
         <NSpace vertical>
           {{ t('store.title') }}
-          <NInput v-model:value="tmpItem.title" maxlength="100" show-count />
+          <NForm ref="docFormRef" :model="{ title: tmpItem.title }" :rules="docRules" :show-label="false">
+            <NFormItem path="title" :show-feedback="false">
+              <NInput v-model:value="tmpItem.title" maxlength="100" show-count />
+            </NFormItem>
+          </NForm>
           {{ t('knowledgeBase.segmentMode') }}
           <NSelect :value="tmpItem.segmentMode" :options="segmentModeOptions" :on-update:value="onSegmentModeChange" />
           <div style="font-size: 12px; opacity: 0.7" class="flex flex-col">

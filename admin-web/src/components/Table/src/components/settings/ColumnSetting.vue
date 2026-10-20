@@ -158,7 +158,7 @@
       }
 
       //切换
-      function onChange(checkList) {
+      function onChange(checkList: any[]) {
         if (state.selection) {
           checkList.unshift('selection')
         }
@@ -166,14 +166,14 @@
       }
 
       //设置
-      function setColumns(columns) {
+      function setColumns(columns: any[]) {
         table.setColumns(columns)
       }
 
       //获取
       function getColumns() {
         let newRet: any[] = []
-        table.getColumns().forEach((item) => {
+        table.getColumns().forEach((item: any) => {
           newRet.push({ ...item })
         })
         return newRet
@@ -184,7 +184,7 @@
         state.checkList = [...state.defaultCheckList]
         state.checkAll = true
         let cacheColumnsKeys: any[] = table.getCacheColumns()
-        let newColumns = cacheColumnsKeys.map((item) => {
+        let newColumns = cacheColumnsKeys.map((item: any) => {
           return {
             ...item,
             fixed: undefined,
@@ -195,7 +195,7 @@
       }
 
       //全选
-      function onCheckAll(e) {
+      function onCheckAll(e: boolean) {
         let checkList = table.getCacheColumns(true)
         if (e) {
           setColumns(checkList)
@@ -214,7 +214,7 @@
       }
 
       //勾选列
-      function onSelection(e) {
+      function onSelection(e: boolean) {
         let checkList = table.getCacheColumns()
         if (e) {
           checkList.unshift({ type: 'selection', key: 'selection' })
@@ -225,17 +225,17 @@
         }
       }
 
-      function onMove(e) {
+      function onMove(e: any) {
         if (e.draggedContext.element.draggable === false) return false
         return true
       }
 
       //固定
-      function fixedColumn(item, fixed) {
+      function fixedColumn(item: any, fixed: 'left' | 'right' | undefined) {
         if (!state.checkList.includes(item.key)) return
         let columns = getColumns()
         const isFixed = item.fixed === fixed ? undefined : fixed
-        let index = columns.findIndex((res) => res.key === item.key)
+        let index = columns.findIndex((res: any) => res.key === item.key)
         if (index !== -1) {
           columns[index].fixed = isFixed
         }

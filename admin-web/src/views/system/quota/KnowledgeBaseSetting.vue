@@ -56,7 +56,7 @@
     emit('reloadConfig')
   }
   function formSubmit() {
-    formRef.value.validate(async (errors) => {
+    formRef.value.validate(async (errors: any) => {
       await api.edit({ name: 'quota_by_qa_ask_daily', value: formValue.daily })
       await api.edit({ name: 'quota_by_qa_item_monthly', value: formValue.monthly })
       if (!errors) {

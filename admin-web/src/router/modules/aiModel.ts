@@ -22,6 +22,7 @@ const routes: Array<RouteRecordRaw> = [
     component: Layout,
     meta: {
       title: 'route.modelManagement',
+      permissions: ['admin:aiModel:view'],
       icon: renderIconWithProps(CodeSandboxOutlined, { size: 24 }),
       sort: 3,
     },

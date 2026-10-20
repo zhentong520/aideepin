@@ -22,6 +22,7 @@ const routes: Array<RouteRecordRaw> = [
     component: Layout,
     meta: {
       title: 'route.userManagement',
+      permissions: ['admin:user:view'],
       icon: renderIcon(UserOutlined),
       sort: 1,
     },

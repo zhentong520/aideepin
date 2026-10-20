@@ -96,11 +96,8 @@ for (let i = 0; i < nodes.length; i++) {
     })
   }
 }
-console.log('options', options)
 nextTick(() => {
-  console.log('selectedVar', selectedVar)
   selectedVar.value = `${props.wfRefVar.node_uuid}::${props.wfRefVar.node_param_name}`
-  console.log('selectedVar2', selectedVar)
 })
 
 function handleSelect(value: string) {

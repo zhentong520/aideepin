@@ -22,6 +22,7 @@ const routes: Array<RouteRecordRaw> = [
     component: Layout,
     meta: {
       title: 'route.workflow',
+      permissions: ['admin:workflow:view'],
       icon: renderIcon(Flow),
       sort: 5,
     },

@@ -54,16 +54,25 @@ watch(() => innerShow.value, (val) => {
   }
 })
 
+interface ExtKeyInfo {
+  maskedKey: string
+  canManage: boolean
+}
+interface ExtKeySecret {
+  maskedKey: string
+  rawKey: string
+}
+
 async function fetchKeyInfo() {
   if (loading.value)
     return
   loading.value = true
   try {
-    let data
+    let data: ExtKeyInfo | undefined
     if (isUserLevelType.value)
-      data = (await api.extApiKeyUserInfo(props.type)).data
+      data = (await api.extApiKeyUserInfo<ExtKeyInfo>(props.type)).data
     else
-      data = (await api.extApiKeyInfo(props.type, props.uuid)).data
+      data = (await api.extApiKeyInfo<ExtKeyInfo>(props.type, props.uuid)).data
     maskedKey.value = data?.maskedKey ?? ''
     canManage.value = data?.canManage ?? false
     rawKey.value = ''
@@ -81,11 +90,11 @@ async function fetchKeyInfo() {
 async function handleGenerate() {
   loading.value = true
   try {
-    let data
+    let data: ExtKeySecret | undefined
     if (isUserLevelType.value)
-      data = (await api.extApiKeyUserGenerate(props.type)).data
+      data = (await api.extApiKeyUserGenerate<ExtKeySecret>(props.type)).data
     else
-      data = (await api.extApiKeyGenerate(props.type, props.uuid)).data
+      data = (await api.extApiKeyGenerate<ExtKeySecret>(props.type, props.uuid)).data
     maskedKey.value = data.maskedKey
     rawKey.value = data.rawKey
     justGenerated.value = true
@@ -105,11 +114,11 @@ async function handleReveal() {
   }
   loading.value = true
   try {
-    let data
+    let data: ExtKeySecret | undefined
     if (isUserLevelType.value)
-      data = (await api.extApiKeyUserReveal(props.type)).data
+      data = (await api.extApiKeyUserReveal<ExtKeySecret>(props.type)).data
     else
-      data = (await api.extApiKeyReveal(props.type, props.uuid)).data
+      data = (await api.extApiKeyReveal<ExtKeySecret>(props.type, props.uuid)).data
     rawKey.value = data.rawKey
     showingRaw.value = true
   } catch {

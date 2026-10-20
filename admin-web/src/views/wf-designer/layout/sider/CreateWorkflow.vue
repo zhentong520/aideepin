@@ -4,6 +4,7 @@ import { NAvatar, NButton, NDivider, NFlex, NFormItem, NInput, NModal, NPopconfi
 import { SvgIcon } from '@/wf/components'
 import defaultAvatar from '@/assets/avatar.jpg'
 import { useAuthStore, useUserStore, useWfStore } from '@/wf/stores'
+import { useDesignerStore } from '../../useDesignerStore'
 import api from '@/wf/api'
 import { t } from '@/locales'
 import { emptyWorkflowInfo } from '@/wf/utils/functions'
@@ -12,6 +13,7 @@ const saving = ref<boolean>(false)
 const tmpWorkflow = ref<Workflow.WorkflowInfo>(emptyWorkflowInfo())
 
 const wfStore = useWfStore()
+const designerStore = useDesignerStore()
 const userStore = useUserStore()
 const authStore = useAuthStore()
 const ms = useMessage()
@@ -39,7 +41,7 @@ async function handleSave(event?: KeyboardEvent) {
     }
     tmpWorkflow.value = emptyWorkflowInfo()
   } catch (error: any) {
-    console.log('Create workflow error', error)
+    console.error('Create workflow error', error)
     if (error.message) {
       ms.error(error.message, {
         duration: 2000,
@@ -47,7 +49,7 @@ async function handleSave(event?: KeyboardEvent) {
     }
   } finally {
     saving.value = false
-    wfStore.setShowCreateView(false, '')
+    designerStore.setShowCreateView(false, '')
     ms.success(t('common.saveSuccessTip'))
   }
 }
@@ -59,13 +61,12 @@ async function onDelete() {
   }
   await api.workflowDel(tmpWorkflow.value.uuid)
   wfStore.deleteWorkflow(tmpWorkflow.value.uuid)
-  wfStore.setShowCreateView(false, '')
+  designerStore.setShowCreateView(false, '')
   ms.success(t('common.deleteSuccess'))
 }
 
 const viewStyle = computed(() => {
-  console.log(tmpWorkflow.value)
-  if (wfStore.createOrEditWfUuid) {
+  if (designerStore.createOrEditWfUuid) {
     if (tmpWorkflow.value.userUuid === userStore.userInfo.uuid)
       return 'edit'
 
@@ -85,11 +86,9 @@ const title = computed(() => {
 })
 
 onMounted(() => {
-  console.log('CreateWorkflow mounted')
 })
 
-watch(() => wfStore.createOrEditWfUuid, (val) => {
-  console.log('CreateWorkflow watch createOrEditWfUuid', val)
+watch(() => designerStore.createOrEditWfUuid, (val) => {
   if (val) {
     tmpWorkflow.value.uuid = val
     const wf = wfStore.getWorkflowInfo(val)
@@ -111,7 +110,7 @@ watch(() => wfStore.createOrEditWfUuid, (val) => {
   <!-- 坑（2026-10-03 修）：新建/编辑工作流是长表单，原弹窗不限高且遮罩可点，
        小屏下保存按钮不可见、误点遮罩静默丢失已填内容。改为内容限高滚动 + 遮罩不可关。 -->
   <NModal
-    v-model:show="wfStore.showCreateOrEditView" :title="title" style="min-width:200px; max-width: 600px;"
+    v-model:show="designerStore.showCreateOrEditView" :title="title" style="min-width:200px; max-width: 600px;"
     preset="card" :mask-closable="false" content-style="max-height: 80vh; overflow-y: auto;"
   >
     <NFlex vertical>

@@ -86,14 +86,30 @@ export const useAsyncRouteStore = defineStore({
       // 设置需要缓存的组件
       this.keepAliveComponents = compNames
     },
-    async generateRoutes(data) {
-      let accessedRouters
+    async generateRoutes(data: any) {
+      let accessedRouters: RouteRecordRaw[] = []
       const permissionsList = data.permissions ?? []
-      const routeFilter = (route) => {
+      // T5-05 权限语义决策（选 B：补 meta.permissions）：
+      // 1. 有权限声明 + 用户权限数据非空 → 严格过滤（permissionsList 命中任一声明才放行）；
+      // 2. 有权限声明 + 用户权限数据为空（当前后端 LoginResp 不返回 permissions）→ 放行，
+      //    避免后端尚未提供权限数据时把整站路由锁死；
+      // 3. 无权限声明 → 视为公共路由默认放行，dev 下警告缺失声明。
+      const routeFilter = (route: any) => {
         const { meta } = route
         const { permissions } = meta || {}
+        if (!permissionsList.length) return true
         if (!permissions) return true
-        return permissionsList.some((item) => permissions.includes(item.value))
+        return permissionsList.some((item: { value: string }) => permissions.includes(item.value))
+      }
+      if (import.meta.env.DEV && permissionsList.length) {
+        const missing = asyncRoutes.filter((route) => !route.meta?.permissions)
+        if (missing.length) {
+          console.warn(
+            `[route-permission] 以下路由模块未声明 meta.permissions（按公共路由放行）: ${missing
+              .map((route) => String(route.name))
+              .join(', ')}`
+          )
+        }
       }
       const { permissionMode } = useProjectSetting()
       if (unref(permissionMode) === 'BACK') {
@@ -101,14 +117,14 @@ export const useAsyncRouteStore = defineStore({
         try {
           accessedRouters = await generateDynamicRoutes()
         } catch (error) {
-          console.log(error)
+          console.error(error)
         }
       } else {
         try {
           //过滤账户是否拥有某一个权限，并将菜单从加载列表移除
           accessedRouters = filter(asyncRoutes, routeFilter)
         } catch (error) {
-          console.log(error)
+          console.error(error)
         }
       }
       accessedRouters = accessedRouters.filter(routeFilter)

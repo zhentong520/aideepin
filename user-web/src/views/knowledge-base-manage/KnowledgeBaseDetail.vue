@@ -1,203 +1,54 @@
 <script setup lang='ts'>
-import { computed, nextTick, onActivated, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onActivated, onMounted, reactive, ref } from 'vue'
 import { NAlert, NBreadcrumb, NBreadcrumbItem, NButton, NCard, NCheckbox, NCheckboxGroup, NDataTable, NFlex, NIcon, NInput, NInputNumber, NModal, NP, NSelect, NSpace, NTag, NText, NUpload, NUploadDragger, useDialog, useMessage } from 'naive-ui'
 import { ArchiveOutline } from '@vicons/ionicons5'
 import { useRoute, useRouter } from 'vue-router'
-import type { UploadFileInfo, UploadInst } from 'naive-ui'
 import { createColumns } from './documentColumns'
 import FilePreviewModal from './components/FilePreviewModal.vue'
 import { useBasicLayout } from '@/hooks/useBasicLayout'
-import { useAuthStore } from '@/store'
 import { knowledgeBaseEmptyInfo, knowledgeBaseEmptyItem } from '@/utils/functions'
 import { t } from '@/locales'
-import api from '@/api'
+import { useDocUpload } from './composables/useDocUpload'
+import { useDocList } from './composables/useDocList'
 
 const ms = useMessage()
 const dialog = useDialog()
 const route = useRoute()
 const router = useRouter()
 const { kbUuid: curKbUuid } = route.params as { kbUuid: string; kbId: string }
-console.log('knowledge-base uuid', curKbUuid)
 
 const modalMainHeight = ref<number>(500)
 const tableMaxHeight = ref<number>(500)
-const loading = ref<boolean>(false)
 const showUploadModal = ref<boolean>(false)
-const showIndexModal = ref<boolean>(false)
-const itemList = ref<KnowledgeBase.Document[]>([])
-const indexTypeSelected = ref<string[]>(['embedding'])
-const uploadRef = ref<UploadInst | null>(null)
-const headers = { Authorization: '' }
-const fileList = ref<UploadFileInfo[]>([])
-
-// 上传白名单：与后端解析能力对齐（txt / md / markdown / pdf / Office）。图片只有开启 OCR 时才
-// 能入库，没开 OCR 时服务端会明确报错，而不是像以前那样静默丢掉。
-const DOC_FILE_ACCEPT = '.txt,.md,.markdown,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.png,.jpg,.jpeg,.bmp,.webp'
-
-// Upload-modal segment mode: in qa mode files are parsed as Q&A pair data (Dify format),
-// one Q&A document per file, vectorized immediately
-const uploadSegmentMode = ref<string>('text')
-const uploadChildMaxChunkSize = ref<number | null>(200)
-const segmentModeOptions = [
-  { label: t('knowledgeBase.segmentModeText'), value: 'text' },
-  { label: t('knowledgeBase.segmentModeQa'), value: 'qa' },
-  { label: t('knowledgeBase.segmentModeParentChild'), value: 'parent_child' },
-]
-const uploadAccept = computed(() => (uploadSegmentMode.value === 'qa' ? '.xlsx,.xls,.csv' : DOC_FILE_ACCEPT))
-const uploadAction = computed(() => {
-  let url = `/api/knowledge-base/upload/${curKbUuid}?segmentMode=${uploadSegmentMode.value}`
-  if (uploadSegmentMode.value === 'parent_child' && uploadChildMaxChunkSize.value)
-    url += `&childMaxChunkSize=${uploadChildMaxChunkSize.value}`
-  return url
-})
-const uploadModeTip = computed(() => ({
-  text: t('knowledgeBase.segmentModeTextTip'),
-  qa: t('knowledgeBase.segmentModeQaTip'),
-  parent_child: t('knowledgeBase.segmentModeParentChildTip'),
-}[uploadSegmentMode.value] ?? ''))
-
-// 数据来源：file=本地文件，url=网页抓取，api=接口拉取。后两者由服务端抓取正文后建文档。
-const uploadSource = ref<string>('file')
-const sourceOptions = [
-  { label: t('knowledgeBase.sourceFile'), value: 'file' },
-  { label: t('knowledgeBase.sourceUrl'), value: 'url' },
-  { label: t('knowledgeBase.sourceApi'), value: 'api' },
-]
-const methodOptions = [
-  { label: 'GET', value: 'GET' },
-  { label: 'POST', value: 'POST' },
-]
-const urlForm = reactive({
-  url: '',
-  title: '',
-  fetchIntervalMinutes: null as number | null,
-})
-const apiForm = reactive({
-  title: '',
-  url: '',
-  method: 'GET',
-  headers: '',
-  body: '',
-  contentPath: '',
-  fetchIntervalMinutes: null as number | null,
-})
-const sourceSubmitting = ref(false)
-
-function parseHeaderInput(text: string): Record<string, string> | undefined {
-  const trimmed = (text || '').trim()
-  if (!trimmed)
-    return undefined
-  try {
-    const parsed = JSON.parse(trimmed)
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed))
-      throw new Error('not an object')
-    return parsed as Record<string, string>
-  } catch {
-    ms.error(t('knowledgeBase.headersJsonError'))
-    return undefined
-  }
-}
-
-async function submitUrlSource() {
-  if (sourceSubmitting.value)
-    return
-  if (!urlForm.url.trim()) {
-    ms.error(t('knowledgeBase.sourceUrlRequired'))
-    return
-  }
-  sourceSubmitting.value = true
-  try {
-    const resp = await api.knowledgeBaseItemFromUrl({
-      kbUuid: curKbUuid,
-      url: urlForm.url.trim(),
-      title: urlForm.title.trim() || undefined,
-      segmentMode: uploadSegmentMode.value,
-      childMaxChunkSize: uploadSegmentMode.value === 'parent_child' ? uploadChildMaxChunkSize.value : null,
-      fetchIntervalMinutes: urlForm.fetchIntervalMinutes,
-      indexAfterFetch: true,
-    })
-    if (resp && resp.success) {
-      ms.success(t('knowledgeBase.fetchSuccess'))
-      showUploadModal.value = false
-      search(1)
-      indexingCheck()
-    }
-  } catch (e: any) {
-    ms.error(e?.message || t('common.failed'))
-  } finally {
-    sourceSubmitting.value = false
-  }
-}
-
-async function submitApiSource() {
-  if (sourceSubmitting.value)
-    return
-  if (!apiForm.url.trim() || !apiForm.title.trim()) {
-    ms.error(t('knowledgeBase.sourceApiRequired'))
-    return
-  }
-  const headers = parseHeaderInput(apiForm.headers)
-  if (apiForm.headers.trim() && !headers)
-    return
-  sourceSubmitting.value = true
-  try {
-    const resp = await api.knowledgeBaseItemFromApi({
-      kbUuid: curKbUuid,
-      title: apiForm.title.trim(),
-      url: apiForm.url.trim(),
-      method: apiForm.method,
-      headers,
-      body: apiForm.body || undefined,
-      contentPath: apiForm.contentPath.trim() || undefined,
-      segmentMode: uploadSegmentMode.value,
-      childMaxChunkSize: uploadSegmentMode.value === 'parent_child' ? uploadChildMaxChunkSize.value : null,
-      fetchIntervalMinutes: apiForm.fetchIntervalMinutes,
-      indexAfterFetch: true,
-    })
-    if (resp && resp.success) {
-      ms.success(t('knowledgeBase.fetchSuccess'))
-      showUploadModal.value = false
-      search(1)
-      indexingCheck()
-    }
-  } catch (e: any) {
-    ms.error(e?.message || t('common.failed'))
-  } finally {
-    sourceSubmitting.value = false
-  }
-}
-
-// 手动重新抓取：只用于 url / api 来源的文档
-async function onRefetchDoc(row: KnowledgeBase.Document) {
-  try {
-    const resp = await api.knowledgeBaseItemRefetch(row.uuid)
-    if (resp && resp.success) {
-      ms.success(t('knowledgeBase.refetchSuccess'))
-      search(1)
-      indexingCheck()
-    }
-  } catch (e: any) {
-    ms.error(e?.message || t('common.failed'))
-  }
-}
-// Switching the mode clears the picked files
-watch(uploadSegmentMode, () => {
-  fileList.value = []
-})
-const fileListLength = computed(() => fileList.value.length)
-const paginationReactive = reactive({
-  page: 1,
-  pageSize: 10,
-  itemCount: 0,
-  prefix: () => t('common.total', { n: paginationReactive.itemCount }),
-})
-const searchValue = ref<string>('')
-const { isMobile } = useBasicLayout()
-const authStore = useAuthStore()
-const token = ref<string>(authStore.token)
-const checkedItemRowKeys = ref<string[]>([])
-const checkedItems = ref<KnowledgeBase.Document[]>([])
 const curKnowledgeBase: KnowledgeBase.Info = reactive<KnowledgeBase.Info>(knowledgeBaseEmptyInfo())
+
+const { isMobile } = useBasicLayout()
+
+// ==================== 职责 composable（T5-10 拆分，行为不变） ====================
+const docListCtx = useDocList({ ms, dialog, curKbUuid, curKnowledgeBase })
+
+const uploadCtx = useDocUpload({
+  ms,
+  curKbUuid,
+  showUploadModal,
+  onImported: () => docListCtx.search(1),
+  onIndexCheck: () => docListCtx.indexingCheck(),
+})
+
+const {
+  itemList, loading, showIndexModal, indexTypeSelected, paginationReactive,
+  searchValue, checkedItemRowKeys, checkedItems,
+  search, changeIndexModal, textIndexing,
+  onHandleCheckedRowKeys, removeCheckedItem, onHandlePageChange, onKeyUpSearch, initData,
+} = docListCtx
+
+const {
+  uploadRef, headers, fileList, uploadSegmentMode, uploadChildMaxChunkSize,
+  segmentModeOptions, uploadAccept, uploadAction, uploadModeTip, uploadSource,
+  sourceOptions, methodOptions, urlForm, apiForm, sourceSubmitting,
+  submitUrlSource, submitApiSource, onRefetchDoc, fileListLength, uploadSubmitting,
+  onUploadBefore, onUploadError, onUploadSubmit, onUploadFinish, downloadQaTemplate,
+} = uploadCtx
 
 // 文件预览
 const filePreview = reactive({
@@ -210,21 +61,6 @@ const showFileContent = (selected: KnowledgeBase.Document = knowledgeBaseEmptyIt
   filePreview.url = selected.sourceFileUrl || ''
   filePreview.name = selected.sourceFileName || selected.title
   filePreview.show = true
-}
-
-async function downloadQaTemplate() {
-  try {
-    const resp = await api.downloadQaImportTemplate()
-    const url = URL.createObjectURL(resp.data)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'qa_import_template.csv'
-    link.click()
-    // revoke after the download has started: immediate revocation can abort it in some browsers
-    setTimeout(() => URL.revokeObjectURL(url), 0)
-  } catch (error: any) {
-    ms.error(error.message ?? 'error')
-  }
 }
 
 const viewSegments = (row: KnowledgeBase.Document) => {
@@ -252,7 +88,7 @@ const serialColWidth = computed(() => {
   return digits * 10 + 28
 })
 const columns = computed(() => {
-  const cols = createColumns({ viewSegments, showGraph, showFileContent, editItem, deleteKbItem, toggleStatus, refetchDoc: onRefetchDoc })
+  const cols = createColumns({ viewSegments, showGraph, showFileContent, editItem, deleteKbItem: docListCtx.deleteKbItem, toggleStatus: docListCtx.toggleStatus, refetchDoc: onRefetchDoc })
   cols.splice(1, 0, {
     title: '#',
     key: 'serialNumber',
@@ -262,232 +98,6 @@ const columns = computed(() => {
   })
   return cols
 })
-
-function changeIndexModal() {
-  showIndexModal.value = true
-}
-
-/**
- * 索引文档
- */
-async function textIndexing() {
-  if (checkedItemRowKeys.value.length === 0) {
-    ms.warning(t('knowledgeBase.selectAtLeastOneRow'))
-    return
-  }
-  if (indexTypeSelected.value.length === 0) {
-    ms.warning(t('knowledgeBase.selectAtLeastOneIndexType'))
-    return
-  }
-  if (loading.value) {
-    ms.warning('indexing')
-    return
-  }
-  showIndexModal.value = false
-  loading.value = true
-  try {
-    await api.knowledgeBaseItemsIndexing(checkedItemRowKeys.value, indexTypeSelected.value)
-    indexingCheck()
-    ms.success(t('knowledgeBase.indexTaskRunning'))
-    search(1)
-  } catch (error: any) {
-    ms.error(error.message ?? 'error')
-  } finally {
-    loading.value = false
-  }
-}
-
-/**
- * 检查索引是否已经完成，如果已完成，则刷新列表
- */
-async function indexingCheck() {
-  const response = await api.knowledgeBaseIndexingCheck()
-  if (response.data) {
-    search(1)
-  } else {
-    setTimeout(() => {
-      indexingCheck()
-    }, 3000)
-  }
-}
-
-function onHandleCheckedRowKeys(keys: Array<string | number>, rows: object[], meta: { row: object | undefined; action: 'check' | 'uncheck' | 'checkAll' | 'uncheckAll' }) {
-  checkedItemRowKeys.value = keys.map((key) => {
-    return `${key}`
-  })
-  // 跨页面选择时，rows 中的非当前页的数据为 null，所以将 null 过滤掉，并将非当前页的值填充
-  const itemMap = new Map<string, KnowledgeBase.Document>()
-  const tmpItems = [] as KnowledgeBase.Document[]
-  tmpItems.push(...(rows as KnowledgeBase.Document[]))
-  tmpItems.push(...checkedItems.value)
-  tmpItems.forEach((item) => {
-    if (item)
-      itemMap.set(item.uuid, item)
-  })
-  checkedItems.value = Array.from(itemMap.entries())
-    .filter(([key]) => checkedItemRowKeys.value.includes(key))
-    .map(([, value]) => value)
-}
-
-function removeCheckedItem(item: KnowledgeBase.Document) {
-  checkedItemRowKeys.value = checkedItemRowKeys.value.filter((key) => {
-    return key !== item.uuid
-  })
-  checkedItems.value = checkedItems.value.filter((row) => {
-    return row.uuid !== item.uuid
-  })
-}
-
-async function onHandlePageChange(currentPage: number) {
-  search(currentPage)
-}
-
-async function onKeyUpSearch(event: KeyboardEvent) {
-  if (event.key === 'Enter' && !event.shiftKey) {
-    event.preventDefault()
-    search(1)
-  }
-}
-
-async function onUploadBefore(data: {
-  file: UploadFileInfo
-  fileList: UploadFileInfo[]
-}) {
-  // qa mode: accept only filters the file picker, not drag-and-drop; guard the extension here
-  if (uploadSegmentMode.value === 'qa' && !/\.(xlsx|xls|csv)$/i.test(data.file.name)) {
-    ms.error(t('knowledgeBase.qaUploadFileHint'))
-    return false
-  }
-  return true
-}
-
-// stays true when any file in the current submit failed; the modal is kept open so
-// the failed rows and the error message stay visible
-let uploadHasError = false
-
-function markUploadFailed(file: UploadFileInfo) {
-  const row = fileList.value.find(f => f.id === file.id)
-  if (row)
-    row.status = 'error'
-}
-
-function onUploadError({ file }: { file: UploadFileInfo; event?: ProgressEvent }) {
-  uploadHasError = true
-  markUploadFailed(file)
-  ms.error(t('common.uploadFailed'))
-}
-
-// true from submit until every file settles (uploaded / failed) or the modal is closed:
-// drives the button's loading state and blocks double submits
-const uploadSubmitting = ref(false)
-
-function onUploadSubmit() {
-  if (uploadSubmitting.value)
-    return
-  uploadHasError = false
-  uploadSubmitting.value = true
-  uploadRef.value?.submit()
-  closeWhenUploadDone()
-}
-
-function closeWhenUploadDone() {
-  setTimeout(() => {
-    if (!showUploadModal.value) {
-      uploadSubmitting.value = false
-      return
-    }
-    const busy = fileList.value.some(f => f.status === 'pending' || f.status === 'uploading')
-    if (busy) {
-      closeWhenUploadDone()
-      return
-    }
-    uploadSubmitting.value = false
-    if (!uploadHasError) {
-      showUploadModal.value = false
-      search(1)
-    }
-    indexingCheck()
-  }, 1000)
-}
-
-function onUploadFinish({
-  file,
-  event,
-}: {
-  file: UploadFileInfo
-  event?: ProgressEvent
-}) {
-  const respData = JSON.parse((event?.target as XMLHttpRequest).response)
-  if (!respData) {
-    uploadHasError = true
-    markUploadFailed(file)
-    ms.error(t('knowledgeBase.uploadFailedResponseError'))
-    return file
-  }
-  const { success, message } = respData
-  console.log('onUploadFinish', success, message)
-  if (success) {
-    ms.success(t('common.uploadSuccess'))
-    indexingCheck()
-  } else {
-    uploadHasError = true
-    markUploadFailed(file)
-    ms.error(message || t('common.uploadFailed'))
-  }
-
-  return file
-}
-
-async function search(currentPage: number) {
-  loading.value = true
-  try {
-    const resp = await api.knowledgeBaseItemSearch<PageResponse>(currentPage, paginationReactive.pageSize, curKbUuid, searchValue.value)
-    setResp(currentPage, resp.data)
-  } finally {
-    loading.value = false
-  }
-}
-
-function setResp(currentPage: number, data: PageResponse) {
-  itemList.value = data.records
-  paginationReactive.page = currentPage
-  paginationReactive.itemCount = data.total
-}
-
-function deleteKbItem(row: KnowledgeBase.Document) {
-  dialog.warning({
-    title: t('knowledgeBase.deleteConfirmTitle'),
-    content: t('common.deleteNotRecover'),
-    positiveText: t('common.yes'),
-    negativeText: t('common.no'),
-    onPositiveClick: () => {
-      api.knowledgeBaseItemDelete(row.uuid)
-      nextTick(() => {
-        itemList.value = itemList.value.filter(item => item.uuid !== row.uuid)
-      })
-    },
-  })
-}
-
-function toggleStatus(row: KnowledgeBase.Document, isEnabled: boolean) {
-  const action = isEnabled ? t('knowledgeBase.enable') : t('knowledgeBase.disable')
-  dialog.warning({
-    title: t('knowledgeBase.deleteConfirmTitle'),
-    content: t('knowledgeBase.toggleStatusConfirm', { action }),
-    positiveText: t('common.yes'),
-    negativeText: t('common.no'),
-    onPositiveClick: async () => {
-      await api.knowledgeBaseItemToggleStatus(row.uuid, isEnabled)
-      row.isEnabled = isEnabled
-    },
-  })
-}
-
-async function initData() {
-  search(1)
-  const resp = await api.knowledgeBaseInfo<KnowledgeBase.Info>(curKbUuid)
-  Object.assign(curKnowledgeBase, resp.data)
-}
 
 const inited = ref<boolean>(false)
 onMounted(async () => {
@@ -515,16 +125,6 @@ onActivated(() => {
   if (['DocumentAdd', 'DocumentEdit', 'DocumentDetail'].includes(cameFromRoute.value))
     search(paginationReactive.page)
 })
-watch(
-  () => token,
-  () => {
-    if (token.value) {
-      initData()
-      headers.Authorization = token.value
-    }
-  },
-  { immediate: true },
-)
 </script>
 
 <template>

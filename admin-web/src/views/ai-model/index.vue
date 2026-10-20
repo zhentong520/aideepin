@@ -162,7 +162,7 @@
     getModelInputTypes,
     getModelResponseFormatTypes,
     getDefaultModelPlatforms,
-  } from '@/utils/constants'
+  } from '@/enums/modelOptions'
   import { getColumns } from './columns'
   const columns = getColumns()
   const MODEL_TYPES = getModelTypes()
@@ -256,7 +256,7 @@
     title: t('common.action'),
     key: 'action',
     fixed: 'right',
-    render(record) {
+    render(record: Recordable) {
       return h(TableAction as any, {
         style: 'button',
         actions: [
@@ -299,7 +299,7 @@
             key: 'delete',
           },
         ],
-        select: (key) => {
+        select: (key: string) => {
           if (key === 'delete') {
             dialog.warning({
               title: t('common.tip'),
@@ -332,7 +332,7 @@
     editFormParams.id = ''
   }
 
-  const loadDataTable = async (res) => {
+  const loadDataTable = async (res: any) => {
     const [modelResp, healthResp] = await Promise.all([
       api.search({ ...getFieldsValue() }, res),
       api.getHealth().catch(() => ({ data: {} })),
@@ -369,12 +369,12 @@
   const loadPlatforms = async () => {
     const resp = await platformApi.search({}, { current: 1, size: 100 })
     allPlatforms.length = 0
-    resp.data.records.forEach((item) => {
+    resp.data.records.forEach((item: any) => {
       allPlatforms.push({ label: item.title, value: item.name })
     })
   }
 
-  function onCheckedRow(_rowKeys) {
+  function onCheckedRow(_rowKeys: Array<string | number>) {
     // 选中行回调
   }
 
@@ -382,10 +382,10 @@
     actionRef.value.reload()
   }
 
-  function confirmForm(e) {
+  function confirmForm(e: Event) {
     e.preventDefault()
     formBtnLoading.value = true
-    formRef.value.validate(async (errors) => {
+    formRef.value.validate(async (errors: any) => {
       try {
         if (!errors) {
           editFormParams.inputTypes = editFormParams.inputTypeList.join(',')

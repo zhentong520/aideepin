@@ -57,7 +57,6 @@ function renderLabel(option: SelectOption): VNodeChild {
 }
 
 const selectedModelName = ref<string>(props.modelName)
-console.log('selectedModelName', selectedModelName.value)
 if (!selectedModelName.value && options.length > 0)
   selectedModelName.value = options[0].value
 

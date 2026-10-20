@@ -67,13 +67,12 @@
     times: 0,
     minutes: 0,
   })
-  function switchType(e) {
+  function switchType(e: { key: number }) {
     type.value = e.key
   }
   async function reloadConfig() {
     const { records } = await api.search({ keyword: 'rate_limit' }, 1, 100)
-    console.log(records)
-    records.forEach((element) => {
+    records.forEach((element: any) => {
       const val = element.value
       if (element.name === 'request_text_rate_limit') {
         const jsonVal = JSON.parse(val)

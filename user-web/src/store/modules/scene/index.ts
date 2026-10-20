@@ -134,7 +134,7 @@ export const useSceneStore = defineStore('scene-store', () => {
             // 侧边栏会把它显示成不可点击，而不是给一个必然失败的 uuid。
             if (!agent)
               return
-            const { data: characterUuid } = await api.resolveAgentConv(agent.uuid)
+            const { data: characterUuid } = await api.resolveAgentConv<string>(agent.uuid)
             convMap[scene.uuid] = characterUuid || ''
           }
           catch (error) {
@@ -176,7 +176,7 @@ export const useSceneStore = defineStore('scene-store', () => {
     const agent = defaultAgentOf(sceneUuid)
     if (!agent)
       return ''
-    const { data: characterUuid } = await api.resolveAgentConv(agent.uuid)
+    const { data: characterUuid } = await api.resolveAgentConv<string>(agent.uuid)
     characterUuids.value = { ...characterUuids.value, [sceneUuid]: characterUuid || '' }
     entries.value = scenes.value.map(buildEntry)
     return characterUuid || ''

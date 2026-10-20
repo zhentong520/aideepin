@@ -17,8 +17,8 @@ LayoutMap.set('LAYOUT', Layout)
  * @param parent
  * @returns {*}
  */
-export const generateRoutes = (routerMap, parent?): any[] => {
-  return routerMap.map((item) => {
+export const generateRoutes = (routerMap: any[], parent?: any): any[] => {
+  return routerMap.map((item: any) => {
     const currentRoute: any = {
       // 路由地址 动态拼接生成如 /dashboard/workplace
       path: `${(parent && parent.path) ?? ''}/${item.path}`,
@@ -30,7 +30,7 @@ export const generateRoutes = (routerMap, parent?): any[] => {
       meta: {
         ...item.meta,
         label: t(item.meta.title),
-        icon: constantRouterIcon[item.meta.icon] || null,
+        icon: (constantRouterIcon as Record<string, unknown>)[item.meta.icon] || null,
         permissions: item.meta.permissions || null,
       },
     }

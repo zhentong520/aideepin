@@ -267,231 +267,91 @@
 </template>
 
 <script lang="ts" setup>
-  import { computed, h, onUnmounted, reactive, ref, watch } from 'vue';
+  import { h, reactive, ref } from 'vue';
   import { useRouter } from 'vue-router';
   import { useI18n } from 'vue-i18n';
   import { safeHtml } from '@/utils/sanitize';
   import { NButton, NSpace, NTag, useDialog, useMessage } from 'naive-ui';
   import { HelpCircleOutline } from '@vicons/ionicons5';
-  import { datasetSearch, finetuneMeta, jobCreate, jobDel, jobDetail, jobLog, jobPreview, jobSearch, jobStop } from '@/api/finetune';
+  import { datasetSearch, finetuneMeta, jobCreate, jobDel, jobPreview, jobSearch, jobStop } from '@/api/finetune';
+  import type { JobDetailRow } from './composables/useJobDetail';
+  import { useFinetuneForm } from './composables/useFinetuneForm';
+  import { useJobDetail } from './composables/useJobDetail';
 
   const { t } = useI18n();
   const dialog = useDialog();
   const message = useMessage();
   const router = useRouter();
 
+  /** 任务列表行 */
+  interface JobRow {
+    id: number;
+    uuid: string;
+    name: string;
+    baseModelName: string;
+    method: string;
+    preset: string;
+    status: string;
+    progress: number;
+    currentEpoch: number;
+    trainLoss: string;
+    evalLoss: string;
+  }
+
   const loading = ref(false);
-  const list = ref<any[]>([]);
+  const list = ref<JobRow[]>([]);
   const searchName = ref('');
   const searchStatus = ref<string | null>(null);
   const pagination = reactive({ page: 1, pageSize: 10, itemCount: 0 });
 
   const statusOptions = ['pending', 'running', 'success', 'failed', 'stopped'].map((s) => ({ label: s, value: s }));
 
-  // ---------------- 元数据与表单 ----------------
-  const meta = ref<any>({ baseModels: [], presets: [], defaults: {}, limits: {} });
-  const createVisible = ref(false);
-  const creating = ref(false);
-  const datasetOptions = ref<any[]>([]);
-  const datasetList = ref<any[]>([]);
-  const presetKey = ref<string | null>(null);
+  // ---------------- 元数据与表单（useFinetuneForm） ----------------
+  const {
+    meta,
+    createVisible,
+    creating,
+    datasetOptions,
+    datasetList,
+    presetKey,
+    datasetStat,
+    toCamel,
+    form,
+    visibleGroups,
+    snakeKeyOf,
+    buildKeyMap,
+    limit,
+    methodOptions,
+    modelOptions,
+    presetOptions,
+    presetDesc,
+    optionList,
+    fillForm,
+    applyPreset,
+    resetDefaults,
+    applyMethodDefault,
+    preview,
+    previewLoading,
+    previewWarnings,
+    vramTagType,
+    runPreview,
+  } = useFinetuneForm({ t, message, jobPreview });
 
-  /** 所选数据集的质量体检结果（由上传时统计），用于提示截断长度建议 */
-  const datasetStat = computed(() => {
-    const d = datasetList.value.find((x: any) => x.uuid === form.datasetUuid);
-    return d && d.tokenStat && d.tokenStat.suggest_cutoff_len ? d.tokenStat : null;
-  });
-
-  /** snake_case -> camelCase：后端超参用的是 LLaMA-Factory 风格键名 */
-  function toCamel(k: string) {
-    return k.replace(/_([a-z0-9])/g, (_m, c) => c.toUpperCase());
-  }
-
-  const form = reactive<any>({ name: '', datasetUuid: null, baseModelName: 'Qwen2.5-7B-Instruct', method: 'lora' });
-
-  /**
-   * 参数分组与控件类型。说明文案统一走 i18n（finetune.p.xxx 标签 / finetune.h.xxx 帮助），
-   * 因此这里只描述「结构」，加参数时改这一处 + 补两条文案即可。
-   */
-  const groups: any[] = [
-    {
-      key: 'lora',
-      fields: [
-        { key: 'loraRank', type: 'number' },
-        { key: 'loraAlpha', type: 'number' },
-        { key: 'loraDropout', type: 'number' },
-        { key: 'targetModules', type: 'select' },
-        { key: 'useRslora', type: 'switch' },
-        { key: 'useDora', type: 'switch' },
-      ],
-    },
-    {
-      key: 'optim',
-      fields: [
-        { key: 'learningRate', type: 'number' },
-        { key: 'numEpochs', type: 'number' },
-        { key: 'batchSize', type: 'number' },
-        { key: 'gradientAccumulation', type: 'number' },
-        { key: 'lrSchedulerType', type: 'select' },
-        { key: 'optim', type: 'select' },
-        { key: 'warmupRatio', type: 'number' },
-        { key: 'weightDecay', type: 'number' },
-        { key: 'maxGradNorm', type: 'number' },
-      ],
-    },
-    {
-      key: 'data',
-      fields: [
-        { key: 'maxSeqLen', type: 'number' },
-        { key: 'valRatio', type: 'number' },
-        { key: 'packing', type: 'switch' },
-        { key: 'neftuneNoiseAlpha', type: 'number' },
-      ],
-    },
-    {
-      key: 'runtime',
-      fields: [
-        { key: 'gradientCheckpointing', type: 'switch' },
-        { key: 'flashAttn', type: 'select' },
-        { key: 'seed', type: 'number' },
-        { key: 'earlyStoppingPatience', type: 'number' },
-        { key: 'loggingSteps', type: 'number' },
-        { key: 'saveSteps', type: 'number' },
-        { key: 'evalSteps', type: 'number' },
-      ],
-    },
-    {
-      key: 'quant',
-      showWhen: () => form.method === 'qlora',
-      fields: [
-        { key: 'quantBit', type: 'select' },
-        { key: 'quantMethod', type: 'select' },
-      ],
-    },
-    {
-      key: 'export',
-      fields: [
-        { key: 'exportMerged', type: 'switch' },
-        { key: 'exportGguf', type: 'switch' },
-        { key: 'ggufQuant', type: 'select' },
-        { key: 'template', type: 'text' },
-      ],
-    },
-  ];
-
-  /** 分组按条件显示（如 QLoRA 专属参数仅在 method=qlora 时出现） */
-  const visibleGroups = computed(() => groups.filter((g) => !g.showWhen || g.showWhen()));
-
-  /** 后端给的是 hyper_params 的 snake_case 键，表单用 camelCase，这里做一次双向映射 */
-  const snakeKeyOf: Record<string, string> = {};
-  function buildKeyMap() {
-    groups.forEach((g) => g.fields.forEach((f: any) => (snakeKeyOf[f.key] = f.key.replace(/[A-Z]/g, (c: string) => '_' + c.toLowerCase()))));
-    snakeKeyOf.maxSeqLen = 'cutoff_len';
-    snakeKeyOf.baseModelName = 'base_model_name';
-  }
-
-  const limit = (key: string, idx: number) => {
-    const snake = snakeKeyOf[key] || key;
-    const l = meta.value.limits && meta.value.limits[snake];
-    return l ? l[idx] : undefined;
-  };
-
-  const methodOptions = computed(() => ['lora', 'qlora'].map((v) => ({ label: t(`finetune.opt.method.${v}`), value: v })));
-  const modelOptions = computed(() =>
-    (meta.value.baseModels || []).map((m: any) => ({
-      label: `${m.name} · ${m.paramsB}B${m.recommended ? ' ★' : ''}${m.noteKey ? ' · ' + t(`finetune.modelNote.${m.noteKey}`) : ''}`,
-      value: m.name,
-    }))
-  );
-  const presetOptions = computed(() => (meta.value.presets || []).map((p: any) => ({ label: t(`finetune.preset.${p.key}.name`), value: p.key })));
-  const presetDesc = computed(() => (presetKey.value ? t(`finetune.preset.${presetKey.value}.desc`) : ''));
-
-  function optionList(f: any) {
-    const map: Record<string, string[]> = {
-      targetModules: ['all', 'attn', 'allLinear'],
-      lrSchedulerType: ['cosine', 'linear', 'cosine_with_restarts', 'polynomial', 'constant', 'constant_with_warmup'],
-      optim: ['adamw_torch', 'paged_adamw_8bit', 'adamw_hf', 'adafactor'],
-      flashAttn: ['auto', 'fa2', 'sdpa', 'disabled'],
-      quantBit: ['4', '8'],
-      quantMethod: ['bitsandbytes', 'hqq'],
-      ggufQuant: ['q4_k_m', 'q5_k_m', 'q8_0', 'f16'],
-    };
-    const values = map[f.key] || [];
-    if (f.key === 'targetModules') {
-      // 值本身含逗号，无法当 i18n key 用，这里显式给出映射
-      const real: Record<string, string> = {
-        all: 'all',
-        attn: 'q_proj,k_proj,v_proj,o_proj',
-        allLinear: 'q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj',
-      };
-      return values.map((v) => ({ label: t(`finetune.opt.targetModules.${v}`), value: real[v] }));
-    }
-    if (f.key === 'quantBit') {
-      return values.map((v) => ({ label: t(`finetune.opt.quantBit.${v}`), value: Number(v) }));
-    }
-    return values.map((v) => ({ label: t(`finetune.opt.${f.key}.${v}`), value: v }));
-  }
-
-  /** 把后端默认超参灌进表单 */
-  function fillForm(params: any) {
-    Object.keys(snakeKeyOf).forEach((camel) => {
-      const snake = snakeKeyOf[camel];
-      if (Object.prototype.hasOwnProperty.call(params, snake)) {
-        form[camel] = params[snake];
-      } else if (Object.prototype.hasOwnProperty.call(params, camel)) {
-        form[camel] = params[camel];
-      }
-    });
-  }
-
-  function applyPreset(key: string | null) {
-    const p = (meta.value.presets || []).find((x: any) => x.key === key);
-    if (!p) return;
-    fillForm(p.params);
-    if (p.method) form.method = p.method;
-    message.success(t('finetune.presetApplied'));
-    runPreview();
-  }
-
-  function resetDefaults() {
-    presetKey.value = null;
-    fillForm(meta.value.defaults || {});
-    form.method = 'lora';
-    runPreview();
-  }
-
-  function applyMethodDefault() {
-    runPreview();
-  }
-
-  // ---------------- 预演 ----------------
-  const preview = ref<any>({});
-  const previewLoading = ref(false);
-  const previewWarnings = computed(() => preview.value.warnings || []);
-  const vramTagType = computed(() => {
-    const lv = preview.value.vram && preview.value.vram.level;
-    return lv === 'danger' ? 'error' : lv === 'warn' ? 'warning' : 'success';
-  });
-
-  let previewTimer: any = null;
-  function schedulePreview() {
-    if (!createVisible.value) return;
-    if (previewTimer) clearTimeout(previewTimer);
-    previewTimer = setTimeout(runPreview, 350);
-  }
-
-  async function runPreview() {
-    if (!createVisible.value) return;
-    previewLoading.value = true;
-    try {
-      const res = await jobPreview({ ...form });
-      preview.value = (res && res.data) || {};
-    } finally {
-      previewLoading.value = false;
-    }
-  }
-
-  watch(form, schedulePreview, { deep: true });
+  // ---------------- 详情（useJobDetail） ----------------
+  const {
+    detailVisible,
+    detailRow,
+    logText,
+    logLoading,
+    metrics,
+    hasMetrics,
+    runtimeText,
+    paramsText,
+    fmt,
+    presetLabel,
+    openDetail,
+    refreshDetail,
+  } = useJobDetail({ t });
 
   // ---------------- 列表 ----------------
   function statusTagType(status: string): 'success' | 'error' | 'info' | 'warning' | 'default' {
@@ -507,18 +367,18 @@
       title: t('finetune.method'),
       key: 'method',
       width: 120,
-      render: (row: any) => h(NTag, { size: 'small' }, { default: () => row.method + (row.preset ? ` · ${row.preset}` : '') }),
+      render: (row: JobRow) => h(NTag, { size: 'small' }, { default: () => row.method + (row.preset ? ` · ${row.preset}` : '') }),
     },
     {
       title: t('finetune.status'),
       key: 'status',
       width: 100,
-      render: (row: any) => h(NTag, { size: 'small', type: statusTagType(row.status) }, { default: () => row.status }),
+      render: (row: JobRow) => h(NTag, { size: 'small', type: statusTagType(row.status) }, { default: () => row.status }),
     },
     {
       title: t('finetune.progress'),
       width: 150,
-      render: (row: any) => `${Number(row.progress || 0).toFixed(1)}% (epoch ${row.currentEpoch})`,
+      render: (row: JobRow) => `${Number(row.progress || 0).toFixed(1)}% (epoch ${row.currentEpoch})`,
     },
     { title: 'train_loss', key: 'trainLoss', width: 100 },
     { title: 'eval_loss', key: 'evalLoss', width: 100 },
@@ -526,10 +386,10 @@
       title: t('finetune.actions'),
       key: 'actions',
       width: 250,
-      render: (row: any) =>
+      render: (row: JobRow) =>
         h(NSpace, {}, {
           default: () => [
-            h(NButton, { size: 'small', onClick: () => openDetail(row) }, { default: () => t('finetune.detail') }),
+            h(NButton, { size: 'small', onClick: () => openDetail(row as unknown as JobDetailRow) }, { default: () => t('finetune.detail') }),
             h(
               NButton,
               {
@@ -598,43 +458,13 @@
     }
     creating.value = true;
     try {
-      await jobCreate({ ...form, preset: presetKey.value || '' });
+      await jobCreate({ ...form, preset: presetKey.value || '' } as never);
       message.success(t('common.operationSuccess'));
       createVisible.value = false;
       await load();
     } finally {
       creating.value = false;
     }
-  }
-
-  // ---------------- 详情 ----------------
-  const detailVisible = ref(false);
-  const detailRow = ref<any>({});
-  const logText = ref('');
-  const logLoading = ref(false);
-  let timer: any = null;
-
-  const metrics = computed(() => detailRow.value.metrics || {});
-  const hasMetrics = computed(() => Object.keys(metrics.value).length > 0);
-  const runtimeText = computed(() => {
-    const s = Number(metrics.value.train_runtime || 0);
-    if (!s) return '-';
-    return s >= 3600 ? `${(s / 3600).toFixed(2)} h` : `${Math.round(s / 60)} min`;
-  });
-  const paramsText = computed(() => {
-    const p = Number(metrics.value.trainable_params || 0);
-    const all = Number(metrics.value.total_params || 0);
-    if (!p) return '-';
-    const pct = all ? ((p / all) * 100).toFixed(3) + '%' : '';
-    return `${p.toLocaleString()} / ${all.toLocaleString()} (${pct})`;
-  });
-
-  function fmt(v: any) {
-    return v === null || v === undefined || v === '' ? '-' : v;
-  }
-
-  function presetLabel(key: string) {
-    return key ? t(`finetune.preset.${key}.name`) : '-';
   }
 
   /** 参数快照的标签：能对上 i18n 的用中文名，对不上的（未来新增的键）原样显示 */
@@ -644,28 +474,7 @@
     return Object.values(snakeKeyOf).includes(k) ? t(`finetune.p.${camel}`) : k;
   }
 
-  async function openDetail(row: any) {
-    detailRow.value = row;
-    detailVisible.value = true;
-    await refreshDetail();
-    if (timer) clearInterval(timer);
-    timer = setInterval(refreshDetail, 5000);
-  }
-
-  async function refreshDetail() {
-    if (!detailRow.value.uuid) return;
-    logLoading.value = true;
-    try {
-      const job = await jobDetail(detailRow.value.uuid);
-      detailRow.value = (job && job.data) || {};
-      const log = await jobLog(detailRow.value.uuid, 200);
-      logText.value = ((log.data && log.data.lines) || []).join('\n');
-    } finally {
-      logLoading.value = false;
-    }
-  }
-
-  function doStop(row: any) {
+  function doStop(row: JobRow) {
     dialog.warning({
       title: t('common.tip'),
       content: t('finetune.stopConfirm'),
@@ -679,7 +488,7 @@
     });
   }
 
-  function doDel(row: any) {
+  function doDel(row: JobRow) {
     dialog.warning({
       title: t('common.tip'),
       content: t('finetune.delConfirm'),
@@ -695,11 +504,6 @@
 
   buildKeyMap();
   load();
-
-  onUnmounted(() => {
-    if (timer) clearInterval(timer);
-    if (previewTimer) clearTimeout(previewTimer);
-  });
 </script>
 
 <style lang="less" scoped>

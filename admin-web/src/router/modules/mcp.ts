@@ -22,6 +22,7 @@ const routes: Array<RouteRecordRaw> = [
     component: Layout,
     meta: {
       title: 'route.mcpManagement',
+      permissions: ['admin:mcp:view'],
       icon: renderIcon(Tools),
       sort: 5,
     },

@@ -97,7 +97,7 @@
     }
   })
 
-  const loadDataTable = async (res) => {
+  const loadDataTable = async (res: any) => {
     const resp = await tokenMonitorApi.search({ ...getFieldsValue() }, res)
     return resp.data
   }

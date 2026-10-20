@@ -4,7 +4,7 @@ import { BasicResponseModel } from '/#/global'
 /**
  * @description: 用户登录
  */
-function login(params) {
+function login(params: Record<string, string>) {
   return http.request<BasicResponseModel>(
     {
       url: '/auth/login',
@@ -17,7 +17,7 @@ function login(params) {
   )
 }
 
-function search(data, params: { current: number; size: number }) {
+function search(data: any, params: { current: number; size: number }) {
   return http.request({
     url: `/admin/user/search?currentPage=${params.current}&pageSize=${params.size}`,
     method: 'post',
@@ -38,7 +38,7 @@ function getUserInfo(uuid: string) {
 /**
  * @description: 用户修改密码
  */
-function changePassword(params, uid) {
+function changePassword(params: Record<string, string | number>, uid: number) {
   return http.request(
     {
       url: `/admin/user/u${uid}/changepw`,
@@ -65,7 +65,7 @@ function freeze(uuid: string) {
   })
 }
 
-function addOne(data) {
+function addOne(data: any) {
   return http.request({
     url: '/admin/user/addOne',
     method: 'post',
@@ -73,7 +73,7 @@ function addOne(data) {
   })
 }
 
-function edit(data) {
+function edit(data: any) {
   return http.request({
     url: '/admin/user/edit',
     method: 'post',

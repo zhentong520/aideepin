@@ -4,8 +4,6 @@ import { changeFileUrlToUuid } from '@/utils/functions'
 export const useGalleryStore = defineStore('gallery-store', {
   state: (): Chat.GalleryState => {
     return {
-      loadingUuid: '',
-      loading: false,
       publicDraws: [],
       myStarDraws: [],
     }
@@ -64,14 +62,6 @@ export const useGalleryStore = defineStore('gallery-store', {
           needAdd.push(item)
       })
       this.myStarDraws.push(...needAdd)
-    },
-
-    setLoading(loading: boolean) {
-      this.loading = loading
-    },
-
-    setLoadingUuid(uuid: string) {
-      this.loadingUuid = uuid
     },
 
     unStarDraw(draw: Chat.Draw) {

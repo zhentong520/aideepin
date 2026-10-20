@@ -7,11 +7,11 @@ import { cloneDeep } from 'lodash-es'
 /**
  * render 图标
  * */
-export function renderIcon(icon) {
+export function renderIcon(icon: Component) {
   return () => h(NIcon, null, { default: () => h(icon) })
 }
 
-export function renderIconWithProps(icon, props) {
+export function renderIconWithProps(icon: Component, props: Record<string, unknown>) {
   return () => h(NIcon, props, { default: () => h(icon) })
 }
 
@@ -30,7 +30,7 @@ export function renderUnicodeIcon(icon: string, iconName = 'iconfont') {
 /**
  * font svg 图标
  * */
-export function renderfontsvg(icon) {
+export function renderfontsvg(icon: string) {
   return () =>
     h(NIcon, null, {
       default: () =>
@@ -125,10 +125,10 @@ export function getChildrenRouter(routerMap: Array<any>) {
 /**
  * 判断根路由 Router
  * */
-export function isRootRouter(item) {
+export function isRootRouter(item: any) {
   return (
     item.meta?.alwaysShow != true &&
-    item?.children?.filter((item) => !Boolean(item?.meta?.hidden))?.length === 1
+    item?.children?.filter((sub: any) => !Boolean(sub?.meta?.hidden))?.length === 1
   )
 }
 
@@ -136,7 +136,7 @@ export function isRootRouter(item) {
  * 排除Router
  * */
 export function filterRouter(routerMap: Array<any>) {
-  return routerMap.filter((item) => {
+  return routerMap.filter((item: any) => {
     return (
       (item.meta?.hidden || false) != true &&
       !['/:path(.*)*', '/', PageEnum.REDIRECT, PageEnum.BASE_LOGIN].includes(item.path)
@@ -158,17 +158,21 @@ export const withInstall = <T extends Component>(component: T, alias?: string) =
 /**
  *  找到对应的节点
  * */
-let result = null
 export function getTreeItem(data: any[], key?: string | number): any {
-  data.map((item) => {
+  let result: any = null
+  for (const item of data) {
     if (item.key === key) {
       result = item
-    } else {
-      if (item.children && item.children.length) {
-        getTreeItem(item.children, key)
+      break
+    }
+    if (item.children && item.children.length) {
+      const found = getTreeItem(item.children, key)
+      if (found) {
+        result = found
+        break
       }
     }
-  })
+  }
   return result
 }
 

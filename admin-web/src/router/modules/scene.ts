@@ -15,6 +15,7 @@ const routes: Array<RouteRecordRaw> = [
     component: Layout,
     meta: {
       title: 'route.sceneManagement',
+      permissions: ['admin:scene:view'],
       icon: renderIcon(Grid),
       sort: 7,
     },

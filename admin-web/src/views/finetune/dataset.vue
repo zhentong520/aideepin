@@ -99,13 +99,13 @@
     { title: 'ID', key: 'id', width: 70 },
     { title: t('finetune.name'), key: 'name' },
     { title: t('finetune.description'), key: 'description', ellipsis: { tooltip: true } },
-    { title: t('finetune.format'), key: 'format', width: 140, render: (row) => h(NTag, { size: 'small' }, { default: () => row.format }) },
+    { title: t('finetune.format'), key: 'format', width: 140, render: (row: any) => h(NTag, { size: 'small' }, { default: () => row.format }) },
     { title: t('finetune.sampleCount'), key: 'sampleCount', width: 100 },
     { title: t('finetune.evalCount'), key: 'evalCount', width: 100 },
     {
       title: t('finetune.quality'),
       width: 170,
-      render: (row) => {
+      render: (row: any) => {
         const stat = row.tokenStat || {};
         const lvl = stat.quality;
         if (!lvl) return '-';
@@ -120,19 +120,19 @@
     {
       title: t('finetune.suggestCutoff'),
       width: 110,
-      render: (row) => (row.tokenStat && row.tokenStat.suggest_cutoff_len) || '-',
+      render: (row: any) => (row.tokenStat && row.tokenStat.suggest_cutoff_len) || '-',
     },
     {
       title: t('finetune.estTokens'),
       width: 110,
-      render: (row) => (row.tokenStat && row.tokenStat.est_tokens ? row.tokenStat.est_tokens : '-'),
+      render: (row: any) => (row.tokenStat && row.tokenStat.est_tokens ? row.tokenStat.est_tokens : '-'),
     },
     { title: t('finetune.createTime'), key: 'createTime', width: 170 },
     {
       title: t('finetune.actions'),
       key: 'actions',
       width: 200,
-      render: (row) =>
+      render: (row: any) =>
         h(NSpace, {}, {
           default: () => [
             h(NButton, { size: 'small', onClick: () => doPreview(row) }, { default: () => t('finetune.preview') }),

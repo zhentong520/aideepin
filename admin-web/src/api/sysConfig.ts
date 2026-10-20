@@ -12,7 +12,7 @@ function search(
   })
 }
 
-function edit(params) {
+function edit(params: Record<string, string | number>) {
   return http.request({
     url: '/admin/sys-config/edit',
     method: 'post',

@@ -4,7 +4,7 @@ import { h, Ref } from 'vue'
 import EditableCell from './EditableCell.vue'
 
 export function renderEditCell(column: BasicColumn) {
-  return (record, index) => {
+  return (record: any, index: number) => {
     const _key = column.key
     const value = record[_key]
     record.onEdit = async (edit: boolean, submit = false) => {

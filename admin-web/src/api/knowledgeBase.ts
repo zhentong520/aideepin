@@ -1,6 +1,6 @@
 import { http } from '@/utils/http/axios'
 
-function search(data, params: { current: number; size: number }) {
+function search(data: any, params: { current: number; size: number }) {
   return http.request({
     url: `/admin/kb/search?currentPage=${params.current}&pageSize=${params.size}`,
     method: 'post',
@@ -15,7 +15,7 @@ function deleteOne(uuid: string) {
   })
 }
 
-function edit(data) {
+function edit(data: any) {
   return http.request({
     url: '/admin/kb/edit',
     method: 'post',
@@ -46,7 +46,7 @@ function rebuildKeywordIndex(uuid: string) {
 /**
  * @description: 召回测试。只传本次要临时覆盖的参数，null/缺省表示沿用知识库配置，不落库。
  */
-function recallTest(data) {
+function recallTest(data: any) {
   return http.request({
     url: '/admin/kb/recallTest',
     method: 'post',

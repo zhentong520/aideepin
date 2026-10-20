@@ -10,7 +10,6 @@ const wfStore = useWfStore()
 const path = computed(() => getBezierPath(props))
 
 function removeEdge() {
-  console.log('removeEdge', props.id)
   const edge = props.data as Workflow.WorkflowEdge
   wfStore.deleteEdge(edge.workflowUuid, props.id)
 }

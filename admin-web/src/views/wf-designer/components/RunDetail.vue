@@ -4,6 +4,7 @@ import { NButton, NInput, NInputNumber, NP, NSwitch, NTab, NTabPane, NTabs, NTex
 import type { UploadFileInfo, UploadInst } from 'naive-ui'
 import RuntimeNodes from './RuntimeNodes.vue'
 import { useAuthStore, useWfStore } from '@/wf/stores'
+import { useDesignerStore } from '../useDesignerStore'
 import { SvgIcon } from '@/wf/components'
 import api from '@/wf/api'
 import { t } from '@/locales'
@@ -23,10 +24,11 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emit>()
 const headers = { Authorization: '' }
 const wfStore = useWfStore()
+const designerStore = useDesignerStore()
 const authStore = useAuthStore()
 const token = ref<string>(authStore.token)
 const ms = useMessage()
-const submitting = ref<boolean>(wfStore.submitting)
+const submitting = ref<boolean>(designerStore.submitting)
 const startNode = wfStore.getStartNode(props.workflow.uuid)
 const wfRuntimeUuid = ref<string>('')
 const runtimeNodes = reactive<Workflow.WfRuntimeNode[]>([])
@@ -45,7 +47,6 @@ const userInputs = ref<Workflow.UserInput[]>(startNode?.inputConfig.user_inputs.
 }) || [])
 const errorMsg = ref<string>('')
 const currWfUuid = props.workflow.uuid
-console.log('instance list currWfUuid', currWfUuid)
 const showCurrentExecution = ref<boolean>(false)
 const tabObj = ref<TabObj>({ name: 'runtimes', defaultTab: t('workflow.flowRunDetail'), tab: `${t('workflow.flowRunDetail')} ↓` })
 const fileListLength = ref(0)
@@ -94,7 +95,6 @@ async function run() {
   }
 
   if (fileListLength.value > 0 && uploadedFileUuids.value.length !== fileListLength.value) {
-    console.log('先执行文件上传操作')
     uploadBeforeRun()
     return
   } else {
@@ -104,7 +104,6 @@ async function run() {
   }
 
   if (userInputs.value.some(input => input.required && input.content.value === null)) {
-    console.log('请输入所有必填参数')
     ms.warning(t('workflow.pleaseInputAllRequired'))
     return
   }
@@ -135,24 +134,22 @@ async function run() {
           wfRuntime.input[item.name] = { ...item.content }
         })
         wfRuntimeUuid.value = wfRuntime.uuid
-        wfStore.appendWfRuntimes(
+        designerStore.appendWfRuntimes(
           currWfUuid,
           [wfRuntime],
         )
       },
-      thinkingDataReceived: (chunk) => {
+      thinkingDataReceived: (_chunk) => {
         // 处理思考数据
-        console.log('Thinking data received:', chunk)
       },
       messageReceived: (chunk, event) => {
         const eventName = event || ''
         try {
           if (eventName.includes('[NODE_RUN_')) {
             const nodeUuid = eventName.replace('[NODE_RUN_', '').replace(']', '')
-            console.log(`${nodeUuid}开始运行`)
             const runtimeNode = JSON.parse(chunk) as Workflow.WfRuntimeNode
             nodeUuidToRuntimeNodeUuid.set(nodeUuid, runtimeNode.uuid)
-            wfStore.appendRuntimeNode(
+            designerStore.appendRuntimeNode(
               wfRuntimeUuid.value,
               runtimeNode,
             )
@@ -160,7 +157,7 @@ async function run() {
           } else if (eventName.includes('[NODE_CHUNK_')) {
             const nodeUuid = eventName.replace('[NODE_CHUNK_', '').replace(']', '')
             const runtimeNodeUuid = nodeUuidToRuntimeNodeUuid.get(nodeUuid) || ''
-            wfStore.appendChunkToRuntimeNode(
+            designerStore.appendChunkToRuntimeNode(
               wfRuntimeUuid.value,
               runtimeNodeUuid,
               chunk,
@@ -168,7 +165,7 @@ async function run() {
           } else if (eventName.includes('[NODE_INPUT_')) {
             const nodeUuid = eventName.replace('[NODE_INPUT_', '').replace(']', '')
             const runtimeNodeUuid = nodeUuidToRuntimeNodeUuid.get(nodeUuid) || ''
-            wfStore.appendInputToRuntimeNode(
+            designerStore.appendInputToRuntimeNode(
               wfRuntimeUuid.value,
               runtimeNodeUuid,
               chunk,
@@ -176,7 +173,7 @@ async function run() {
           } else if (eventName.includes('[NODE_OUTPUT_')) {
             const nodeUuid = eventName.replace('[NODE_OUTPUT_', '').replace(']', '')
             const runtimeNodeUuid = nodeUuidToRuntimeNodeUuid.get(nodeUuid) || ''
-            wfStore.appendOutputToRuntimeNode(
+            designerStore.appendOutputToRuntimeNode(
               wfRuntimeUuid.value,
               runtimeNodeUuid,
               chunk,
@@ -189,10 +186,10 @@ async function run() {
             const nodeUuid = eventName.replace('[NODE_METRICS_', '').replace(']', '')
             const runtimeNodeUuid = nodeUuidToRuntimeNodeUuid.get(nodeUuid) || ''
             const metrics = JSON.parse(chunk) as Workflow.AnyNodeMetrics
-            wfStore.updateRuntimeNodeMetrics(wfRuntimeUuid.value, runtimeNodeUuid, metrics)
+            designerStore.updateRuntimeNodeMetrics(wfRuntimeUuid.value, runtimeNodeUuid, metrics)
           } else if (eventName.includes('[RUNTIME_METRICS]')) {
             const metrics = JSON.parse(chunk) as Workflow.RuntimeMetrics
-            wfStore.updateRuntimeMetrics(wfRuntimeUuid.value, metrics)
+            designerStore.updateRuntimeMetrics(wfRuntimeUuid.value, metrics)
           }
         } catch (error) {
           console.error(error)
@@ -202,7 +199,7 @@ async function run() {
         nextTick(() => {
           submitting.value = false
           resetInputs()
-          wfStore.updateSuccess(currWfUuid, wfRuntimeUuid.value, chunk)
+          designerStore.updateSuccess(currWfUuid, wfRuntimeUuid.value, chunk)
           runtimeErrorMsg.value = ''
           ms.success(t('workflow.runSuccess'))
           emit('runDone')
@@ -212,7 +209,7 @@ async function run() {
         submitting.value = false
         resetInputs()
         ms.error(`${t('common.systemTip')}${error}`)
-        wfStore.updateErrorMsg(currWfUuid, wfRuntimeUuid.value, error)
+        designerStore.updateErrorMsg(currWfUuid, wfRuntimeUuid.value, error)
         runtimeErrorMsg.value = error || ''
         emit('runError', error)
       },
@@ -241,31 +238,26 @@ async function resume() {
   }
 }
 
-function onUploadChange(options: { fileList: UploadFileInfo[] }) {
-  console.log('onUploadChange', options)
+function onUploadChange(_options: { fileList: UploadFileInfo[] }) {
 }
 
 function handleFileListChange(fileList: UploadFileInfo[]) {
-  console.log('handleFileListChange', fileList)
   fileListLength.value = fileList.length
   if (uploadedFileUuids.value.length === fileListLength.value)
     run()
 }
 
 function onUploadFinish({ file, event }: { file: UploadFileInfo; event?: ProgressEvent }) {
-  console.log('onUploadFinish', file, event)
   const res = JSON.parse((event?.target as XMLHttpRequest).response)
   if (res.success) {
-    console.log('uploaded file data:', res.data)
     uploadedFileUuids.value.push(res.data.uuid)
   } else {
-    console.log(`onUploadFinish err:${res.data}`)
   }
   return file
 }
 
 function handleStop() {
-  if (wfStore.wfUuidToWfRuntimeLoading.get(currWfUuid))
+  if (designerStore.wfUuidToWfRuntimeLoading.get(currWfUuid))
     controller.abort()
 
   submitting.value = false
@@ -286,7 +278,7 @@ watch(
 )
 
 onUnmounted(() => {
-  if (wfStore.wfUuidToWfRuntimeLoading.get(currWfUuid))
+  if (designerStore.wfUuidToWfRuntimeLoading.get(currWfUuid))
     controller.abort()
 })
 </script>

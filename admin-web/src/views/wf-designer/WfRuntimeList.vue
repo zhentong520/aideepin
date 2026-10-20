@@ -9,7 +9,8 @@ import RuntimeNodes from './components/RuntimeNodes.vue'
 import RunDetail from './components/RunDetail.vue'
 import LoginTip from '@/wf/components/LoginTip.vue'
 import { useBasicLayout } from '@/wf/hooks'
-import { useAuthStore, useWfStore } from '@/wf/stores'
+import { useAuthStore } from '@/wf/stores'
+import { useDesignerStore } from './useDesignerStore'
 import api from '@/wf/api'
 import { t } from '@/locales'
 import { debounce } from '@/wf/utils/functions/debounce'
@@ -25,13 +26,12 @@ const props = withDefaults(defineProps<Props>(), {
 
 const ms = useMessage()
 const dialog = useDialog()
-const wfStore = useWfStore()
+const designerStore = useDesignerStore()
 const authStore = useAuthStore()
 const loaddingBar = useLoadingBar()
 const { isMobile } = useBasicLayout()
 const { scrollRef, scrollToBottom, scrollToBottomIfAtBottom, scrollTo } = useScroll()
 const currWfUuid = props.workflow.uuid
-console.log('instance list currWfUuid', currWfUuid)
 const showDetailModal = ref<boolean>(false)
 const detailNodes = ref<Workflow.WfRuntimeNode[]>([])
 const detailErrorMsg = ref<string>('')
@@ -42,17 +42,16 @@ let currentPage = 1
 let prevScrollTop: number
 
 async function loadMoreMessage(callback?: Function) {
-  if (wfStore.wfUuidToWfRuntimeLoading.get(currWfUuid) || loadedAll.value)
+  if (designerStore.wfUuidToWfRuntimeLoading.get(currWfUuid) || loadedAll.value)
     return
 
   loaddingBar.start()
   try {
-    wfStore.setLoadingRuntimes(currWfUuid, true)
+    designerStore.setLoadingRuntimes(currWfUuid, true)
 
     const { data } = await api.workflowRuntimes<Workflow.WfRuntimesResp>(currWfUuid, currentPage, pageSize)
-    console.log('kb record response:', data)
     if (data.records)
-      wfStore.unshiftWfRuntimes(currWfUuid, data.records)
+      designerStore.unshiftWfRuntimes(currWfUuid, data.records)
 
     if (data.records.length < pageSize) {
       loadedAll.value = true
@@ -64,7 +63,7 @@ async function loadMoreMessage(callback?: Function) {
     console.error(`loadMoreMessage${error}`)
   } finally {
     currentPage++
-    wfStore.setLoadingRuntimes(currWfUuid, false)
+    designerStore.setLoadingRuntimes(currWfUuid, false)
     loaddingBar.finish()
 
     if (callback)
@@ -86,7 +85,7 @@ async function handleScroll(event: any) {
 }
 
 function handleDelete(instUuid: string) {
-  if (wfStore.wfUuidToWfRuntimeLoading.get(currWfUuid))
+  if (designerStore.wfUuidToWfRuntimeLoading.get(currWfUuid))
     return
   dialog.warning({
     title: t('chat.deleteMessage'),
@@ -95,13 +94,13 @@ function handleDelete(instUuid: string) {
     negativeText: t('common.no'),
     onPositiveClick: () => {
       api.workflowRuntimeDelete(instUuid)
-      wfStore.deleteWfRuntime(currWfUuid, instUuid)
+      designerStore.deleteWfRuntime(currWfUuid, instUuid)
     },
   })
 }
 
 const wfRuntimes = computed(() => {
-  return wfStore.getWfRuntimes(currWfUuid)
+  return designerStore.getWfRuntimes(currWfUuid)
 })
 
 const footerClass = computed(() => {
@@ -116,19 +115,19 @@ async function firstLoad() {
     console.warn('workflow instance wfuuid is empty or default')
     return
   }
-  if (wfRuntimes.value && !wfStore.wfUuidToWfRuntimeLoading.get(currWfUuid) && !wfStore.wfUuidToWfRuntimes.get(currWfUuid)) {
+  if (wfRuntimes.value && !designerStore.wfUuidToWfRuntimeLoading.get(currWfUuid) && !designerStore.wfUuidToWfRuntimes.get(currWfUuid)) {
     try {
-      wfStore.setLoadingRuntimes(currWfUuid, true)
+      designerStore.setLoadingRuntimes(currWfUuid, true)
       const resp = await api.workflowRuntimes<Workflow.WfRuntimesResp>(currWfUuid, currentPage, pageSize)
       nextTick(() => {
         if (resp.data.records) {
-          wfStore.setWfRuntimes(currWfUuid, resp.data.records)
+          designerStore.setWfRuntimes(currWfUuid, resp.data.records)
           if (resp.data.records.length < pageSize)
             loadedAll.value = true
         }
       })
     } finally {
-      wfStore.setLoadingRuntimes(currWfUuid, false)
+      designerStore.setLoadingRuntimes(currWfUuid, false)
       currentPage++
     }
     nextTick(() => {
@@ -147,7 +146,7 @@ async function onShowRuntimeDetail(instUuid: string) {
   showDetailModal.value = true
   detailNodes.value = []
   detailErrorMsg.value = ''
-  const wfRuntime = wfStore.getWfRuntime(instUuid)
+  const wfRuntime = designerStore.getWfRuntime(instUuid)
   if (!wfRuntime)
     return
   if (wfRuntime.nodes.length > 0) {
@@ -156,11 +155,11 @@ async function onShowRuntimeDetail(instUuid: string) {
   }
   try {
     const { data: nodes } = await api.workflowRuntimeNodes<Workflow.WfRuntimeNode[]>(instUuid)
-    wfStore.setWfRuntimeNodes(instUuid, nodes)
+    designerStore.setWfRuntimeNodes(instUuid, nodes)
   } catch (error) {
     console.error('onShowRuntimeDetail error', error)
   } finally {
-    const runtime = wfStore.getWfRuntime(instUuid)
+    const runtime = designerStore.getWfRuntime(instUuid)
     if (runtime) {
       detailNodes.value = runtime.nodes || []
       detailErrorMsg.value = runtime.status === 4 ? runtime.statusRemark : ''

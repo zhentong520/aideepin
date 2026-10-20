@@ -1,10 +1,8 @@
 <script setup lang='ts'>
-import { nextTick, onMounted, onUpdated, ref } from 'vue'
-import { NButton, NDivider, NFlex } from 'naive-ui'
-import cytoscape from 'cytoscape'
-import { useChatStore } from '@/store'
+import GraphCanvas from '@/components/custom/GraphCanvas.vue'
 import api from '@/api'
-import { t } from '@/locales'
+import { useChatStore } from '@/store'
+
 interface Props {
   msgUuid: string
 }
@@ -12,160 +10,36 @@ const props = withDefaults(defineProps<Props>(), {
   msgUuid: '',
 })
 const chatStore = useChatStore()
-const loading = ref<boolean>(false)
-const isEmpty = ref<boolean>(false)
-const selectedVertex = ref<KnowledgeBase.KbVertex | null>()
-const selectedEdge = ref<KnowledgeBase.KbEdge | null>()
-const graphRef = ref<KnowledgeBase.QaRecordGraphRef | null>({ edges: [], vertices: [] })
-let cy: any = null
 
-function getAndRenderGraph() {
-  graphRef.value = chatStore.getGraphRef(props.msgUuid)
-  if (!graphRef.value || (graphRef.value.vertices.length === 0 && graphRef.value.edges.length === 0))
-    loadGraph()
-  else
-    parseAndRender(graphRef.value)
-}
+async function fetchPage(): Promise<KnowledgeBase.KbItemGraphResp & { totalVertices?: number; totalEdges?: number }> {
+  // Prefer the store cache; an empty cached graph is refetched (may have completed streaming)
+  const cached = chatStore.getGraphRef(props.msgUuid)
+  if (cached && (cached.vertices.length > 0 || cached.edges.length > 0))
+    return cached
 
-function parseAndRender(graphRef: KnowledgeBase.QaRecordGraphRef) {
-  cy.$('node').remove()
-  cy.$('edge').remove()
-  // 实体名为节点键（与文档图谱页一致，不依赖图库内部 id）；同名顶点去重
-  const nodes = graphRef.vertices
-    .filter((item, idx, arr) => arr.findIndex((v) => v.name === item.name) === idx)
-    .map((item) => {
-      return { group: 'nodes', data: { id: item.name, name: item.name, description: item.description } }
-    })
-  const edges = graphRef.edges.map((item) => {
-    return { group: 'edges', data: { source: item.sourceName, target: item.targetName, description: item.description } }
-  })
-  renderGraph(nodes, edges)
-}
+  if (chatStore.isLoadingGraphRef(props.msgUuid))
+    return cached ?? { vertices: [], edges: [] }
 
-function renderGraph(nodes: any, edges: any) {
-  if (nodes.length > 0) {
-    cy.add(nodes)
-    cy.nodes().on('click', (e: any) => {
-      const clickedNode = e.target
-      selectedVertex.value = clickedNode.data()
-      selectedEdge.value = null
-    })
-  }
-  if (edges.length > 0) {
-    cy.add(edges)
-    cy.edges().on('click', (e: any) => {
-      const clickedNode = e.target
-      selectedVertex.value = null
-      selectedEdge.value = clickedNode.data()
-    })
-  }
-  nextTick(() => {
-    cy.resize()
-    relayout()
-  })
-}
-
-async function loadGraph() {
-  const curQaRecordUuid = props.msgUuid
-  if (chatStore.isLoadingGraphRef(curQaRecordUuid))
-    return
-
-  chatStore.setLoadingGraphRef(curQaRecordUuid, true)
+  chatStore.setLoadingGraphRef(props.msgUuid, true)
   try {
-    const resp = await api.messageGraphRef<KnowledgeBase.KbItemGraphResp>(curQaRecordUuid)
-    if (resp.data)
-      chatStore.setKnowledgeGraphRef(curQaRecordUuid, { ...resp.data })
-  } finally {
-    chatStore.setLoadingGraphRef(curQaRecordUuid, false)
-
-    // 加载结束后判断是否还停留在加载时的页面，是的话则渲染图形
-    if (curQaRecordUuid === props.msgUuid) {
-      const loadedRef = chatStore.getGraphRef(curQaRecordUuid)
-      if (loadedRef)
-        parseAndRender(loadedRef)
+    const resp = await api.messageGraphRef<KnowledgeBase.KbItemGraphResp>(props.msgUuid)
+    if (resp.data) {
+      const graphRef = { ...resp.data }
+      chatStore.setKnowledgeGraphRef(props.msgUuid, graphRef)
+      return graphRef
     }
-
-    loading.value = chatStore.isLoadingGraphRef(props.msgUuid)
+    return { vertices: [], edges: [] }
+  } finally {
+    chatStore.setLoadingGraphRef(props.msgUuid, false)
   }
 }
-
-function initCy() {
-  cy = cytoscape({
-    container: document.getElementById('refGraphCy'),
-    elements: [],
-    style: [
-      {
-        selector: 'node',
-        style: {
-          content: 'data(name)',
-          width: 30,
-          height: 30,
-        },
-      },
-    ],
-  })
-}
-
-function relayout() {
-  const layout = cy.layout({
-    name: 'cose',
-  })
-  layout.run()
-  isEmpty.value = cy.elements().length === 0
-}
-
-onUpdated(() => {
-  console.log('RefGraph onUpdated')
-  nextTick(() => {
-    selectedVertex.value = null
-    selectedEdge.value = null
-    getAndRenderGraph()
-  })
-})
-
-onMounted(() => {
-  console.log('RefGraph onMounted')
-  nextTick(() => {
-    initCy()
-    getAndRenderGraph()
-  })
-})
 </script>
 
 <template>
-  <NFlex>
-    <div id="refGraphCy" style="width:80%; height: 400px;" class="border border-gray-300" />
-    <div class="w-1/6 h-[400px] overflow-y-auto">
-      <NButton v-show="!isEmpty" size="small" :loading="loading" type="info" ghost @click="relayout">
-        {{ t('chat.relayout') }}
-      </NButton>
-      <NButton v-show="isEmpty" size="small" type="warning" ghost>
-        {{ t('common.noData') }}
-      </NButton>
-      <NFlex v-if="selectedVertex" vertical>
-        <NDivider title-placement="left">
-          {{ t('chat.entity') }}
-        </NDivider>
-        <div>{{ selectedVertex.name }}</div>
-        <NDivider title-placement="left">
-          {{ t('common.name') }}
-        </NDivider>
-        <div>{{ selectedVertex.name }}</div>
-        <NDivider title-placement="left">
-          {{ t('common.description') }}
-        </NDivider>
-        <div>{{ selectedVertex.description }}</div>
-      </NFlex>
-      <NFlex v-if="selectedEdge" vertical>
-        <NDivider title-placement="left">
-          {{ t('chat.relation') }}
-        </NDivider>
-        <div>{{ selectedEdge.sourceName }} → {{ selectedEdge.targetName }}</div>
-        <NDivider title-placement="left">
-          {{ t('common.description') }}
-        </NDivider>
-        <div>{{ selectedEdge.description }}</div>
-      </NFlex>
-    </div>
-  </NFlex>
+  <GraphCanvas
+    :reload-key="msgUuid"
+    :show-pagination="false"
+    :show-no-data="true"
+    :fetch-page="fetchPage"
+  />
 </template>

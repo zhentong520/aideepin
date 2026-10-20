@@ -1,7 +1,7 @@
 import { Random } from 'mockjs'
 import { resultSuccess, doCustomTimes } from '../_util'
 
-const tableList = (pageSize) => {
+const tableList = (pageSize: number) => {
   const result: any[] = []
   doCustomTimes(pageSize, () => {
     result.push({
@@ -26,7 +26,7 @@ export default [
     url: '/api/admin/table/list',
     timeout: 1000,
     method: 'get',
-    response: ({ query }) => {
+    response: ({ query }: { query: Record<string, string> }) => {
       const { page = 1, pageSize = 10, name } = query
       const list = tableList(Number(pageSize))
       //并非真实，只是为了模拟搜索结果
@@ -44,7 +44,7 @@ export default [
     url: '/api/admin/user/list',
     timeout: 1000,
     method: 'get',
-    response: ({ query }) => {
+    response: ({ query }: { query: Record<string, string> }) => {
       const { page = 1, pageSize = 10, name } = query
       const list = tableList(Number(pageSize))
       //并非真实，只是为了模拟搜索结果
