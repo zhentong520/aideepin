@@ -210,7 +210,7 @@ onMounted(async () => {
 <template>
   <NConfigProvider class="h-full" :theme="theme" :theme-overrides="themeOverrides" :locale="language">
     <NaiveProvider>
-      <NLayout class="h-full" has-sider>
+      <NLayout class="h-full min-h-screen" has-sider>
         <NLayoutSider bordered :collapsed-width="48" collapse-mode="width" :collapsed="true">
           <NMenu v-model:value="activeKey" :options="menuOptions" />
           <NSpace vertical class="absolute bottom-0 ml-2">
@@ -246,7 +246,7 @@ onMounted(async () => {
             </NTooltip>
           </NSpace>
         </NLayoutSider>
-        <NLayout>
+        <NLayout class="min-h-screen">
           <!-- <KeepAlive>
             <RouterView :key="routePath" />
           </KeepAlive> -->

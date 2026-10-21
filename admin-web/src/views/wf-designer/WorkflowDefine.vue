@@ -48,7 +48,7 @@ const saveDisabledTip = computed(() => {
 
 const {
   onInit, fitView, onConnect, onNodeClick, onEdgeClick, onNodesChange, onEdgesChange, onNodeDragStop,
-  addSelectedNodes, project, getSelectedNodes, viewport,
+  addSelectedNodes, project, getSelectedNodes, viewport, updateNode,
 } = useVueFlow()
 
 const uw = designerStore.wfUuidToUIWorkflow.get(props.workflow.uuid) || { nodes: [] as Array<Node>, edges: [] as Array<Edge> }
@@ -272,8 +272,12 @@ watch(
 watch(
   [hiddenNodeIds, () => uiWorkflow.nodes.map(node => node.id).join('|')],
   ([hidden]) => {
-    for (const node of uiWorkflow.nodes)
+    for (const node of uiWorkflow.nodes) {
       node.hidden = hidden.has(node.id)
+      // vue-flow 单向 :nodes 绑定只侦听数组引用/长度，节点属性级变更不会重新解析内部 store，
+      // 必须用 updateNode 显式同步，否则折叠时成员节点不会真正从画布隐藏
+      updateNode(node.id, { hidden: node.hidden })
+    }
   },
   { immediate: true },
 )
@@ -439,7 +443,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="chat-box flex flex-col w-full h-full">
+  <div class="chat-box flex flex-col w-full h-screen">
     <main class="flex-1 overflow-hidden">
       <div ref="scrollRef" class="h-full overflow-hidden overflow-y-auto">
         <div class="flex h-full">
@@ -733,7 +737,7 @@ onUnmounted(() => {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 3;
+  z-index: 5;
 }
 
 .wf-container {
