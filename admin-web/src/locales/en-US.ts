@@ -241,6 +241,15 @@ export default {
     createBy: 'Created By',
     note: 'Note',
     componentTitlePlaceholder: 'Enter name',
+    // T9-08 canvas grouping (Container): visual organization only, execution semantics unchanged
+    selectedCount: '{n} nodes selected',
+    containerGroup: 'Group',
+    containerDefaultTitle: 'Group',
+    containerGroupSuccess: 'Grouped',
+    containerGroupFailed: 'Cannot group: select at least two nodes',
+    containerCollapse: 'Collapse group',
+    containerExpand: 'Expand group',
+    containerUngroup: 'Ungroup',
   },
   mcp: {
     title: 'MCP Management',

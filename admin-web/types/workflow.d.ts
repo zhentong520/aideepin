@@ -11,6 +11,29 @@ declare namespace Workflow {
     isEnable: boolean
   }
 
+  /**
+   * T9-08：画布分组（Container）元数据。纯布局信息，执行引擎不解析、不影响执行语义。
+   * 存 jsonb 列，后端 WfNodeDto.layout 已透传，前端随保存请求体一起提交。
+   */
+  interface WfNodeLayout {
+    /** 本节点所属分组 id（全部成员节点都写） */
+    groupId?: string
+    /** 分组定义，只写在 leader（members[0]）节点上，全局单一来源 */
+    container?: WfNodeContainer
+  }
+
+  /** 一个画布分组的定义。折叠态也存这里，保证刷新后保持折叠 */
+  interface WfNodeContainer {
+    /** 分组 id */
+    id: string
+    /** 分组标题，画布标题栏显示 */
+    title: string
+    /** 成员节点 uuid 列表（含 leader 自己，即 members[0]） */
+    members: string[]
+    /** 是否折叠：折叠后只显示标题栏，成员节点纯视觉隐藏 */
+    collapsed: boolean
+  }
+
   interface WorkflowNode {
     id: string
     uuid: string
@@ -28,6 +51,8 @@ declare namespace Workflow {
     wfComponent: WorkflowComponent
     sourceHandleIds: string[]
     targetHandleIds: string[]
+    /** T9-08 画布分组元数据；无分组时为 undefined，保存时整体省略 */
+    layout?: WfNodeLayout
   }
 
   interface WorkflowEdge {

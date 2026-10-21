@@ -899,6 +899,14 @@ export default {
     selectedCount: '已选 {n} 个节点',
     batchCopy: '复制',
     batchDelete: '删除',
+    // T9-08 画布分组（Container）：纯视觉组织，执行语义不变
+    containerGroup: '成组',
+    containerDefaultTitle: '分组',
+    containerGroupSuccess: '已成组',
+    containerGroupFailed: '成组失败：至少选择两个节点',
+    containerCollapse: '折叠分组',
+    containerExpand: '展开分组',
+    containerUngroup: '解除分组',
     // T9-05 版本历史 / T9-01 触发器 / T9-06 模板
     versionHistory: '版本历史',
     versionEmpty: '暂无版本',

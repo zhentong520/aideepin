@@ -235,6 +235,15 @@ export default {  common: {
     createBy: '创建用户',
     note: '备注',
     componentTitlePlaceholder: '请输入名称',
+    // T9-08 画布分组（Container）：纯视觉组织，执行语义不变
+    selectedCount: '已选 {n} 个节点',
+    containerGroup: '成组',
+    containerDefaultTitle: '分组',
+    containerGroupSuccess: '已成组',
+    containerGroupFailed: '成组失败：至少选择两个节点',
+    containerCollapse: '折叠分组',
+    containerExpand: '展开分组',
+    containerUngroup: '解除分组',
   },
   mcp: {
     title: 'MCP管理',

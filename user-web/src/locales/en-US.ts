@@ -900,6 +900,14 @@ export default {
     selectedCount: '{n} nodes selected',
     batchCopy: 'Copy',
     batchDelete: 'Delete',
+    // T9-08 canvas grouping (Container): visual organization only, execution semantics unchanged
+    containerGroup: 'Group',
+    containerDefaultTitle: 'Group',
+    containerGroupSuccess: 'Grouped',
+    containerGroupFailed: 'Cannot group: select at least two nodes',
+    containerCollapse: 'Collapse group',
+    containerExpand: 'Expand group',
+    containerUngroup: 'Ungroup',
     // T9-05 version history / T9-01 triggers / T9-06 templates
     versionHistory: 'Version history',
     versionEmpty: 'No versions yet',

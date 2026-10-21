@@ -1,9 +1,11 @@
 <script setup lang='ts'>
-import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
-import { NButton, NLayout, NLayoutContent, NLayoutSider, NModal, NTooltip, useMessage } from 'naive-ui'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { NButton, NDropdown, NLayout, NLayoutContent, NLayoutSider, NModal, NTooltip, useMessage } from 'naive-ui'
+import type { DropdownOption } from 'naive-ui'
 import type { Edge, Node, NodeChange } from '@vue-flow/core'
-import { VueFlow, useVueFlow } from '@vue-flow/core'
+import { Panel, VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
+import { v4 as uuidv4 } from 'uuid'
 import { AgentNode, AnswerNode, ClassifierNode, DatabaseNode, DocumentExtractorNode, EndNode, FaqExtractorNode, GoogleNode, HttpRequestNode, HumanFeedbackNode, KeywordExtractorNode, KnowledgeRetrievalNode, MailSendNode, McpNode, OpenAiImageNode, SkillNode, SpecialNode, StartNode, SwitcherNode, TemplateNode, TongyiwanxNode } from './components/nodes'
 import SpecialEdge from './components/edges/SpecialEdge.vue'
 import CustomEdge from './components/edges/CustomEdge.vue'
@@ -13,6 +15,9 @@ import WfDefineRightPanel from '@/views/wf-designer/WfDefineRightPanel.vue'
 import WfDefineSidebar from '@/views/wf-designer/WfDefineSiderbar.vue'
 import { emptyWorkflowInfo } from '@/wf/utils/functions'
 import { createNewEdge, createNewNode } from '@/wf/utils/workflow-util'
+// T9-08：画布分组（Container）—— 覆盖层方案，元数据存成员节点 data.layout
+import type { WfContainerView } from '@/wf/utils/wf-container'
+import { collapsedAnchorBox, collectContainers, computeContainerBox, createContainer, moveContainerMembers, removeContainer } from '@/wf/utils/wf-container'
 import { useUserStore, useWfStore } from '@/wf/stores'
 import { useDesignerStore } from './useDesignerStore'
 import api from '@/wf/api'
@@ -41,7 +46,10 @@ const saveDisabledTip = computed(() => {
   return ''
 })
 
-const { onInit, fitView, onConnect, onNodeClick, onEdgeClick, onNodesChange, onEdgesChange, onNodeDragStop, addSelectedNodes, project } = useVueFlow()
+const {
+  onInit, fitView, onConnect, onNodeClick, onEdgeClick, onNodesChange, onEdgesChange, onNodeDragStop,
+  addSelectedNodes, project, getSelectedNodes, viewport,
+} = useVueFlow()
 
 const uw = designerStore.wfUuidToUIWorkflow.get(props.workflow.uuid) || { nodes: [] as Array<Node>, edges: [] as Array<Edge> }
 designerStore.wfUuidToUIWorkflow.set(props.workflow.uuid, uw)
@@ -203,6 +211,194 @@ onEdgeClick(() => {
     hidePropertyPanel.value = false
 })
 
+// ==================== T9-08：画布分组（Container）覆盖层 ====================
+// 纯视觉组织：分组框是与 vue-flow 同坐标系的绝对定位层（用 viewport 做 x/zoom 变换），
+// 成员节点仍是独立节点（不使用 parentId 父子化，避免破坏 positionX/positionY 语义）。
+// 元数据写在成员节点的 data.layout（后端 jsonb 已就绪），执行引擎不感知分组。
+const CONTAINER_NODE_WIDTH = 220
+const CONTAINER_NODE_FALLBACK_HEIGHT = 80
+
+const zoomLevel = computed(() => viewport.value?.zoom ?? 1)
+const panX = computed(() => viewport.value?.x ?? 0)
+const panY = computed(() => viewport.value?.y ?? 0)
+
+// 折叠态隐藏的成员 uuid 集合：vue-flow 的 hidden 是纯视觉标记，不入库
+const hiddenNodeIds = ref<Set<string>>(new Set())
+
+const containerViews = computed<WfContainerView[]>(() => {
+  const views = collectContainers(props.workflow.nodes)
+  const positions = new Map<string, { x: number, y: number }>()
+  for (const node of uiWorkflow.nodes)
+    positions.set(node.id, { x: node.position.x, y: node.position.y })
+
+  return views.map((view) => {
+    // 折叠时成员被 hidden，dimensions 不可靠，改用成员坐标锚点占位
+    view.box = view.container.collapsed
+      ? collapsedAnchorBox(view.memberUuids, positions)
+      : computeContainerBox(uiWorkflow.nodes, view.memberUuids, CONTAINER_NODE_WIDTH, CONTAINER_NODE_FALLBACK_HEIGHT)
+    return view
+  })
+})
+
+/**
+ * 折叠态收敛为「只有标题栏」：把折叠分组的成员从画布隐藏。
+ * hidden 走 vue-flow 的节点字段（渲染时返回 null），不写进 data，故不会入库；
+ * 折叠状态本身持久化在 leader 节点的 layout.container.collapsed。
+ */
+watch(
+  () => containerViews.value.map(view => `${view.container.id}:${view.container.collapsed ? 1 : 0}`).join('|'),
+  () => {
+    const hidden = new Set<string>()
+    for (const view of containerViews.value) {
+      if (!view.container.collapsed)
+        continue
+
+      for (const uuid of view.memberUuids)
+        hidden.add(uuid)
+    }
+    hiddenNodeIds.value = hidden
+  },
+  { immediate: true },
+)
+
+/**
+ * 折叠态收敛为「只有标题栏」：把折叠分组的成员从画布隐藏。
+ * hidden 走 vue-flow 的节点字段（渲染时返回 null），不写进 data，故不会入库；
+ * 折叠状态本身持久化在 leader 节点的 layout.container.collapsed。
+ *
+ * 监听 hidden 集合 + 节点列表双重依赖：画布重建 ui 节点后新对象上没有 hidden 标记，
+ * 必须重新同步，否则折叠的分组会「漏出」成员节点。
+ */
+watch(
+  [hiddenNodeIds, () => uiWorkflow.nodes.map(node => node.id).join('|')],
+  ([hidden]) => {
+    for (const node of uiWorkflow.nodes)
+      node.hidden = hidden.has(node.id)
+  },
+  { immediate: true },
+)
+
+// 分组是否可成组：至少选中 2 个节点
+const selectedNodeCount = computed(() => getSelectedNodes.value.length)
+const canGroupSelection = computed(() => getSelectedNodes.value.length >= 2)
+
+/** 框选成组：把当前选中的节点合成一个分组 */
+function onGroupSelected() {
+  const uuids = getSelectedNodes.value.map(node => node.id)
+  const container = createContainer(props.workflow, uuids, defaultContainerTitle(), uuidv4().replace(/-/g, ''))
+  if (!container) {
+    ms.warning(t('workflow.containerGroupFailed'))
+    return
+  }
+
+  ms.success(t('workflow.containerGroupSuccess'))
+}
+
+function defaultContainerTitle(): string {
+  return `${t('workflow.containerDefaultTitle')} ${containerViews.value.length + 1}`
+}
+
+/** 折叠/展开：只改 leader 节点上的 container.collapsed */
+function toggleContainer(view: WfContainerView) {
+  const leader = props.workflow.nodes.find(node => node.uuid === view.leaderUuid)
+  if (!leader?.layout?.container)
+    return
+
+  leader.layout.container.collapsed = !leader.layout.container.collapsed
+}
+
+/** 解组：清除全部成员节点的分组元数据 */
+function onUngroupContainer(view: WfContainerView) {
+  removeContainer(props.workflow, view.container.id)
+}
+
+/** 整体拖动：拖标题栏带动全部成员移动，同步 positionX/positionY */
+const containerDragState = ref<{
+  memberUuids: string[]
+  startX: number
+  startY: number
+} | null>(null)
+
+function onContainerHeaderDown(view: WfContainerView, event: PointerEvent) {
+  if (view.container.collapsed)
+    return
+
+  event.preventDefault()
+  event.stopPropagation()
+  containerDragState.value = {
+    memberUuids: [...view.memberUuids],
+    startX: event.clientX,
+    startY: event.clientY,
+  }
+  window.addEventListener('pointermove', onContainerHeaderMove)
+  window.addEventListener('pointerup', onContainerHeaderUp)
+}
+
+function onContainerHeaderMove(event: PointerEvent) {
+  const drag = containerDragState.value
+  if (!drag)
+    return
+
+  // 屏幕位移 -> 画布位移：除以 zoom 抵消视口缩放
+  const dx = (event.clientX - drag.startX) / (zoomLevel.value || 1)
+  const dy = (event.clientY - drag.startY) / (zoomLevel.value || 1)
+  if (dx === 0 && dy === 0)
+    return
+
+  drag.startX = event.clientX
+  drag.startY = event.clientY
+  moveContainerMembers(uiWorkflow.nodes, drag.memberUuids, dx, dy)
+}
+
+function onContainerHeaderUp() {
+  containerDragState.value = null
+  window.removeEventListener('pointermove', onContainerHeaderMove)
+  window.removeEventListener('pointerup', onContainerHeaderUp)
+}
+
+/** 标题栏右键菜单：折叠展开 / 解组 */
+const containerMenu = ref<{ show: boolean, x: number, y: number, groupId: string }>({
+  show: false,
+  x: 0,
+  y: 0,
+  groupId: '',
+})
+
+const containerMenuOptions = computed<DropdownOption[]>(() => {
+  const view = containerViews.value.find(item => item.container.id === containerMenu.value.groupId)
+  const collapsed = view?.container.collapsed ?? false
+  return [
+    { label: collapsed ? t('workflow.containerExpand') : t('workflow.containerCollapse'), key: 'toggle' },
+    { label: t('workflow.containerUngroup'), key: 'ungroup' },
+  ]
+})
+
+function onContainerHeaderContextMenu(view: WfContainerView, event: MouseEvent) {
+  event.preventDefault()
+  event.stopPropagation()
+  const target = wrapper.value?.$el?.getBoundingClientRect()
+  containerMenu.value = {
+    show: true,
+    x: event.clientX - (target?.left ?? 0),
+    y: event.clientY - (target?.top ?? 0),
+    groupId: view.container.id,
+  }
+}
+
+function onContainerMenuSelect(key: string) {
+  const groupId = containerMenu.value.groupId
+  containerMenu.value.show = false
+  const view = containerViews.value.find(item => item.container.id === groupId)
+  if (!view)
+    return
+
+  if (key === 'toggle') {
+    toggleContainer(view)
+  } else if (key === 'ungroup') {
+    onUngroupContainer(view)
+  }
+}
+
 function onRun() {
   showRunModal.value = true
 }
@@ -237,6 +433,8 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener('pointermove', onContainerHeaderMove)
+  window.removeEventListener('pointerup', onContainerHeaderUp)
 })
 </script>
 
@@ -335,6 +533,43 @@ onUnmounted(() => {
                   <template #edge-custom2="ccprops">
                     <CustomEdge2 v-bind="ccprops" />
                   </template>
+                  <!-- T9-08：框选成组批量操作条 -->
+                  <Panel v-if="selectedNodeCount > 1" position="top-center" class="wf-batch-bar">
+                    <span class="text-sm text-gray-600 mr-2">
+                      {{ t('workflow.selectedCount', { n: selectedNodeCount }) }}
+                    </span>
+                    <NButton size="tiny" :disabled="!canGroupSelection" @click="onGroupSelected">
+                      {{ t('workflow.containerGroup') }}
+                    </NButton>
+                  </Panel>
+                  <!-- T9-08：分组覆盖层（与 vue-flow 同坐标系，随 viewport 变换） -->
+                  <div class="wf-container-layer">
+                    <div
+                      v-for="view in containerViews" :key="view.container.id"
+                      class="wf-container" :class="{ collapsed: view.container.collapsed }"
+                      :style="{
+                        left: `${(view.box?.x ?? 0) * zoomLevel + panX}px`,
+                        top: `${(view.box?.y ?? 0) * zoomLevel + panY}px`,
+                        width: `${(view.box?.width ?? 0) * zoomLevel}px`,
+                        height: `${(view.box?.height ?? 0) * zoomLevel}px`,
+                      }"
+                    >
+                      <div
+                        class="wf-container-header" @pointerdown="onContainerHeaderDown(view, $event)"
+                        @contextmenu="onContainerHeaderContextMenu(view, $event)"
+                      >
+                        <span class="wf-container-title">{{ view.container.title }}</span>
+                        <span class="wf-container-count">
+                          {{ view.container.collapsed ? view.memberUuids.length : '' }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- T9-08：分组标题栏右键菜单（重命名 / 折叠展开 / 解组） -->
+                  <NDropdown
+                    trigger="manual" :show="containerMenu.show" :x="containerMenu.x" :y="containerMenu.y"
+                    :options="containerMenuOptions" placement="bottom-start" @select="onContainerMenuSelect"
+                  />
                 </VueFlow>
                 <div class="absolute right-5 top-3 flex items-center">
                   <NButton
@@ -477,6 +712,80 @@ onUnmounted(() => {
 
 .dndflow .n-collapse-item-arrow {
   margin-left: 0.5rem;
+}
+
+/* T9-08：框选成组批量操作条 */
+.wf-batch-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px var(--adi-space-s12);
+  background: #fff;
+  border: 1px solid #e5e6eb;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgb(0 0 0 / 0.1);
+}
+
+/* T9-08：画布分组覆盖层
+   与 vue-flow 同坐标系：外层铺满画布，内层按 viewport 变换后的屏幕坐标定位。
+   z-index 介于 pane(1) 与 viewport(4) 之间，保证分组框在节点之下、画布交互之上。 */
+.wf-container-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.wf-container {
+  position: absolute;
+  border: 1px solid var(--adi-primary, #2d8cf0);
+  border-radius: 10px;
+  background: rgb(45 140 240 / 0.08);
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+.wf-container-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--adi-space-s12);
+  border-bottom: 1px solid var(--adi-primary, #2d8cf0);
+  border-radius: 10px 10px 0 0;
+  background: rgb(45 140 240 / 0.16);
+  color: var(--adi-primary, #2d8cf0);
+  font-size: 12px;
+  font-weight: 600;
+  /* 仅标题栏可交互（拖动/右键），其余区域让点击穿透到画布与节点 */
+  pointer-events: auto;
+  cursor: grab;
+  user-select: none;
+}
+
+.wf-container-header:active {
+  cursor: grabbing;
+}
+
+.wf-container-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wf-container-count {
+  flex-shrink: 0;
+  padding-left: var(--adi-space-s8, 8px);
+  opacity: 0.75;
+}
+
+/* 折叠态：只剩标题栏，隐藏标题栏下的分隔线 */
+.wf-container.collapsed .wf-container-header {
+  border-bottom: none;
 }
 
 
