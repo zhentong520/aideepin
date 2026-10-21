@@ -34,4 +34,13 @@ public class CharacterMessageRefEmbedding implements Serializable {
     @Schema(title = "提问用户id | Question User ID")
     @TableField("user_id")
     private Long userId;
+
+    /**
+     * T7-01（2026-10-21）：本次向量检索的 query_id（adi_rag_query_log.query_id）。
+     * <p>
+     * 供 👍👎 反馈在页面刷新后仍能定位到那次检索；历史行为空（当时未记录）。
+     */
+    @Schema(title = "本次检索的 query_id（反馈用；历史行为空）| Retrieval query id (for feedback; null for legacy rows)")
+    @TableField("rag_query_id")
+    private String ragQueryId;
 }

@@ -273,6 +273,11 @@ declare namespace KnowledgeBase {
     matchedText?: string
     /** 引用来源文档的分段模式：text | qa | parent_child */
     segmentMode?: string
+    /**
+     * T7-01：本次检索的 query_id（历史消息为空）。
+     * 页面刷新后 [META] 的 refs 已丢失，靠本字段兜底提交 👍👎 反馈。
+     */
+    ragQueryId?: string
   }
 
   interface QaRecordGraphRef {

@@ -117,6 +117,19 @@ public class CharacterMessageService extends ServiceImpl<CharacterMessageMapper,
      * @param embeddingToScore 嵌入向量id和分数的映射
      */
     public void createEmbeddingRefs(User user, Long messageId, Map<String, Double> embeddingToScore) {
+        createEmbeddingRefs(user, messageId, embeddingToScore, null);
+    }
+
+    /**
+     * 增加嵌入引用记录（带 query_id）。
+     *
+     * @param user             用户
+     * @param messageId        消息id
+     * @param embeddingToScore 嵌入向量id和分数的映射
+     * @param embeddingToQueryId T7-01：嵌入向量id → 本次检索 query_id（可为 null，角色记忆/旧链路无此信息）
+     */
+    public void createEmbeddingRefs(User user, Long messageId, Map<String, Double> embeddingToScore,
+                                    Map<String, String> embeddingToQueryId) {
         log.info("Creating vector reference, userId:{}, qaRecordId:{}, embeddingToScore.size:{}", user.getId(), messageId, embeddingToScore.size());
         for (Map.Entry<String, Double> entry : embeddingToScore.entrySet()) {
             String embeddingId = entry.getKey();
@@ -125,6 +138,9 @@ public class CharacterMessageService extends ServiceImpl<CharacterMessageMapper,
             recordReference.setEmbeddingId(embeddingId);
             recordReference.setScore(embeddingToScore.get(embeddingId));
             recordReference.setUserId(user.getId());
+            if (null != embeddingToQueryId) {
+                recordReference.setRagQueryId(embeddingToQueryId.get(embeddingId));
+            }
             characterMessageRefEmbeddingService.save(recordReference);
         }
     }

@@ -16,6 +16,10 @@ declare namespace Chat {
 		isRefMemoryEmbedding: boolean //是否引用记忆向量
 		isRefEmbedding: boolean //是否是引用知识库向量
 		isRefGraph: boolean //是否是引用知识库图谱
+		/**
+		 * T7-01：随 [META] 下发的知识库来源明细（含 ragQueryId，用于 👍👎 反馈）
+		 */
+		refs?: KbRefItem[]
 
 		//Frontend only
 		inversion?: boolean
@@ -285,5 +289,24 @@ declare namespace Chat {
      * Importance 1-5 (episodic only).
      */
     importance?: number
+  }
+
+  /**
+   * T7-01：随 [META] 下发的知识库来源明细。
+   * ragQueryId 为本次检索的 query_id，前端据此提交 👍👎 反馈。
+   */
+  interface KbRefItem {
+    /** 来源类型: embedding / graph */
+    source: string
+    /** 知识库名称 */
+    kbTitle?: string
+    /** 文档名称 */
+    docTitle?: string
+    /** 命中片段内容 */
+    segmentContent?: string
+    /** 相似度分数（图谱来源无） */
+    score?: number
+    /** 本次检索的 query_id（图谱来源无；历史消息可能为空） */
+    ragQueryId?: string
   }
 }

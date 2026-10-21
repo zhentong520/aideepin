@@ -61,6 +61,14 @@ public class AdiEmbeddingStoreContentRetriever implements ContentRetriever {
      */
     private final Map<String, Double> embeddingToScore = new HashMap<>();
 
+    /**
+     * T7-01（2026-10-21）：命中的 embeddingId → 本次检索的 query_id 映射。
+     * <p>
+     * 用途：让「回答 → 引用 → 👍👎 反馈」链路能拿到 query_id（feedback 接口以 query_id 为主键）。
+     * 一次检索只生成一个 query_id，故同批命中共享同一个值；角色记忆通道不写日志也不填此映射。
+     */
+    private final Map<String, String> embeddingToQueryId = new HashMap<>();
+
     private final boolean breakIfSearchMissed;
 
     /**
@@ -346,14 +354,16 @@ public class AdiEmbeddingStoreContentRetriever implements ContentRetriever {
      *   <li>query_text = 用户原始问句（截断 500 字符，T7-01 失败案例转评测题的题面来源）</li>
      *   <li>filter_expression = 实际下发向量库的表达式（含 ACL 条件）</li>
      *   <li>全程 try/catch：日志缺失可以被接受，检索被拖垮不行</li>
+     *   <li>T7-01：返回本次 query_id（成功时），并把 query_id 绑到命中 embeddingId</li>
      * </ul>
      */
-    private void saveQueryLog(Query query, Filter effectiveFilter,
+    private String saveQueryLog(Query query, Filter effectiveFilter,
                               List<EmbeddingMatch<TextSegment>> matches,
                               int aclFilteredCount, long startTime) {
         if (null == context) {
-            return;
+            return null;
         }
+        final String queryId = UuidUtil.createShort();
         try {
             List<Map<String, Object>> hits = new ArrayList<>();
             for (EmbeddingMatch<TextSegment> match : matches) {
@@ -374,7 +384,7 @@ public class AdiEmbeddingStoreContentRetriever implements ContentRetriever {
                 kbUuids = List.of();
             }
             RagQueryLog row = RagQueryLogService.build(
-                    UuidUtil.createShort(),
+                    queryId,
                     context.getUserUuid(),
                     kbUuids,
                     String.valueOf(effectiveFilter),
@@ -385,9 +395,15 @@ public class AdiEmbeddingStoreContentRetriever implements ContentRetriever {
                     embeddingModelName(),
                     query.text());
             SpringUtil.getBean(RagQueryLogService.class).saveAsync(row);
+            // T7-01：把 query_id 绑到本次命中的 embeddingId，供「回答→反馈」链路取用
+            for (EmbeddingMatch<TextSegment> match : matches) {
+                embeddingToQueryId.put(match.embeddingId(), queryId);
+            }
+            return queryId;
         } catch (Exception e) {
             log.warn("save rag query log failed,query:{},error:{}", StringUtils.abbreviate(query.text(), 50), e.getMessage());
         }
+        return null;
     }
 
     private static String safeMeta(Metadata metadata, String key) {
@@ -412,6 +428,13 @@ public class AdiEmbeddingStoreContentRetriever implements ContentRetriever {
      */
     public Map<String, Double> getRetrievedEmbeddingToScore() {
         return this.embeddingToScore;
+    }
+
+    /**
+     * T7-01：本次检索命中的 embeddingId → query_id 映射（供引用与 👍👎 反馈关联）。
+     */
+    public Map<String, String> getRetrievedEmbeddingToQueryId() {
+        return this.embeddingToQueryId;
     }
 
     @Override

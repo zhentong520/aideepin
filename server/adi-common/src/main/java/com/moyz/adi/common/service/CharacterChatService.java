@@ -471,6 +471,8 @@ public class CharacterChatService {
     private List<KbRefItem> buildKbRefs(List<RetrieverWrapper> retrieverWrappers, List<KbInfoResp> filteredKb) {
         List<KbRefItem> refs = new ArrayList<>();
         Map<String, Double> mergedScores = new HashMap<>();
+        // T7-01：embeddingId → query_id（多路检索合并时保留首次出现的）
+        Map<String, String> embeddingToQueryId = new HashMap<>();
         List<RefGraphDto> graphDtos = new ArrayList<>();
         for (RetrieverWrapper wrapper : retrieverWrappers) {
             if (!RetrieveContentFrom.KNOWLEDGE_BASE.equals(wrapper.getContentFrom())) {
@@ -479,6 +481,7 @@ public class CharacterChatService {
             if (wrapper.getRetriever() instanceof AdiEmbeddingStoreContentRetriever embeddingRetriever) {
                 embeddingRetriever.getRetrievedEmbeddingToScore().forEach((id, score) ->
                         mergedScores.merge(id, score, Math::max));
+                embeddingRetriever.getRetrievedEmbeddingToQueryId().forEach(embeddingToQueryId::putIfAbsent);
             } else if (wrapper.getRetriever() instanceof GraphStoreContentRetriever graphRetriever) {
                 graphDtos.add(graphRetriever.getGraphRef());
             }
@@ -513,6 +516,8 @@ public class CharacterChatService {
                 ref.setSegmentContent(abbreviate(display, 200));
                 ref.setDocTitle(docTitles.getOrDefault(dto.getDocUuid(), ""));
                 ref.setKbTitle(kbTitles.getOrDefault(dto.getKbUuid(), ""));
+                // T7-01：带上本次检索的 query_id，前端据此提交 👍👎 反馈
+                ref.setRagQueryId(embeddingToQueryId.get(dto.getEmbeddingId()));
                 refs.add(ref);
             }
         }
@@ -733,7 +738,9 @@ public class CharacterChatService {
         for (RetrieverWrapper wrapper : wrappers) {
             if (RetrieveContentFrom.KNOWLEDGE_BASE.equals(wrapper.getContentFrom())) {
                 if (wrapper.getRetriever() instanceof AdiEmbeddingStoreContentRetriever embeddingRetriever) {
-                    characterMessageService.createEmbeddingRefs(user, msgId, embeddingRetriever.getRetrievedEmbeddingToScore());
+                    // T7-01：同时落 query_id，页面刷新后仍可提交 👍👎 反馈
+                    characterMessageService.createEmbeddingRefs(user, msgId, embeddingRetriever.getRetrievedEmbeddingToScore(),
+                            embeddingRetriever.getRetrievedEmbeddingToQueryId());
                 } else if (wrapper.getRetriever() instanceof GraphStoreContentRetriever graphRetriever) {
                     characterMessageService.createGraphRefs(user, msgId, graphRetriever.getGraphRef());
                 }

@@ -163,6 +163,19 @@ function messageGraphRef<T>(msgUuid: string) {
   })
 }
 
+/**
+ * T7-01：提交知识库回答的 👍/👎 反馈。
+ * @param queryId 本次检索的 query_id（必填，反馈定位到那次检索）
+ * @param messageUuid 回答消息 uuid（可选）
+ * @param rating PASS（👍）/ FAIL（👎），可改票
+ */
+function ragFeedback<T>(params: { queryId: string; messageUuid?: string; rating: 'PASS' | 'FAIL'; comment?: string }) {
+  return post<T>({
+    url: '/chat/rag-feedback',
+    data: params,
+  })
+}
+
 export default {
   fetchCharacters,
   characterAdd,
@@ -185,4 +198,5 @@ export default {
   memoryEmbeddingRef,
   knowledgeEmbeddingRef,
   messageGraphRef,
+  ragFeedback,
 }

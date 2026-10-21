@@ -67,4 +67,11 @@ public class RefEmbeddingDto {
      * 二开新增（2026-09-21）：引用来源知识库 uuid（仅知识库引用填充；角色记忆引用为 null）。
      */
     private String kbUuid;
+
+    /**
+     * T7-01（2026-10-21）：本次向量检索的 query_id（历史行为空）。
+     * <p>
+     * 前端用它提交 👍👎 反馈——页面刷新后 [META] 的 refs 已丢失，靠本字段兜底。
+     */
+    private String ragQueryId;
 }

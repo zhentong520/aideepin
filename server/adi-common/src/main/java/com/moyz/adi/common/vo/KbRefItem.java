@@ -24,4 +24,13 @@ public class KbRefItem {
 
     @Schema(title = "向量相似度分数（图谱来源为 null）")
     private Double score;
+
+    /**
+     * T7-01（2026-10-21）：本次检索的 query_id（adi_rag_query_log.query_id）。
+     * <p>
+     * 用途：前端「👍👎 反馈」接口以 query_id 为主键，前端需要它把反馈落到具体那次检索上。
+     * 图谱来源没有对应向量检索，故为 null。
+     */
+    @Schema(title = "本次检索的 query_id（反馈用；图谱来源为 null）")
+    private String ragQueryId;
 }

@@ -15,6 +15,7 @@ import InputToolbar from './InputToolbar.vue'
 import InputEditor from './InputEditor.vue'
 import RefGraph from './RefGraph.vue'
 import RefMemory from './RefMemory.vue'
+import FeedbackButtons from './components/FeedbackButtons.vue'
 import LoginTip from '@/views/user/LoginTip.vue'
 import { useChatSse } from './composables/useChatSse'
 import { useBasicLayout } from '@/hooks/useBasicLayout'
@@ -66,6 +67,35 @@ const showRefEmbeddingMsgUuid = ref<string>('')
 const knowledgeEmbeddingRef = ref<KnowledgeBase.QaRecordEmbeddingRef[]>([])
 const showRefGraphModal = ref<boolean>(false)
 const showRefGraphMsgUuid = ref<string>('')
+
+// ==================== T7-01：👍/👎 反馈 ====================
+// 已投的票按 query_id 存（同一检索一票、可改票）
+const feedbackVotes = ref<Record<string, 'PASS' | 'FAIL'>>({})
+// 消息 uuid → query_id（[META] 的 refs 优先；页面刷新后由引用接口回填）
+const msgQueryIdMap = ref<Record<string, string>>({})
+
+function answerQueryId(answer?: Chat.ChatMessage): string {
+  if (!answer) {
+    return ''
+  }
+  const fromMeta = answer.refs?.find((r) => r.ragQueryId)?.ragQueryId
+  return fromMeta || msgQueryIdMap.value[answer.uuid] || ''
+}
+
+async function submitFeedback(queryId: string, messageUuid: string, rating: 'PASS' | 'FAIL') {
+  if (!queryId) {
+    ms.warning(t('chat.feedbackNoQuery'))
+    return
+  }
+  try {
+    await api.ragFeedback({ queryId, messageUuid, rating })
+    feedbackVotes.value = { ...feedbackVotes.value, [queryId]: rating }
+    ms.success(t('chat.feedbackSubmitted'))
+  } catch (e) {
+    // 反馈是锦上添花，失败不打断聊天
+    ms.error(t('chat.feedbackFailed'))
+  }
+}
 
 let prevScrollTop: number
 useCopyCode()
@@ -137,6 +167,11 @@ async function handleEmbeddingRefClick(qaRecordUuid: string) {
     } finally {
       loaddingEmbeddingRef.value = false
     }
+  }
+  // T7-01：回填该消息的 query_id（页面刷新后 [META] 的 refs 已丢失，靠引用接口兜底）
+  const queryId = knowledgeEmbeddingRef.value.find((r) => r.ragQueryId)?.ragQueryId
+  if (queryId) {
+    msgQueryIdMap.value = { ...msgQueryIdMap.value, [qaRecordUuid]: queryId }
   }
 }
 
@@ -448,6 +483,13 @@ onDeactivated(() => {
                         >
                           {{ t('chat.graph') }}
                         </NButton>
+                        <FeedbackButtons
+                          v-if="!!answer && !answer.loading && answer.isRefEmbedding"
+                          :query-id="answerQueryId(answer)"
+                          :message-uuid="answer.uuid"
+                          :vote="feedbackVotes[answerQueryId(answer)]"
+                          @vote="(r: 'PASS' | 'FAIL') => submitFeedback(answerQueryId(answer), answer.uuid, r)"
+                        />
                       </div>
                     </AudioMessage>
                     <Message
@@ -515,6 +557,13 @@ onDeactivated(() => {
                     >
                       {{ t('chat.graph') }}
                     </NButton>
+                    <FeedbackButtons
+                      v-if="!!qaMessage.children[0] && !qaMessage.children[0].loading && qaMessage.children[0].isRefEmbedding"
+                      :query-id="answerQueryId(qaMessage.children[0])"
+                      :message-uuid="qaMessage.children[0].uuid"
+                      :vote="feedbackVotes[answerQueryId(qaMessage.children[0])]"
+                      @vote="(r: 'PASS' | 'FAIL') => submitFeedback(answerQueryId(qaMessage.children[0]), qaMessage.children[0].uuid, r)"
+                    />
                   </div>
                 </AudioMessage>
                 <Message
@@ -548,6 +597,13 @@ onDeactivated(() => {
                     >
                       {{ t('chat.graph') }}
                     </NButton>
+                    <FeedbackButtons
+                      v-if="!!qaMessage.children[0] && !qaMessage.children[0].loading && qaMessage.children[0].isRefEmbedding"
+                      :query-id="answerQueryId(qaMessage.children[0])"
+                      :message-uuid="qaMessage.children[0].uuid"
+                      :vote="feedbackVotes[answerQueryId(qaMessage.children[0])]"
+                      @vote="(r: 'PASS' | 'FAIL') => submitFeedback(answerQueryId(qaMessage.children[0]), qaMessage.children[0].uuid, r)"
+                    />
                   </div>
                 </Message>
               </template>
