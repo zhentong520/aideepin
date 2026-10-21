@@ -9,7 +9,6 @@ import com.moyz.adi.common.config.AdiProperties;
 import com.moyz.adi.common.cosntant.RedisKeyConstant;
 import com.moyz.adi.common.dto.workflow.WfTriggerDto;
 import com.moyz.adi.common.dto.workflow.WfTriggerSaveReq;
-import com.moyz.adi.common.entity.User;
 import com.moyz.adi.common.entity.Workflow;
 import com.moyz.adi.common.entity.WorkflowTrigger;
 import com.moyz.adi.common.enums.ErrorEnum;
@@ -29,7 +28,6 @@ import org.springframework.stereotype.Service;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HexFormat;
@@ -59,12 +57,7 @@ public class WorkflowTriggerService extends ServiceImpl<WorkflowTriggerMapper, W
     public static final int FIRE_STATUS_DISPATCHED = 1;
     public static final int FIRE_STATUS_FAILED = 2;
 
-    private static final SecureRandom RANDOM = new SecureRandom();
-
     @Lazy
-    @Resource
-    private WorkflowTriggerService self;
-
     @Resource
     private WorkflowService workflowService;
 
@@ -73,12 +66,6 @@ public class WorkflowTriggerService extends ServiceImpl<WorkflowTriggerMapper, W
 
     @Resource
     private WorkflowTriggerRunner workflowTriggerRunner;
-
-    @Resource
-    private UserService userService;
-
-    @Resource
-    private com.moyz.adi.common.workflow.WorkflowStarter workflowStarter;
 
     @Resource
     private RedisTemplateUtil redisTemplateUtil;
@@ -246,7 +233,7 @@ public class WorkflowTriggerService extends ServiceImpl<WorkflowTriggerMapper, W
             Workflow workflow = workflowService.getById(trigger.getWorkflowId());
             if (null == workflow || Boolean.TRUE.equals(workflow.getIsDeleted()) || Boolean.FALSE.equals(workflow.getIsEnable())) {
                 log.warn("Schedule trigger skipped, workflow missing or disabled, triggerUuid:{}", trigger.getUuid());
-                markFireStatusById(trigger.getId(), FIRE_STATUS_FAILED);
+                workflowTriggerRunner.markFireStatus(trigger.getId(), FIRE_STATUS_FAILED);
                 return;
             }
             //防重入：上次未跑完（存在进行中的运行记录）则本次跳过，不重复触发；
@@ -354,38 +341,6 @@ public class WorkflowTriggerService extends ServiceImpl<WorkflowTriggerMapper, W
 
     // ---------- 派发后的实际执行 ----------
 
-    /**
-     * 派发后的实际执行（由 {@link WorkflowTriggerRunner} 在 workflowExecutor 线程调用）：
-     * 以工作流属主身份阻塞运行，trigger_source 落运行记录；失败更新 last_fire_status。
-     * 包私有以便单测。
-     */
-    void runTriggered(Long triggerId, String workflowUuid, ArrayNode inputs, String triggerSource) {
-        try {
-            Workflow workflow = workflowService.getByUuid(workflowUuid);
-            if (null == workflow) {
-                log.error("Triggered run aborted, workflow not found:{}", workflowUuid);
-                return;
-            }
-            //触发场景无登录态，以属主身份执行；属主缺失则放弃并记录
-            User ownerUser = userService.getById(workflow.getUserId());
-            if (null == ownerUser) {
-                log.error("Triggered run aborted, workflow owner missing, workflowUuid:{}", workflowUuid);
-                markFireStatusById(triggerId, FIRE_STATUS_FAILED);
-                return;
-            }
-            List<ObjectNode> userInputList = new ArrayList<>();
-            if (null != inputs) {
-                inputs.forEach(item -> userInputList.add((ObjectNode) item));
-            }
-            workflowStarter.blocking(ownerUser, workflowUuid, userInputList, triggerSource);
-        } catch (Exception e) {
-            log.error("Triggered run failed, workflowUuid:{}, source:{}", workflowUuid, triggerSource, e);
-            if (null != triggerId) {
-                markFireStatusById(triggerId, FIRE_STATUS_FAILED);
-            }
-        }
-    }
-
     // ---------- 内部工具 ----------
 
     public String buildWebhookUrl(String token) {
@@ -394,34 +349,6 @@ public class WorkflowTriggerService extends ServiceImpl<WorkflowTriggerMapper, W
             return "/workflow/webhook/" + token;
         }
         return StringUtils.stripEnd(backend, "/") + "/workflow/webhook/" + token;
-    }
-
-    /**
-     * 错峰抖动（adi.wf.trigger-stagger-seconds）：派发后执行前随机等待 0~N 秒，
-     * 避免大量工作流整点同时起跑。在 async 线程里 sleep，不阻塞轮询线程。
-     */
-    public void staggerSleep() {
-        int max = adiProperties.getWf().getTriggerStaggerSeconds();
-        if (max <= 0) {
-            return;
-        }
-        try {
-            long millis = RANDOM.nextInt(max) * 1000L;
-            log.info("Trigger stagger sleep {}ms", millis);
-            Thread.sleep(millis);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-    }
-
-    private void markFireStatusById(Long triggerId, int status) {
-        if (null == triggerId) {
-            return;
-        }
-        ChainWrappers.lambdaUpdateChain(baseMapper)
-                .eq(WorkflowTrigger::getId, triggerId)
-                .set(WorkflowTrigger::getLastFireStatus, status)
-                .update();
     }
 
     private WfTriggerDto toDto(Workflow workflow, WorkflowTrigger trigger) {

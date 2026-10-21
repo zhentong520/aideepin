@@ -49,6 +49,8 @@ class WorkflowTriggerScheduleTest {
     private WorkflowService workflowService;
     private WorkflowRuntimeService workflowRuntimeService;
     private WorkflowTriggerRunner runner;
+    /** 执行侧（runTriggered）现在住在 Runner 里，测试用真实实例而非 mock */
+    private WorkflowTriggerRunner realRunner;
     private WorkflowStarter workflowStarter;
     private UserService userService;
     private RedisTemplateUtil redisTemplateUtil;
@@ -71,10 +73,15 @@ class WorkflowTriggerScheduleTest {
         ReflectionTestUtils.setField(service, "workflowService", workflowService);
         ReflectionTestUtils.setField(service, "workflowRuntimeService", workflowRuntimeService);
         ReflectionTestUtils.setField(service, "workflowTriggerRunner", runner);
-        ReflectionTestUtils.setField(service, "workflowStarter", workflowStarter);
-        ReflectionTestUtils.setField(service, "userService", userService);
         ReflectionTestUtils.setField(service, "redisTemplateUtil", redisTemplateUtil);
         ReflectionTestUtils.setField(service, "adiProperties", adiProperties);
+
+        realRunner = new WorkflowTriggerRunner();
+        ReflectionTestUtils.setField(realRunner, "workflowService", workflowService);
+        ReflectionTestUtils.setField(realRunner, "userService", userService);
+        ReflectionTestUtils.setField(realRunner, "workflowStarter", workflowStarter);
+        ReflectionTestUtils.setField(realRunner, "workflowTriggerMapper", triggerMapper);
+        ReflectionTestUtils.setField(realRunner, "adiProperties", adiProperties);
     }
 
     private WorkflowTrigger scheduleTrigger(String cron, LocalDateTime lastFire) {
@@ -200,7 +207,7 @@ class WorkflowTriggerScheduleTest {
         when(userService.getById(42L)).thenReturn(owner);
         ArrayNode inputs = JsonUtil.createArrayNode();
 
-        service.runTriggered(11L, WF_UUID, inputs, "webhook");
+        realRunner.runTriggered(11L, WF_UUID, inputs, "webhook");
 
         verify(workflowStarter).blocking(eq(owner), eq(WF_UUID), any(), eq("webhook"));
     }
@@ -211,7 +218,7 @@ class WorkflowTriggerScheduleTest {
         when(workflowService.getByUuid(WF_UUID)).thenReturn(enabledWorkflow());
         when(userService.getById(42L)).thenReturn(null);
 
-        service.runTriggered(11L, WF_UUID, JsonUtil.createArrayNode(), "schedule");
+        realRunner.runTriggered(11L, WF_UUID, JsonUtil.createArrayNode(), "schedule");
 
         verify(triggerMapper).update(any(), any());
     }

@@ -39,6 +39,8 @@ class WorkflowWebhookAuthTest {
     private static final String WF_UUID = "w000000000000000000000000000001";
 
     private WorkflowTriggerService service;
+    /** 执行侧（runTriggered）现在住在 Runner 里，测试用真实实例而非 mock */
+    private WorkflowTriggerRunner realRunner;
     private WorkflowTriggerMapper triggerMapper;
     private WorkflowService workflowService;
     private WorkflowStarter workflowStarter;
@@ -59,12 +61,17 @@ class WorkflowWebhookAuthTest {
 
         ReflectionTestUtils.setField(service, "baseMapper", triggerMapper);
         ReflectionTestUtils.setField(service, "workflowService", workflowService);
-        ReflectionTestUtils.setField(service, "workflowStarter", workflowStarter);
-        ReflectionTestUtils.setField(service, "userService", userService);
         ReflectionTestUtils.setField(service, "redisTemplateUtil", redisTemplateUtil);
         ReflectionTestUtils.setField(service, "adiProperties", adiProperties);
         ReflectionTestUtils.setField(service, "workflowRuntimeService", mock(WorkflowRuntimeService.class));
         ReflectionTestUtils.setField(service, "workflowTriggerRunner", mock(WorkflowTriggerRunner.class));
+        // 执行侧（runTriggered）现在住在 Runner 里，测试用真实实例而非 mock
+        realRunner = new WorkflowTriggerRunner();
+        ReflectionTestUtils.setField(realRunner, "workflowService", workflowService);
+        ReflectionTestUtils.setField(realRunner, "userService", userService);
+        ReflectionTestUtils.setField(realRunner, "workflowStarter", workflowStarter);
+        ReflectionTestUtils.setField(realRunner, "workflowTriggerMapper", triggerMapper);
+        ReflectionTestUtils.setField(realRunner, "adiProperties", adiProperties);
     }
 
     private WorkflowTrigger webhookTrigger(boolean enabled) {
@@ -160,7 +167,7 @@ class WorkflowWebhookAuthTest {
         when(userService.getById(42L)).thenReturn(owner);
         ArrayNode inputs = JsonUtil.createArrayNode();
 
-        service.runTriggered(null, WF_UUID, inputs, "webhook");
+        realRunner.runTriggered(null, WF_UUID, inputs, "webhook");
 
         verify(workflowStarter).blocking(eq(owner), eq(WF_UUID), any(), eq("webhook"));
         //webhook 触发器 last_fire_status 不参与（triggerId=null 时不更新）
