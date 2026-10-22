@@ -205,7 +205,13 @@ function copySelected() {
   const uuids = new Set(selected.map(item => item.id))
   const nodes = props.workflow.nodes
     .filter(node => uuids.has(node.uuid) && node.wfComponent.name !== 'Start')
-    .map(node => JSON.parse(JSON.stringify(node)) as Workflow.WorkflowNode)
+    .map((node) => {
+      const clone = JSON.parse(JSON.stringify(node)) as Workflow.WorkflowNode
+      // 粘贴语义是“全新节点”：剥离源节点的分组元数据（groupId/container），
+      // 否则成员副本会残留幽灵分组归属，leader 副本更会产生重复的分组定义
+      clone.layout = undefined
+      return clone
+    })
   const edges = props.workflow.edges
     .filter(edge => uuids.has(edge.sourceNodeUuid) && uuids.has(edge.targetNodeUuid))
     .map(edge => JSON.parse(JSON.stringify(edge)) as Workflow.WorkflowEdge)
@@ -292,6 +298,11 @@ function deleteSelectedNodes() {
 
 function onAutoLayout() {
   autoLayoutWorkflow(props.workflow, uiWorkflow)
+  // vue-flow 单向 :nodes 绑定不响应 uiNode.position 变化，必须 updateNode 显式同步（同折叠分组处理）
+  uiWorkflow.nodes.forEach((n) => {
+    if (n.position)
+      updateNode(n.id, { position: { x: n.position.x, y: n.position.y } })
+  })
   pushWorkflowHistory(props.workflow)
   nextTick(() => fitView())
 }
@@ -443,6 +454,15 @@ function onDragOver(event: DragEvent) {
 
 const wrapper = ref()
 
+/**
+ * vue-flow 组件内部 __expose(vfInstance) 暴露的是 store 实例，没有 $el；
+ * 根 DOM 挂在 store.vueFlowRef 上（1.48.x），$el 仅作旧版本兜底。
+ * 修复 T3-07 双击快速添加 / 拖入节点 / 分组右键菜单坐标全部失效的问题。
+ */
+function flowRootEl(): HTMLElement | undefined {
+  return (wrapper.value?.vueFlowRef || wrapper.value?.$el) as HTMLElement | undefined
+}
+
 function onDrop(event: DragEvent) {
   // T3-14：内置模板整体拖入
   const presetKey = event.dataTransfer?.getData('application/vueflow-preset')
@@ -462,7 +482,9 @@ function onDrop(event: DragEvent) {
     return
   }
 
-  const flowbounds = wrapper.value.$el.getBoundingClientRect()
+  const flowbounds = flowRootEl()?.getBoundingClientRect()
+  if (!flowbounds)
+    return
 
   const position = project({
     x: event.clientX - flowbounds.left,
@@ -632,7 +654,9 @@ function applyPresetToCanvas(presetKey: string, event: DragEvent) {
   if (!preset)
     return
 
-  const flowbounds = wrapper.value.$el.getBoundingClientRect()
+  const flowbounds = flowRootEl()?.getBoundingClientRect()
+  if (!flowbounds)
+    return
   const position = project({
     x: event.clientX - flowbounds.left,
     y: event.clientY - flowbounds.top,
@@ -848,7 +872,7 @@ const containerMenuOptions = computed<DropdownOption[]>(() => {
 function onContainerHeaderContextMenu(view: WfContainerView, event: MouseEvent) {
   event.preventDefault()
   event.stopPropagation()
-  const target = wrapper.value?.$el?.getBoundingClientRect()
+  const target = flowRootEl()?.getBoundingClientRect()
   containerMenu.value = {
     show: true,
     x: event.clientX - (target?.left ?? 0),
@@ -910,7 +934,9 @@ function onPaneDblClick(e: MouseEvent) {
   if (!target || !target.classList.contains('vue-flow__pane'))
     return
 
-  const bounds = wrapper.value.$el.getBoundingClientRect()
+  const bounds = flowRootEl()?.getBoundingClientRect()
+  if (!bounds)
+    return
   quickAddPosition.value = project({
     x: e.clientX - bounds.left,
     y: e.clientY - bounds.top,
@@ -985,6 +1011,7 @@ watch(
                   <div class="flex-1 relative overflow-hidden">
                     <VueFlow
                       ref="wrapper" :nodes="uiWorkflow.nodes" :edges="uiWorkflow.edges" fit-view-on-init
+                      :zoom-on-double-click="false"
                       @dblclick="onPaneDblClick"
                     >
                       <!-- T3-03：网格背景 -->
