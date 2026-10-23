@@ -1,0 +1,11 @@
+{
+  "perms": 1,
+  "leak_fail": [],
+  "ctrl_fail": [
+    0
+  ],
+  "errors": [],
+  "leak_rate": "0/1",
+  "ctrl_recall": "0/1",
+  "gate": "FAIL"
+}

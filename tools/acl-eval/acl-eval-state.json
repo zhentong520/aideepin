@@ -1,0 +1,59 @@
+{
+  "sentinels": {
+    "q0": {
+      "sentinel": "e294a1130eb2ed7c2ee68b8b63c9674f",
+      "prefix": "ACL评测哨兵文档0：机"
+    },
+    "q1": {
+      "sentinel": "92fb83de82855847ca2eb2df01d1ae3d",
+      "prefix": "ACL评测哨兵文档1：机"
+    },
+    "q2": {
+      "sentinel": "de0fee77aeaeb3853bdcbf5bbb4ce9dc",
+      "prefix": "ACL评测哨兵文档2：机"
+    },
+    "q3": {
+      "sentinel": "f4d00ded01256f0aa8944c4308bab8f7",
+      "prefix": "ACL评测哨兵文档3：机"
+    },
+    "q4": {
+      "sentinel": "f5985120261bd14862abefe2d0522eb7",
+      "prefix": "ACL评测哨兵文档4：机"
+    },
+    "q5": {
+      "sentinel": "f553a7df864ae89e35071b56f062e757",
+      "prefix": "ACL评测哨兵文档5：机"
+    },
+    "q6": {
+      "sentinel": "511510bf7e8925247dca844cc43ece58",
+      "prefix": "ACL评测哨兵文档6：机"
+    },
+    "q7": {
+      "sentinel": "6f14b2b0394840a4b0e0079c9059cf80",
+      "prefix": "ACL评测哨兵文档7：机"
+    },
+    "q8": {
+      "sentinel": "796ac5735bb195099336d021c9b24240",
+      "prefix": "ACL评测哨兵文档8：机"
+    },
+    "q9": {
+      "sentinel": "fd6c3a80cfbb9e5a2c55f922a5a1a966",
+      "prefix": "ACL评测哨兵文档9：机"
+    }
+  },
+  "users": {
+    "A": {
+      "email": "acl_owner_a@aideepin.com",
+      "id": "18"
+    },
+    "B": {
+      "email": "acl_intruder_b@aideepin.com",
+      "id": "19"
+    }
+  },
+  "kb": {
+    "uuid": "b534e1bff78bc3cb1258cacc5811f40c",
+    "name": "ACL_EVAL_PUBLIC_A"
+  },
+  "vector_table": "adi_knowledge_base_embedding_bge_512"
+}

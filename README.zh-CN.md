@@ -15,6 +15,7 @@
 | server/ | 后端服务（[Spring Boot](https://github.com/spring-projects/spring-boot) + [langchain4j](https://github.com/langchain4j/langchain4j) + [langgraph4j](https://github.com/bsorrentino/langgraph4j)） | [README](server/README.zh-CN.md) |
 | admin-web/ | 管理端 WEB（[Vue 3](https://github.com/vuejs/core) + [Naive UI](https://github.com/tusen-ai/naive-ui)） | [README](admin-web/README.zh-CN.md) |
 | user-web/ | 用户端 WEB（[Vue 3](https://github.com/vuejs/core) + [Naive UI](https://github.com/tusen-ai/naive-ui)） | [README](user-web/README.md) |
+| tools/ | 评测与支撑工具区（RAG 评测 / ACL 评测 / MCP 冒烟 / 微调 Worker / 过程文档），独立于主服务构建链 | [README](tools/README.md) |
 
 ## 文档
 

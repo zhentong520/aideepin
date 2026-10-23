@@ -1,0 +1,6 @@
+{
+  "server_url": "http://127.0.0.1:9999",
+  "api_key": "在此填入管理端生成的 Worker Key（ext- 开头）",
+  "worker_id": "dev-mock-01",
+  "poll_interval": 10
+}

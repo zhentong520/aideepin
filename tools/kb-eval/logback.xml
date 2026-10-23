@@ -1,0 +1,10 @@
+<configuration>
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder><pattern>%-5level %logger{0} - %msg%n</pattern></encoder>
+  </appender>
+  <!-- langchain4j retries rate limits noisily; the harness reports failures itself -->
+  <logger name="dev.langchain4j" level="ERROR"/>
+  <root level="ERROR">
+    <appender-ref ref="STDOUT"/>
+  </root>
+</configuration>

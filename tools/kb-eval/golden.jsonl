@@ -1,0 +1,73 @@
+{"id": "g01", "doc": "guide/knowledge-base/segment.md", "query": "重新切分子块会有什么后果？", "gold": "会覆盖手动添加或编辑过的子块", "need": [["会覆盖手动添加或编辑过的子块"], ["删除该父段下全部子块及其向量"]]}
+{"id": "g02", "doc": "guide/knowledge-base/segment.md", "query": "删除父段的时候子块会被一起删掉吗？", "gold": "将删除该父段及其全部子块（含向量）"}
+{"id": "g03", "doc": "guide/knowledge-base/segment.md", "query": "片段停用后再启用，向量和图谱数据会怎么处理？", "gold": "启用后将重新生成该片段的向量与图谱数据（图谱抽取会消耗模型额度），确定启用吗？"}
+{"id": "g04", "doc": "guide/knowledge-base/segment.md", "query": "条目向量在向量库里找不到时，确认弹窗的原文是什么？", "gold": "该条目的向量在向量库中不存在（可能与状态显示不符），确认重建向量吗？"}
+{"id": "g05", "doc": "guide/knowledge-base/segment.md", "query": "重试执行中页面多久刷新一次进度？", "gold": "每 3 秒自动轮询进度"}
+{"id": "g06", "doc": "guide/knowledge-base/segment.md", "query": "父子分段检索时，子块和父段各自负责什么？", "gold": "子块负责精准命中，返回其父段作为回答语境"}
+{"id": "g07", "doc": "guide/knowledge-base/kb-qa.md", "query": "严格模式和宽松模式的提示原文分别说了什么？", "gold": "严格模式：严格匹配知识库，知识库中如无搜索结果，直接返回无答案；宽松模式：知识库中如无搜索结果，则将用户提问传给LLM继续请求答案。"}
+{"id": "g08", "doc": "guide/knowledge-base/kb-qa.md", "query": "最大招回数量的含义是什么？", "gold": "向量搜索时，召回的文档数量不能超过该值"}
+{"id": "g09", "doc": "guide/knowledge-base/kb-qa.md", "query": "最小招回分数是什么意思？", "gold": "向量搜索时，召回的向量分数需大于该值"}
+{"id": "g10", "doc": "guide/knowledge-base/kb-qa.md", "query": "引用溯源里，父子分段模式下展示的内容是什么？", "gold": "命中的子块 + 其父段"}
+{"id": "g11", "doc": "guide/knowledge-base/kb-qa.md", "query": "知识库问答有什么提问技巧？", "gold": "用与文档原文接近的措辞提问、一次只问一个问题、必要时补充限定词（年份、产品名、部门）"}
+{"id": "g12", "doc": "guide/knowledge-base/kb-qa.md", "query": "侧栏里云端图标和锁形图标分别代表什么？", "gold": "云端 = 公开，锁形 = 私有"}
+{"id": "g13", "doc": "guide/knowledge-base/manage.md", "query": "新建知识库时严格模式默认是什么？", "gold": "否，默认宽松"}
+{"id": "g14", "doc": "guide/knowledge-base/manage.md", "query": "修改切段参数保存时会弹出什么提示？", "gold": "切段参数变更将自动重建该知识库全部文档的向量索引，确定保存吗？"}
+{"id": "g15", "doc": "guide/knowledge-base/manage.md", "query": "文档切割时重叠数量这个参数是做什么的？", "gold": "相邻片段重叠的字符量", "need": [["相邻片段重叠的字符量"], ["适当重叠可避免关键信息恰好被切断在边界上"]]}
+{"id": "g16", "doc": "guide/knowledge-base/manage.md", "query": "分段策略有哪几个可选项？", "gold": "递归分段 / 中文分句 / 按段落 / 按行 / 按句 / 自定义分隔符"}
+{"id": "g17", "doc": "guide/knowledge-base/manage.md", "query": "令牌计数器支持哪三种估算口径？", "gold": "OpenAI / 通义千问 / Huggingface 三种估算口径"}
+{"id": "g18", "doc": "guide/knowledge-base/manage.md", "query": "删除知识库时的二次确认文案是什么？", "gold": "删除后数据无法恢复，确定要删除知识库【{标题}】吗?"}
+{"id": "g19", "doc": "guide/knowledge-base/manage.md", "query": "图谱抽取和生成QA使用的模型是怎么指定的？", "gold": "图谱抽取、生成QA时使用的模型，为空则使用第一个可用的模型"}
+{"id": "g20", "doc": "guide/knowledge-base/manage.md", "query": "文档召回最大数量这个设置是什么意思？", "gold": "每次检索最多召回的片段数。调高更全面但增加 Token 消耗"}
+{"id": "g21", "doc": "guide/chat/window.md", "query": "发送消息后消息区会依次显示哪些状态提示？", "gold": "问题分析中 → 知识库搜索中（关联了知识库时）→ 推理中 → 回答中"}
+{"id": "g22", "doc": "guide/chat/window.md", "query": "深度思考开关什么情况下会变成禁用状态？", "gold": "模型不支持深度思考功能"}
+{"id": "g23", "doc": "guide/chat/window.md", "query": "DeepSeek 模型的深度思考和联网搜索能同时开启吗？", "gold": "DeepSeek 模型的深度思考与工具 / 联网搜索互斥：同时开启时系统会自动关闭其一并给出提示。"}
+{"id": "g24", "doc": "guide/chat/window.md", "query": "上传图片支持哪些格式？", "gold": "PNG、JPG"}
+{"id": "g25", "doc": "guide/chat/window.md", "query": "上传的图片单张最大多少？", "gold": "≤ 4MB"}
+{"id": "g26", "doc": "guide/chat/window.md", "query": "关闭上下文理解后发送消息会怎样？", "gold": "当前模式下, 发送消息不会携带之前的聊天记录"}
+{"id": "g27", "doc": "guide/chat/window.md", "query": "多答案对比是怎么出现的？", "gold": "多个回答会以「回答 1 / 回答 2 …」页签并列展示", "need": [["**重新生成**回答后"], ["多个回答会以「回答 1 / 回答 2 …」页签并列展示"]]}
+{"id": "g28", "doc": "guide/chat/window.md", "query": "回答生成到一半能中断吗？", "gold": "中断后可重新生成", "need": [["可点击**停止请求**中断"], ["中断后可重新生成"]]}
+{"id": "g29", "doc": "guide/knowledge-base/document.md", "query": "按文件上传支持哪些格式？", "gold": "TXT、PDF、DOC、DOCX、XLS、XLSX、PPT、PPTX"}
+{"id": "g30", "doc": "guide/knowledge-base/document.md", "query": "一次最多能上传多少个文件？", "gold": "最多 20 个"}
+{"id": "g31", "doc": "guide/knowledge-base/document.md", "query": "上传的单个文件大小上限是多少？", "gold": "≤ 10MB"}
+{"id": "g32", "doc": "guide/knowledge-base/document.md", "query": "问答模式支持哪些文件类型？", "gold": "仅支持 XLSX / XLS / CSV"}
+{"id": "g33", "doc": "guide/knowledge-base/document.md", "query": "通用分段适合什么样的内容？", "gold": "适用于连续成篇的内容（文章、说明、手册）"}
+{"id": "g34", "doc": "guide/knowledge-base/document.md", "query": "子块最大Token数的取值范围和默认值是多少？", "gold": "取值 50-4000,默认 200,修改后重新向量化生效"}
+{"id": "g35", "doc": "guide/knowledge-base/document.md", "query": "扫描版PDF上传后会有什么问题？", "gold": "扫描版 PDF（图片型）无法提取文本"}
+{"id": "g36", "doc": "guide/knowledge-base/document.md", "query": "建立索引时可以同时选中向量化和图谱化吗？", "gold": "向量化 / 图谱化（可同时勾选）"}
+{"id": "g37", "doc": "dev/capability-tts.md", "query": "接入TTS能力需要写代码吗？", "gold": "TTS 接口没有行业统一的 API 标准", "need": [["**始终需要**"], ["TTS 接口没有行业统一的 API 标准"]]}
+{"id": "g38", "doc": "dev/capability-tts.md", "query": "系统是怎么指定当前激活的TTS服务的？", "gold": "系统通过 `adi_sys_config` 表中 `name = 'tts_setting'` 的记录指定激活的 TTS 服务"}
+{"id": "g39", "doc": "dev/capability-tts.md", "query": "同一时间可以有多个TTS服务处于激活状态吗？", "gold": "同一时间系统只有一个 TTS 服务处于激活状态"}
+{"id": "g40", "doc": "dev/capability-tts.md", "query": "继承 AbstractTtsModelService 后 start 方法要做什么？", "gold": "初始化 TTS 任务，设置音色和回调"}
+{"id": "g41", "doc": "guide/knowledge-base/overview.md", "query": "为什么说问答分段模式准确率最高？", "gold": "准确率最高，但要整理成 Q&A 格式"}
+{"id": "g42", "doc": "guide/knowledge-base/overview.md", "query": "严格模式下检索不到内容会怎么处理？", "gold": "检索不到相关内容时，直接返回「[无答案]」，绝不编造"}
+{"id": "g43", "doc": "guide/knowledge-base/overview.md", "query": "向量索引和图谱索引各自擅长什么？", "gold": "向量擅长「语义相近」，图谱擅长「多跳关联」"}
+{"id": "g44", "doc": "guide/knowledge-base/overview.md", "query": "公开知识库对其他人是只读的吗？", "gold": "所有用户都能在问答入口的「公开」列表中看到并使用（只读，不能修改你的文档）"}
+{"id": "g45", "doc": "guide/knowledge-base/overview.md", "query": "长文档既要命中精准又要上下文完整，该选哪种分段模式？", "gold": "子块命中参数条目，父段给出所在章节", "need": [["**父子分段**（如产品说明书"]]}
+{"id": "g46", "doc": "guide/knowledge-base/graph.md", "query": "生成图谱时用的是哪个模型？", "gold": "将使用当前知识库的入库模型"}
+{"id": "g47", "doc": "guide/knowledge-base/graph.md", "query": "知识图谱适合回答哪类问题？", "gold": "适合多跳关联类问题"}
+{"id": "g48", "doc": "guide/knowledge-base/graph.md", "query": "知识图谱大图怎么看全部节点？", "gold": "大图分页加载：底部显示「节点 {已加载}/{总数}，关系 {已加载}/{总数}」"}
+{"id": "g49", "doc": "guide/knowledge-base/graph.md", "query": "图谱抽取中页面会提示什么？", "gold": "图谱抽取中，完成后刷新查看"}
+{"id": "g50", "doc": "guide/knowledge-base/qa-import.md", "query": "问答模式是以什么作为检索单元的？", "gold": "问答（Q&A）模式的文档以「问题—答案」为检索单元"}
+{"id": "g51", "doc": "guide/knowledge-base/qa-import.md", "query": "上传QA文件和AI自动生成能同时用吗？", "gold": "上传文件与「AI 自动生成」互斥"}
+{"id": "g52", "doc": "guide/knowledge-base/qa-import.md", "query": "一个答案可以关联多个问题吗？", "gold": "一个答案可关联多个问题，命中任一问题都会召回该答案"}
+{"id": "g53", "doc": "guide/knowledge-base/qa-import.md", "query": "已有问答对想重新生成，按钮会变成什么？", "gold": "清空当前问答对并重新生成"}
+{"id": "g54", "doc": "guide/chat/character-config.md", "query": "角色设定怎么写才能让角色表现稳定？", "gold": "写得越具体，角色表现越稳定", "need": [["写得越具体，角色表现越稳定"], ["身份、语气风格、回答范围、禁止事项"]]}
+{"id": "g55", "doc": "guide/chat/character-config.md", "query": "浏览器端合成语音时音色怎么显示？", "gold": "当前音色来自于浏览器，无需指定"}
+{"id": "g56", "doc": "guide/chat/character-config.md", "query": "系统没有可用音色时提示什么？", "gold": "系统没有可用的音色"}
+{"id": "g57", "doc": "guide/model/model.md", "query": "模型不支持关闭深度思考时提示什么？", "gold": "模型不支持关闭深度思考功能"}
+{"id": "g58", "doc": "guide/model/model.md", "query": "模型不支持联网搜索时提示什么？", "gold": "模型不支持联网搜索功能"}
+{"id": "g59", "doc": "guide/model/model.md", "query": "模型选择器里带红点的模型表示什么？", "gold": "健康检查未通过"}
+{"id": "g60", "doc": "guide/model/model.md", "query": "模型选择器怎么显示模型？", "gold": "平台头像 + 模型名"}
+{"id": "g61", "doc": "guide/mcp/mcp.md", "query": "用户能自己新建 MCP 服务吗？", "gold": "用户不能自建 MCP 服务，只能使用管理员预置的服务"}
+{"id": "g62", "doc": "guide/mcp/mcp.md", "query": "标记为敏感信息的参数是怎么存储的？", "gold": "敏感信息会进行加密存储"}
+{"id": "g63", "doc": "guide/mcp/mcp.md", "query": "MCP 服务不需要填参数时会提示什么？", "gold": "该服务无需配置参数即可使用。"}
+{"id": "g64", "doc": "guide/mcp/mcp.md", "query": "在对话里给角色勾选工具，弹窗标题是什么？", "gold": "配置角色使用的服务与工具"}
+{"id": "g65", "doc": "guide/mcp/mcp.md", "query": "DeepSeek 深度思考模式下调用工具会提示什么？", "gold": "DeepSeek 深度思考模式下不支持工具调用，请先关闭深度思考"}
+{"id": "g66", "doc": "guide/prompt-store.md", "query": "提示词商店是用来做什么的？", "gold": "集中管理常用提示词，便于在对话中快速复用"}
+{"id": "g67", "doc": "guide/prompt-store.md", "query": "新增提示词时标题重复会提示什么？", "gold": "标题重复，请重新输入"}
+{"id": "g68", "doc": "guide/prompt-store.md", "query": "提示词导入时格式错误会提示什么？", "gold": "JSON 格式错误，请检查 JSON 格式"}
+{"id": "g69", "doc": "api/knowledge-base.md", "query": "严格模式下知识库 API 会编造答案吗？", "gold": "不调用模型编造"}
+{"id": "g70", "doc": "guide/account/account.md", "query": "两次输入的密码不一致提示什么？", "gold": "两次输入的密码不一致"}
+{"id": "g71", "doc": "guide/quick-start.md", "query": "从注册到首次对话大概需要多久？", "gold": "全程约 5 分钟"}
+{"id": "g72", "doc": "guide/quick-start.md", "query": "激活成功后页面会怎么跳转？", "gold": "并有 5 秒倒计时，随后自动返回首页"}
+{"id": "g73", "doc": "guide/quick-start.md", "query": "对话页的模型列表是怎么来的？", "gold": "列表中的模型由管理员配置，显示为「平台头像 + 模型名」"}

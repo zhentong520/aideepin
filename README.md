@@ -15,6 +15,7 @@ Demo: [http://www.aideepin.com](http://www.aideepin.com/)
 | server/ | Backend service ([Spring Boot](https://github.com/spring-projects/spring-boot) + [langchain4j](https://github.com/langchain4j/langchain4j) + [langgraph4j](https://github.com/bsorrentino/langgraph4j)) | [README](server/README.md) |
 | admin-web/ | Admin dashboard ([Vue 3](https://github.com/vuejs/core) + [Naive UI](https://github.com/tusen-ai/naive-ui)) | [README](admin-web/README.md) |
 | user-web/ | User-facing web app ([Vue 3](https://github.com/vuejs/core) + [Naive UI](https://github.com/tusen-ai/naive-ui)) | [README](user-web/README.md) |
+| tools/ | Evaluation & support tooling (RAG eval / ACL eval / MCP smoke / finetune worker / project docs); independent of the main build chain | [README](tools/README.md) |
 
 ## Documentation
 
