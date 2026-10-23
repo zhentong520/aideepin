@@ -7,6 +7,7 @@ COPY adi-common/pom.xml adi-common/
 COPY adi-chat/pom.xml adi-chat/
 COPY adi-admin/pom.xml adi-admin/
 COPY adi-bootstrap/pom.xml adi-bootstrap/
+COPY adi-integration-test/pom.xml adi-integration-test/
 COPY local-repo/ local-repo/
 
 RUN --mount=type=cache,target=/root/.m2/repository \
