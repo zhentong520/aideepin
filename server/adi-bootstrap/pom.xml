@@ -31,6 +31,21 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+        <!-- BootstrapApplication 直接使用 @EnableCaching，直接 import 显式声明 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
+        <!--
+            OPT-10（2026-10-23）：原父 pom 下发的 mysql-connector-j 无任何代码 import，
+            属 JDBC 运行时驱动，移至本模块（唯一可运行模块）以 runtime scope 保留——
+            兼容 mysql 数据源配置，fat-jar 最终 classpath 与治理前一致。
+        -->
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
         <!--
             数据库迁移工具化（2026-10-16）：此前 db_migration/*.sql 靠人工执行，
             二开改表容易"代码新了表没新"。引入 Flyway 后改表 = 在
