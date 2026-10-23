@@ -16,6 +16,7 @@
     "report": "cross-env REPORT=true npm run build",
     "preview": "npm run build && vite preview",
     "preview:dist": "vite preview",
+    "check:prod-no-mock": "bash scripts/check-prod-no-mock.sh",
     "clean:cache": "rimraf node_modules/.cache/ && rimraf node_modules/.vite",
     "clean:lib": "rimraf node_modules",
     "i18n": "node scripts/check-i18n-braces.mjs",
