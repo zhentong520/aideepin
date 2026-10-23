@@ -72,3 +72,6 @@ jobs:
       - name: Install & build (build script runs i18n guard + type-check + postBuild)
         working-directory: admin-web
         run: pnpm install --frozen-lockfile && pnpm build
+      - name: Assert no mock in production build (OPT-01 guard)
+        working-directory: admin-web
+        run: pnpm check:prod-no-mock
