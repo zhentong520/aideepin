@@ -33,7 +33,7 @@ aideepin KB MCP Server 冒烟脚本（T1-10 验收用，2026-10-19）。
 
 准备一个可用的 knowledge 资源级 ext key（二选一）：
   1. UI：知识库设置 → External API → 生成 API Key（推荐）；
-  2. dev 库手工种 key（验收用，AES-128-CBC、key=IV=adi.encrypt.aes-key，dev 密钥 reg2026AideepinK）：
+  2. dev 库手工种 key（验收用，AES-128-CBC、key=IV=adi.encrypt.aes-key；dev 密钥以 application-dev.yml 的 ADI_ENCRYPT_AES_KEY 默认值为准，此处不重复落明文）：
      update adi_knowledge_base set api_key='<AES_BASE64>' where uuid='<kbUuid>';
      （api_key 唯一，两个库不能用同一个 key，否则 validateApiKey 的 one() 会抛多行异常）
 

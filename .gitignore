@@ -55,3 +55,11 @@ node_modules/
 logs/
 *.pid
 /data/
+
+# ===== tools 评测工具运行/构建产物（一期审查 N-2/N-5：不入库，本地生成）=====
+tools/kb-eval/out/
+tools/kb-eval/results-*.jsonl
+tools/kb-eval/results-rewrite-cache.tsv
+tools/kb-eval/cp.txt
+tools/acl-eval/acl-eval-state.json
+tools/acl-eval/acl-eval-report.json

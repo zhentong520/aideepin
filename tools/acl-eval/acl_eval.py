@@ -32,7 +32,7 @@ PERMS = int(os.environ.get("ACL_PERMS", "10"))  # 每组题数（SSE 慢，可�
 
 OWNER_EMAIL = "acl_owner_a@aideepin.com"
 INTRUDER_EMAIL = "acl_intruder_b@aideepin.com"
-PASSWORD = "AclEval#2026x"
+PASSWORD = os.environ.get("ACL_EVAL_PASSWORD", "AclEval#2026x")
 
 
 def http(method, path, token=None, body=None, timeout=120):

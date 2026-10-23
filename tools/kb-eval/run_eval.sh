@@ -20,11 +20,14 @@
 set -u
 export PATH="/usr/bin:/bin:$PATH"
 
-D="e:/reg-project/kb-eval"
+# 仓库锚定：脚本已入仓 tools/kb-eval/，相对仓库根定位（N-3：去除旧绝对路径）
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+D="$SCRIPT_DIR"
 OUT="$D/out"
 CP_DEPS="$D/cp.txt"
-CLASSES="e:/reg-project/aideepin/server/adi-common/target/classes"
-CORPUS="e:/reg-project/aideepin/docs/cn"
+CLASSES="$ROOT/server/adi-common/target/classes"
+CORPUS="$ROOT/docs/cn"
 GOLDEN="$D/golden.jsonl"
 JH="C:/Program Files/Microsoft/jdk-17.0.20.101-hotspot"
 DOCKER="C:/Program Files/Docker/Docker/resources/bin/docker.exe"
