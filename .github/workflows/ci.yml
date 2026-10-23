@@ -39,6 +39,11 @@ jobs:
       - name: Run all tests (surefire + testcontainers integration)
         working-directory: server
         run: mvn -B -pl adi-common,adi-chat,adi-admin,adi-integration-test -am test
+      # OPT-10 防复发：test 只覆盖编译+测试，不含 adi-bootstrap 的 spring-boot repackage；
+      # 依赖归属错误（如 JDBC 驱动放错模块）只在 package 装配阶段暴露，故全模块打包兜底。
+      - name: Package all modules (assembly check, skip tests)
+        working-directory: server
+        run: mvn -B package -DskipTests
       - name: Schema sync gate (entities vs all_ddl.sql)
         working-directory: server
         run: bash db_migration/check_schema_sync.sh
