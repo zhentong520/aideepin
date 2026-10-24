@@ -13,22 +13,40 @@
 set -o pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-JAVA_BIN="C:/Program Files/Microsoft/jdk-17.0.20.101-hotspot/bin/java.exe"
-MVN_HOME="E:/tools/apache-maven-3.9.9"
 SERVER_DIR="$ROOT/server"
 
 SCOPE="${1:-all}"
 
-mvn_cmd() {
-  # 原样透传所有参数给内联启动的 maven
-  "$JAVA_BIN" \
-    -classpath "$MVN_HOME/boot/plexus-classworlds-2.8.0.jar" \
-    "-Dclassworlds.conf=$MVN_HOME/bin/m2.conf" \
-    "-Dmaven.home=$MVN_HOME" \
-    "-Dmaven.multiModuleProjectDirectory=$SERVER_DIR" \
-    org.codehaus.plexus.classworlds.launcher.Launcher \
-    -f "$SERVER_DIR/pom.xml" "$@"
+# OPT-04: no personal paths. Prefer mvn on PATH when new enough (compiler-plugin 3.14.x
+# needs >= 3.6.3; a stale PATH install like 3.3.9 must fall through), else plexus launcher
+# via MAVEN_HOME + JAVA_HOME from the environment (both must be set for the fallback).
+mvn_version_ok() {
+  local v
+  v="$(mvn -v 2>/dev/null | head -n 1 | sed -n 's/.*Maven \([0-9][0-9.]*\).*/\1/p')"
+  [ -n "$v" ] || return 1
+  local major minor
+  major="${v%%.*}"
+  minor="$(echo "$v" | cut -d. -f2)"
+  [ "$major" -gt 3 ] && return 0
+  [ "$major" -eq 3 ] && [ "$minor" -ge 7 ] && return 0
+  return 1
 }
+
+if command -v mvn >/dev/null 2>&1 && mvn_version_ok; then
+  mvn_cmd() { mvn -f "$SERVER_DIR/pom.xml" "$@"; }
+elif [ -n "${MAVEN_HOME:-}" ] && [ -n "${JAVA_HOME:-}" ]; then
+  mvn_cmd() {
+    "$JAVA_HOME/bin/java" \
+      -classpath "$MVN_HOME/boot/plexus-classworlds-2.8.0.jar" \
+      "-Dclassworlds.conf=$MVN_HOME/bin/m2.conf" \
+      "-Dmaven.home=$MVN_HOME" \
+      "-Dmaven.multiModuleProjectDirectory=$SERVER_DIR" \
+      org.codehaus.plexus.classworlds.launcher.Launcher \
+      -f "$SERVER_DIR/pom.xml" "$@"
+  }
+else
+  echo "[CHECK] need mvn on PATH, or MAVEN_HOME+JAVA_HOME set (OPT-04)"; exit 3
+fi
 
 strip_log() { tr -cd '\11\12\15\40-\176'; }
 
