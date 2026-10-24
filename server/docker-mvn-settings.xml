@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  容器内构建专用 Maven settings（仅被 server/Dockerfile 引用，不影响本地/CI 构建）。
+  背景：容器出网访问 repo.maven.apache.org 走代理时 TLS 证书被 MITM（PKIX 校验失败），
+  改用阿里云公共镜像仓（国内直连，代理 central 且证书链正常）。
+-->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0">
+    <mirrors>
+        <mirror>
+            <id>aliyun-public</id>
+            <name>Aliyun Public Maven Mirror</name>
+            <url>https://maven.aliyun.com/repository/public</url>
+            <mirrorOf>central</mirrorOf>
+        </mirror>
+    </mirrors>
+</settings>

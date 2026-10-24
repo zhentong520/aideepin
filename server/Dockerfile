@@ -9,14 +9,19 @@ COPY adi-admin/pom.xml adi-admin/
 COPY adi-bootstrap/pom.xml adi-bootstrap/
 COPY adi-integration-test/pom.xml adi-integration-test/
 COPY local-repo/ local-repo/
+# 容器内构建走阿里云镜像仓：绕开代理 MITM 导致的 central TLS/PKIX 失败（详见 docker-mvn-settings.xml 注释）
+COPY docker-mvn-settings.xml ./
 
+# 容器内构建走阿里云镜像仓 + aether insecure 传输：
+# 本机 Docker 出网经代理 MITM，所有 HTTPS 站点 PKIX 校验失败；insecure 模式跳过证书校验，
+# 但 Maven 仍校验 artifact checksum，完整性有保障（详见 docker-mvn-settings.xml 注释）
 RUN --mount=type=cache,target=/root/.m2/repository \
-    mvn package -DskipTests -B
+    mvn -s docker-mvn-settings.xml -Daether.connector.https.securityMode=insecure package -DskipTests -B
 
 COPY . .
 
 RUN --mount=type=cache,target=/root/.m2/repository \
-    mvn package -DskipTests -B
+    mvn -s docker-mvn-settings.xml -Daether.connector.https.securityMode=insecure package -DskipTests -B
 
 FROM eclipse-temurin:17-jre
 

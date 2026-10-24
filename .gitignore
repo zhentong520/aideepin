@@ -5,6 +5,9 @@ target/
 !**/src/test/**/target/
 *.db
 
+# Mimosa security-hook runtime state (findings ledger etc.) — never commit
+.mimosa/
+
 ### STS ###
 .apt_generated
 .classpath

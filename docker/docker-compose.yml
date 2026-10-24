@@ -65,14 +65,16 @@ services:
   aideepin-user-web:
     container_name: aideepin-user-web
     build:
-      context: ../user-web
-      dockerfile: Dockerfile
+      # 上下文取仓库根：user-web 依赖 ../packages/aideepin-tokens（link 依赖）
+      context: ..
+      dockerfile: user-web/Dockerfile
 
   aideepin-admin-web:
     container_name: aideepin-admin-web
     build:
-      context: ../admin-web
-      dockerfile: Dockerfile
+      # 上下文取仓库根：admin-web 依赖 ../packages/aideepin-tokens（link 依赖）
+      context: ..
+      dockerfile: admin-web/Dockerfile
 
   nginx:
     container_name: nginx

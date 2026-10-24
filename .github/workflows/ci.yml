@@ -80,3 +80,23 @@ jobs:
       - name: Assert no mock in production build (OPT-01 guard)
         working-directory: admin-web
         run: pnpm check:prod-no-mock
+
+  docker-build:
+    # OPT-09: three images must stay buildable — this is the gate that would have caught
+    # P0-2 (Dockerfile module list drifting from server/pom.xml) before it hid for 6 days.
+    name: docker images build
+    runs-on: ubuntu-latest
+    needs: [backend, frontend-user, frontend-admin]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assert no .env files tracked (OPT-05 guard)
+        run: |
+          if git ls-files | grep -E '(^|/)\.env($|\.)' | grep -v '\.env\.example'; then
+            echo "::error::.env files must not be tracked (only .env.example)"; exit 1
+          fi
+      - name: Build server image
+        run: docker build -t aideepin-api:sha-${{ github.sha }} ./server
+      - name: Build user-web image (context = repo root, needs packages/aideepin-tokens)
+        run: docker build -f user-web/Dockerfile -t aideepin-user-web:sha-${{ github.sha }} .
+      - name: Build admin-web image (context = repo root, needs packages/aideepin-tokens)
+        run: docker build -f admin-web/Dockerfile -t aideepin-admin-web:sha-${{ github.sha }} .
