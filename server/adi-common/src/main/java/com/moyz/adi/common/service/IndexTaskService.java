@@ -2,7 +2,7 @@ package com.moyz.adi.common.service;
 
 import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.baomidou.mybatisplus.extension.toolkit.ChainWrappers;
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.dto.IndexFailureDto;
 import com.moyz.adi.common.entity.DocumentSegment;
 import com.moyz.adi.common.entity.IndexTask;
@@ -49,11 +49,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.DOC_INDEX_TYPE_EMBEDDING;
-import static com.moyz.adi.common.cosntant.AdiConstant.DOC_INDEX_TYPE_GRAPHICAL;
-import static com.moyz.adi.common.cosntant.AdiConstant.EMPTY_PARSE_FAIL_REASON;
-import static com.moyz.adi.common.cosntant.RedisKeyConstant.KB_STATISTIC_RECALCULATE_SIGNAL;
-import static com.moyz.adi.common.cosntant.RedisKeyConstant.USER_INDEXING;
+import static com.moyz.adi.common.constant.AdiConstant.DOC_INDEX_TYPE_EMBEDDING;
+import static com.moyz.adi.common.constant.AdiConstant.DOC_INDEX_TYPE_GRAPHICAL;
+import static com.moyz.adi.common.constant.AdiConstant.EMPTY_PARSE_FAIL_REASON;
+import static com.moyz.adi.common.constant.RedisKeyConstant.KB_STATISTIC_RECALCULATE_SIGNAL;
+import static com.moyz.adi.common.constant.RedisKeyConstant.USER_INDEXING;
 
 /**
  * Index task queue: the single channel for all index writes (segmentation / embedding / graph extraction).

@@ -22,7 +22,7 @@ import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.CustomChatRequestParameterKeys.ENABLE_THINKING;
+import static com.moyz.adi.common.constant.AdiConstant.CustomChatRequestParameterKeys.ENABLE_THINKING;
 
 /**
  * DeepSeek API格式兼容OpenAi

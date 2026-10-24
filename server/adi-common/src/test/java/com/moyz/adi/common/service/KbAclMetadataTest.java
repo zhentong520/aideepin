@@ -1,6 +1,6 @@
 package com.moyz.adi.common.service;
 
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.entity.KnowledgeBase;
 import com.moyz.adi.common.util.KbAclMetadata;
 import dev.langchain4j.data.document.Metadata;

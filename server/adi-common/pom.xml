@@ -213,5 +213,14 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- OPT-15 第 2 步「规则先于搬迁」：域循环依赖冻结门禁。FreezingArchRule 只拦截
+             新增违规、放行存量（违规清单冻结在 src/test/resources/frozen/），
+             域拆分（adi-model/adi-kb-rag/…）落地后逐批收紧为 DAG 规则。 -->
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <version>1.3.0</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>

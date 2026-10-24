@@ -26,7 +26,7 @@ import com.moyz.adi.common.util.AdiStringUtil;
 import com.moyz.adi.common.util.UuidUtil;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;

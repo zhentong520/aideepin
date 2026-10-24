@@ -1,6 +1,6 @@
 package com.moyz.adi.common.rag;
 
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.entity.KnowledgeBase;
 import com.moyz.adi.common.interfaces.IRAGService;
 import com.moyz.adi.common.service.KnowledgeBaseService;
@@ -22,7 +22,7 @@ import dev.langchain4j.store.embedding.filter.comparison.IsNotIn;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.*;
+import static com.moyz.adi.common.constant.AdiConstant.*;
 import static com.moyz.adi.common.vo.InputAdaptorMsg.TOKEN_TOO_MUCH_QUESTION;
 
 @Slf4j

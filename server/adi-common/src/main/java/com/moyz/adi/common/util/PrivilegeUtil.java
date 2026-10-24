@@ -7,7 +7,7 @@ import com.moyz.adi.common.entity.BaseEntity;
 import com.moyz.adi.common.enums.ErrorEnum;
 import com.moyz.adi.common.exception.BaseException;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.*;
+import static com.moyz.adi.common.constant.AdiConstant.*;
 
 public class PrivilegeUtil {
 

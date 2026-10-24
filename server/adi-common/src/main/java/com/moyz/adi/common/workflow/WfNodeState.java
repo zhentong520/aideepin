@@ -14,8 +14,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.WorkflowConstant.DEFAULT_INPUT_PARAM_NAME;
-import static com.moyz.adi.common.cosntant.AdiConstant.WorkflowConstant.NODE_PROCESS_STATUS_READY;
+import static com.moyz.adi.common.constant.AdiConstant.WorkflowConstant.DEFAULT_INPUT_PARAM_NAME;
+import static com.moyz.adi.common.constant.AdiConstant.WorkflowConstant.NODE_PROCESS_STATUS_READY;
 
 /**
  * 工作流节点实例状态 | workflow node instance state

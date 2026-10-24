@@ -12,7 +12,7 @@ import org.bsc.langgraph4j.state.AgentState;
 
 import java.util.*;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.WorkflowConstant.WORKFLOW_PROCESS_STATUS_READY;
+import static com.moyz.adi.common.constant.AdiConstant.WorkflowConstant.WORKFLOW_PROCESS_STATUS_READY;
 
 /**
  * 工作流实例状态 | workflow instance state

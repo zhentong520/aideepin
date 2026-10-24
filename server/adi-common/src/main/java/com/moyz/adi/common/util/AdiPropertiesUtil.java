@@ -2,7 +2,7 @@ package com.moyz.adi.common.util;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.moyz.adi.common.config.AdiProperties;
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.entity.AiModel;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;

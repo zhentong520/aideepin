@@ -15,7 +15,7 @@ import org.apache.commons.lang3.StringUtils;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.SplitStrategy.*;
+import static com.moyz.adi.common.constant.AdiConstant.SplitStrategy.*;
 
 /**
  * 切分器的唯一入口：参数守卫 + 异常降级都收在这里。

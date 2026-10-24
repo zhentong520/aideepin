@@ -1,6 +1,6 @@
 package com.moyz.adi.common.filter;
 
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.entity.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

@@ -1,6 +1,6 @@
 package com.moyz.adi.common.searchengine;
 
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.interfaces.AbstractSearchEngineService;
 import lombok.extern.slf4j.Slf4j;
 

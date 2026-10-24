@@ -1,7 +1,7 @@
 package com.moyz.adi.common.service;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.dto.KbInfoResp;
 import com.moyz.adi.common.entity.AgentTraceSpan;
 import com.moyz.adi.common.entity.Character;

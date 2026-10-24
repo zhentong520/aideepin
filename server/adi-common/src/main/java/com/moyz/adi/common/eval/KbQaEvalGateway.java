@@ -1,6 +1,6 @@
 package com.moyz.adi.common.eval;
 
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.entity.KnowledgeBase;
 import com.moyz.adi.common.exception.BaseException;
 import com.moyz.adi.common.helper.LLMContext;

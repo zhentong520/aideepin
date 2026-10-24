@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.GenerateImage.INTERACTING_METHOD_GENERATE_IMAGE;
+import static com.moyz.adi.common.constant.AdiConstant.GenerateImage.INTERACTING_METHOD_GENERATE_IMAGE;
 
 @Tag(name = "External API - Draw")
 @RestController

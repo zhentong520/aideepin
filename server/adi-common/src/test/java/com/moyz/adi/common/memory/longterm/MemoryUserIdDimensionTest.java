@@ -1,7 +1,7 @@
 package com.moyz.adi.common.memory.longterm;
 
 import com.moyz.adi.common.config.AdiProperties;
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.enums.MemoryType;
 import dev.langchain4j.data.document.Metadata;
 import dev.langchain4j.store.embedding.filter.Filter;
@@ -11,10 +11,10 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.MetadataKey.CHARACTER_ID;
-import static com.moyz.adi.common.cosntant.AdiConstant.MetadataKey.MEMORY_TYPE;
-import static com.moyz.adi.common.cosntant.AdiConstant.MetadataKey.USER_ID;
-import static com.moyz.adi.common.cosntant.AdiConstant.MetadataKey.USER_ID_UNKNOWN;
+import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.CHARACTER_ID;
+import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.MEMORY_TYPE;
+import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.USER_ID;
+import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.USER_ID_UNKNOWN;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;

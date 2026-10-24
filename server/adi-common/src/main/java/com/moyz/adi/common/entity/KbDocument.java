@@ -109,7 +109,7 @@ public class KbDocument extends BaseEntity {
 
     @Schema(title = "文档来源: file/url/api | Document source type: file | url | api")
     @TableField("source_type")
-    private String sourceType = com.moyz.adi.common.cosntant.AdiConstant.DocSourceType.FILE;
+    private String sourceType = com.moyz.adi.common.constant.AdiConstant.DocSourceType.FILE;
 
     @Schema(title = "抓取地址(url/api来源) | Fetch address for url/api sources")
     @TableField("source_url")

@@ -1,6 +1,6 @@
 package com.moyz.adi.common.service;
 
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.dto.KbRecallTestReq;
 import com.moyz.adi.common.dto.KbRecallTestResp;
 import com.moyz.adi.common.entity.DocumentSegment;

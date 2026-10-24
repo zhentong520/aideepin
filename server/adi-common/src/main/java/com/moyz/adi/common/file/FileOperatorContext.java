@@ -1,6 +1,6 @@
 package com.moyz.adi.common.file;
 
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.entity.AdiFile;
 import com.moyz.adi.common.service.SysConfigService;
 import com.moyz.adi.common.vo.SaveRemoteImageResult;
@@ -11,8 +11,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.HashMap;
 import java.util.Map;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.STORAGE_LOCATION_VALUE_ALI_OSS;
-import static com.moyz.adi.common.cosntant.AdiConstant.STORAGE_LOCATION_VALUE_LOCAL;
+import static com.moyz.adi.common.constant.AdiConstant.STORAGE_LOCATION_VALUE_ALI_OSS;
+import static com.moyz.adi.common.constant.AdiConstant.STORAGE_LOCATION_VALUE_LOCAL;
 
 public class FileOperatorContext {
 

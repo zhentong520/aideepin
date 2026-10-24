@@ -2,7 +2,7 @@ package com.moyz.adi.common.service;
 
 import com.google.common.base.Joiner;
 import com.moyz.adi.common.config.AdiProperties;
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.entity.AiModel;
 import com.moyz.adi.common.entity.ModelPlatform;
 import com.moyz.adi.common.enums.ErrorEnum;
@@ -29,7 +29,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.ModelType.*;
+import static com.moyz.adi.common.constant.AdiConstant.ModelType.*;
 import static com.moyz.adi.common.util.LocalCache.MODEL_ID_TO_OBJ;
 
 @Slf4j

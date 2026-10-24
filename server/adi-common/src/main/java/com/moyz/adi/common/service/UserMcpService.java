@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.baomidou.mybatisplus.extension.toolkit.ChainWrappers;
 import com.moyz.adi.common.base.ThreadContext;
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.dto.UserMcpDto;
 import com.moyz.adi.common.dto.mcp.McpCommonParam;
 import com.moyz.adi.common.dto.mcp.McpCustomizedParamDefinition;

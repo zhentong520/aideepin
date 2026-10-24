@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.RejectedExecutionException;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.SSE_TIMEOUT;
+import static com.moyz.adi.common.constant.AdiConstant.SSE_TIMEOUT;
 import static com.moyz.adi.common.enums.ErrorEnum.*;
 
 @Slf4j

@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.moyz.adi.common.base.ThreadContext;
 import com.moyz.adi.common.config.AdiProperties;
-import com.moyz.adi.common.cosntant.RedisKeyConstant;
+import com.moyz.adi.common.constant.RedisKeyConstant;
 import com.moyz.adi.common.dto.workflow.WfTriggerDto;
 import com.moyz.adi.common.dto.workflow.WfTriggerSaveReq;
 import com.moyz.adi.common.entity.Workflow;

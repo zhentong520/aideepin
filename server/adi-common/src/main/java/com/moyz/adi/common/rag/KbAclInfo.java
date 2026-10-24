@@ -68,7 +68,7 @@ public class KbAclInfo {
 
     /** PUBLIC（或空配置推导为公开库）即对所有人可见 */
     private static boolean isPublicSensitivity(String sensitivity) {
-        return com.moyz.adi.common.cosntant.AdiConstant.Sensitivity.PUBLIC.equals(sensitivity);
+        return com.moyz.adi.common.constant.AdiConstant.Sensitivity.PUBLIC.equals(sensitivity);
     }
 
     /** 用户所属组与库可见组是否有交集 */

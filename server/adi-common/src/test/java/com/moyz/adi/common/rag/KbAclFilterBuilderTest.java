@@ -1,6 +1,6 @@
 package com.moyz.adi.common.rag;
 
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.vo.RetrieverContext;
 import dev.langchain4j.data.document.Metadata;
 import dev.langchain4j.data.embedding.Embedding;
@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.MetadataKey.KB_UUID;
+import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.KB_UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;

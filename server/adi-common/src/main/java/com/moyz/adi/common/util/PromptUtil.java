@@ -18,7 +18,7 @@ import java.util.regex.Matcher;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.*;
+import static com.moyz.adi.common.constant.AdiConstant.*;
 import static com.moyz.adi.common.enums.ErrorEnum.A_USER_QUESTION_NOT_FOUND;
 
 public class PromptUtil {

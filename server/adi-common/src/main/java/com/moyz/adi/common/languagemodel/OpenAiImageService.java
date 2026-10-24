@@ -17,7 +17,7 @@ import java.util.Objects;
 
 import java.util.List;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.*;
+import static com.moyz.adi.common.constant.AdiConstant.*;
 
 @Slf4j
 public class OpenAiImageService extends AbstractImageModelService {

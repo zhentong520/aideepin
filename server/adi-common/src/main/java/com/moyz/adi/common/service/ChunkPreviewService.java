@@ -371,8 +371,8 @@ public class ChunkPreviewService {
 
     private Metadata baseMetadata(KnowledgeBase kb, KbDocument doc) {
         Metadata metadata = new Metadata();
-        metadata.put(com.moyz.adi.common.cosntant.AdiConstant.MetadataKey.KB_UUID, kb.getUuid());
-        metadata.put(com.moyz.adi.common.cosntant.AdiConstant.MetadataKey.KB_ITEM_UUID, doc.getUuid());
+        metadata.put(com.moyz.adi.common.constant.AdiConstant.MetadataKey.KB_UUID, kb.getUuid());
+        metadata.put(com.moyz.adi.common.constant.AdiConstant.MetadataKey.KB_ITEM_UUID, doc.getUuid());
         return metadata;
     }
 }

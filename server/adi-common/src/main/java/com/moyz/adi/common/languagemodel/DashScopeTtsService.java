@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 import static com.alibaba.dashscope.audio.ttsv2.SpeechSynthesisAudioFormat.MP3_16000HZ_MONO_128KBPS;
-import static com.moyz.adi.common.cosntant.AdiConstant.TtsConstant.DASHSCOPE_DEFAULT_VOICE;
+import static com.moyz.adi.common.constant.AdiConstant.TtsConstant.DASHSCOPE_DEFAULT_VOICE;
 import static com.moyz.adi.common.util.LocalDateTimeUtil.PATTERN_YYYYMMDDMMHHSS;
 
 @Slf4j

@@ -24,7 +24,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.WorkflowConstant.DEFAULT_OUTPUT_PARAM_NAME;
+import static com.moyz.adi.common.constant.AdiConstant.WorkflowConstant.DEFAULT_OUTPUT_PARAM_NAME;
 
 /**
  * T9-03：并行节点（Parallel）。

@@ -1,4 +1,4 @@
-package com.moyz.adi.common.cosntant;
+package com.moyz.adi.common.constant;
 
 import dev.langchain4j.model.input.PromptTemplate;
 import lombok.extern.slf4j.Slf4j;

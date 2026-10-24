@@ -1,7 +1,7 @@
 package com.moyz.adi.common.util;
 
 import com.moyz.adi.common.base.ThreadContext;
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.entity.User;
 import com.moyz.adi.common.service.SysConfigService;
 import org.apache.commons.lang3.StringUtils;

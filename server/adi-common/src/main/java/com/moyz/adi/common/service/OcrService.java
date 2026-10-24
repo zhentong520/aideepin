@@ -3,7 +3,7 @@ package com.moyz.adi.common.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moyz.adi.common.config.AdiProperties;
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.entity.AdiFile;
 import com.moyz.adi.common.file.FileOperatorContext;
 import lombok.extern.slf4j.Slf4j;

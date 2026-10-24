@@ -5,7 +5,7 @@ import com.aliyun.oss.OSSClientBuilder;
 import com.aliyun.oss.model.DeleteObjectsRequest;
 import com.aliyun.oss.model.DeleteObjectsResult;
 import com.aliyun.oss.model.PutObjectResult;
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.enums.ErrorEnum;
 import com.moyz.adi.common.exception.BaseException;
 import com.moyz.adi.common.util.JsonUtil;
@@ -20,7 +20,7 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.List;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.STORAGE_LOCATION_VALUE_ALI_OSS;
+import static com.moyz.adi.common.constant.AdiConstant.STORAGE_LOCATION_VALUE_ALI_OSS;
 
 @Slf4j
 @Service

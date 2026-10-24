@@ -8,7 +8,7 @@ import com.moyz.adi.common.enums.ErrorEnum;
 import com.moyz.adi.common.exception.BaseException;
 import com.moyz.adi.common.file.FileOperatorContext;
 import com.moyz.adi.common.file.LocalFileUtil;
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.mapper.FileMapper;
 import com.moyz.adi.common.util.HashUtil;
 import com.moyz.adi.common.util.UuidUtil;

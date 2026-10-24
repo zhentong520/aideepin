@@ -10,7 +10,7 @@ import java.util.stream.*;
 public class OvProbe3 {
     public static void main(String[] a) throws Exception {
         TokenCountEstimator est = com.moyz.adi.common.rag.TokenEstimatorFactory
-                .create(com.moyz.adi.common.cosntant.AdiConstant.TokenEstimator.OPENAI);
+                .create(com.moyz.adi.common.constant.AdiConstant.TokenEstimator.OPENAI);
         Path root = Path.of("e:/reg-project/aideepin/docs/cn");
         List<Path> docs;
         try (Stream<Path> s = Files.walk(root)) {

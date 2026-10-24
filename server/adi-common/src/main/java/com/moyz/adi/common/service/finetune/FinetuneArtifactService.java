@@ -3,7 +3,7 @@ package com.moyz.adi.common.service.finetune;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.moyz.adi.common.base.ThreadContext;
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.dto.AiModelDto;
 import com.moyz.adi.common.entity.FinetuneArtifact;
 import com.moyz.adi.common.entity.FinetuneJob;

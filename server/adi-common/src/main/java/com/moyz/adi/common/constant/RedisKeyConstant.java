@@ -1,4 +1,4 @@
-package com.moyz.adi.common.cosntant;
+package com.moyz.adi.common.constant;
 
 public class RedisKeyConstant {
 

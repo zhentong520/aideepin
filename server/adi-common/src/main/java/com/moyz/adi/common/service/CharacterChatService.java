@@ -1,7 +1,7 @@
 package com.moyz.adi.common.service;
 
 import com.moyz.adi.common.base.ThreadContext;
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.dto.AskReq;
 import com.moyz.adi.common.dto.KbInfoResp;
 import com.moyz.adi.common.dto.RefEmbeddingDto;
@@ -60,7 +60,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.*;
+import static com.moyz.adi.common.constant.AdiConstant.*;
 import static com.moyz.adi.common.enums.ErrorEnum.A_CHARACTER_NOT_FOUND;
 import static com.moyz.adi.common.enums.ErrorEnum.A_USER_NOT_AUTH;
 import static com.moyz.adi.common.enums.ErrorEnum.B_MESSAGE_NOT_FOUND;

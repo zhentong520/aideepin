@@ -1,7 +1,7 @@
 package com.moyz.adi.common.workflow.node.orchestrator;
 
 import com.moyz.adi.common.config.AdiProperties;
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.entity.WorkflowComponent;
 import com.moyz.adi.common.entity.WorkflowNode;
 import com.moyz.adi.common.enums.ErrorEnum;
@@ -33,7 +33,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.WorkflowConstant.DEFAULT_OUTPUT_PARAM_NAME;
+import static com.moyz.adi.common.constant.AdiConstant.WorkflowConstant.DEFAULT_OUTPUT_PARAM_NAME;
 
 /**
  * T7-03（2026-10-20）：多 Agent 编排节点（OrchestratorNode）。

@@ -34,9 +34,9 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.FORM_DATA_BOUNDARY_PRE;
-import static com.moyz.adi.common.cosntant.AdiConstant.WorkflowConstant.DEFAULT_ERROR_OUTPUT_PARAM_NAME;
-import static com.moyz.adi.common.cosntant.AdiConstant.WorkflowConstant.DEFAULT_OUTPUT_PARAM_NAME;
+import static com.moyz.adi.common.constant.AdiConstant.FORM_DATA_BOUNDARY_PRE;
+import static com.moyz.adi.common.constant.AdiConstant.WorkflowConstant.DEFAULT_ERROR_OUTPUT_PARAM_NAME;
+import static com.moyz.adi.common.constant.AdiConstant.WorkflowConstant.DEFAULT_OUTPUT_PARAM_NAME;
 import static org.springframework.http.HttpHeaders.CONTENT_TYPE;
 
 @Slf4j

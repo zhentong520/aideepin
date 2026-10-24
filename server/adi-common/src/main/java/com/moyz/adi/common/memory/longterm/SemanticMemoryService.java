@@ -1,7 +1,7 @@
 package com.moyz.adi.common.memory.longterm;
 
 import com.moyz.adi.common.config.AdiProperties;
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.enums.MemoryType;
 import com.moyz.adi.common.memory.vo.BatchActionMemories;
 import com.moyz.adi.common.rag.EmbeddingRagContext;
@@ -31,8 +31,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.MetadataKey.CHARACTER_ID;
-import static com.moyz.adi.common.cosntant.AdiConstant.MetadataKey.USER_ID;
+import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.CHARACTER_ID;
+import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.USER_ID;
 
 /**
  * Semantic memory service: deduplicating merge candidates retrieval and

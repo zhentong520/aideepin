@@ -1,6 +1,6 @@
 package com.moyz.adi.common.rag;
 
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 
 import java.util.Arrays;
 import java.util.stream.Collectors;

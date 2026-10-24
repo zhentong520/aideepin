@@ -41,18 +41,18 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.ChildChunkSize.MAX;
-import static com.moyz.adi.common.cosntant.AdiConstant.ChildChunkSize.MIN;
-import static com.moyz.adi.common.cosntant.AdiConstant.DOC_INDEX_TYPE_EMBEDDING;
-import static com.moyz.adi.common.cosntant.AdiConstant.DocSourceLimit.MAX_BYTES;
-import static com.moyz.adi.common.cosntant.AdiConstant.DocSourceLimit.MAX_INTERVAL_MINUTES;
-import static com.moyz.adi.common.cosntant.AdiConstant.DocSourceLimit.MAX_TEXT_CHARS;
-import static com.moyz.adi.common.cosntant.AdiConstant.DocSourceLimit.MIN_INTERVAL_MINUTES;
-import static com.moyz.adi.common.cosntant.AdiConstant.DocSourceLimit.TIMEOUT_SECONDS;
-import static com.moyz.adi.common.cosntant.AdiConstant.DocSourceType.API;
-import static com.moyz.adi.common.cosntant.AdiConstant.DocSourceType.URL;
-import static com.moyz.adi.common.cosntant.AdiConstant.EMPTY_PARSE_FAIL_REASON;
-import static com.moyz.adi.common.cosntant.RedisKeyConstant.KB_STATISTIC_RECALCULATE_SIGNAL;
+import static com.moyz.adi.common.constant.AdiConstant.ChildChunkSize.MAX;
+import static com.moyz.adi.common.constant.AdiConstant.ChildChunkSize.MIN;
+import static com.moyz.adi.common.constant.AdiConstant.DOC_INDEX_TYPE_EMBEDDING;
+import static com.moyz.adi.common.constant.AdiConstant.DocSourceLimit.MAX_BYTES;
+import static com.moyz.adi.common.constant.AdiConstant.DocSourceLimit.MAX_INTERVAL_MINUTES;
+import static com.moyz.adi.common.constant.AdiConstant.DocSourceLimit.MAX_TEXT_CHARS;
+import static com.moyz.adi.common.constant.AdiConstant.DocSourceLimit.MIN_INTERVAL_MINUTES;
+import static com.moyz.adi.common.constant.AdiConstant.DocSourceLimit.TIMEOUT_SECONDS;
+import static com.moyz.adi.common.constant.AdiConstant.DocSourceType.API;
+import static com.moyz.adi.common.constant.AdiConstant.DocSourceType.URL;
+import static com.moyz.adi.common.constant.AdiConstant.EMPTY_PARSE_FAIL_REASON;
+import static com.moyz.adi.common.constant.RedisKeyConstant.KB_STATISTIC_RECALCULATE_SIGNAL;
 import static com.moyz.adi.common.enums.ErrorEnum.*;
 
 /**

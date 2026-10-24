@@ -1,6 +1,6 @@
 package com.moyz.adi.common.rag;
 
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.entity.DocumentSegment;
 import com.moyz.adi.common.mapper.DocumentSegmentMapper;
 import com.moyz.adi.common.service.DocumentSegmentChildChunkService;

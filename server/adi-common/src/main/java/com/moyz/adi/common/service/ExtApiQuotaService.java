@@ -1,7 +1,7 @@
 package com.moyz.adi.common.service;
 
 import com.moyz.adi.common.config.AdiProperties;
-import com.moyz.adi.common.cosntant.RedisKeyConstant;
+import com.moyz.adi.common.constant.RedisKeyConstant;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;

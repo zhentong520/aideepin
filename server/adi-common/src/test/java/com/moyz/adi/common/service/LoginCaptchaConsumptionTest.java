@@ -12,7 +12,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.text.MessageFormat;
 
-import static com.moyz.adi.common.cosntant.RedisKeyConstant.AUTH_LOGIN_CAPTCHA_ID;
+import static com.moyz.adi.common.constant.RedisKeyConstant.AUTH_LOGIN_CAPTCHA_ID;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyString;

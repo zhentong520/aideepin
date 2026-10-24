@@ -10,7 +10,7 @@ import java.text.MessageFormat;
 import java.time.Duration;
 import java.util.List;
 
-import static com.moyz.adi.common.cosntant.RedisKeyConstant.TOKEN_USAGE_KEY;
+import static com.moyz.adi.common.constant.RedisKeyConstant.TOKEN_USAGE_KEY;
 
 @Slf4j
 public class LLMTokenUtil {

@@ -2,7 +2,7 @@ package com.moyz.adi.common.util;
 
 import com.moyz.adi.common.base.ThreadContext;
 import com.moyz.adi.common.config.AdiProperties;
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.dto.KbInfoResp;
 import com.moyz.adi.common.entity.AiModel;
 import com.moyz.adi.common.entity.Character;
@@ -49,11 +49,11 @@ import java.util.concurrent.TimeUnit;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.MetadataKey.CHARACTER_ID;
-import static com.moyz.adi.common.cosntant.AdiConstant.MetadataKey.KB_UUID;
-import static com.moyz.adi.common.cosntant.AdiConstant.MetadataKey.MEMORY_TYPE;
-import static com.moyz.adi.common.cosntant.AdiConstant.MetadataKey.USER_ID;
-import static com.moyz.adi.common.cosntant.AdiConstant.RAG_RETRIEVE_MIN_SCORE_DEFAULT;
+import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.CHARACTER_ID;
+import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.KB_UUID;
+import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.MEMORY_TYPE;
+import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.USER_ID;
+import static com.moyz.adi.common.constant.AdiConstant.RAG_RETRIEVE_MIN_SCORE_DEFAULT;
 
 /**
  * Character 聊天辅助类

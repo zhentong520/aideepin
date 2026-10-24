@@ -2,7 +2,7 @@ package com.moyz.adi.common.service.embedding;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.moyz.adi.common.config.AdiProperties;
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.entity.AiModel;
 import com.moyz.adi.common.util.LocalCache;
 import jakarta.annotation.Resource;

@@ -1,6 +1,6 @@
 package com.moyz.adi.common.service;
 
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.dto.GraphContributionDto;
 import com.moyz.adi.common.rag.GraphStore;
 import com.moyz.adi.common.vo.*;

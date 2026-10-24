@@ -1,6 +1,6 @@
 package com.moyz.adi.common.memory.longterm;
 
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.config.AdiProperties;
 import com.moyz.adi.common.entity.LLMCallRecord;
 import com.moyz.adi.common.entity.User;
@@ -33,7 +33,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.RESPONSE_FORMAT_TYPE_JSON_OBJECT;
+import static com.moyz.adi.common.constant.AdiConstant.RESPONSE_FORMAT_TYPE_JSON_OBJECT;
 
 /**
  * Long-term memory dispatcher. Owns the LLM extraction round-trip and dispatches

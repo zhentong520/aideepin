@@ -1,6 +1,6 @@
 package com.moyz.adi.common.helper;
 
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.entity.User;
 import com.moyz.adi.common.enums.ErrorEnum;
 import com.moyz.adi.common.vo.CostStat;

@@ -1,6 +1,6 @@
 package com.moyz.adi.common.rag;
 
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.entity.DocumentSegment;
 import com.moyz.adi.common.helper.RerankModelContext;
 import com.moyz.adi.common.service.DocumentSegmentChildChunkService;
@@ -30,7 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.SplitStrategy.SENTENCE_CN;
+import static com.moyz.adi.common.constant.AdiConstant.SplitStrategy.SENTENCE_CN;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;

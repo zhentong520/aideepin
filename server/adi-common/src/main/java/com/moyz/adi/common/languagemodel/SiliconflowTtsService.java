@@ -19,7 +19,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.TtsConstant.SILICONFLOW_DEFAULT_VOICE;
+import static com.moyz.adi.common.constant.AdiConstant.TtsConstant.SILICONFLOW_DEFAULT_VOICE;
 
 /**
  * 硅基流动的 TTS 服务，对应的接口不能流式输入，只能流式输出

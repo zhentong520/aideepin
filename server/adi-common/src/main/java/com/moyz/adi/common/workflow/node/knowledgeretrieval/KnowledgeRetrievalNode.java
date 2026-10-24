@@ -1,7 +1,7 @@
 package com.moyz.adi.common.workflow.node.knowledgeretrieval;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.entity.WorkflowComponent;
 import com.moyz.adi.common.entity.WorkflowNode;
 import com.moyz.adi.common.exception.BaseException;
@@ -28,9 +28,9 @@ import org.apache.commons.lang3.StringUtils;
 import java.util.HashSet;
 import java.util.List;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.MetadataKey.KB_UUID;
-import static com.moyz.adi.common.cosntant.AdiConstant.RAG_RETRIEVE_MIN_SCORE_DEFAULT;
-import static com.moyz.adi.common.cosntant.AdiConstant.WorkflowConstant.DEFAULT_OUTPUT_PARAM_NAME;
+import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.KB_UUID;
+import static com.moyz.adi.common.constant.AdiConstant.RAG_RETRIEVE_MIN_SCORE_DEFAULT;
+import static com.moyz.adi.common.constant.AdiConstant.WorkflowConstant.DEFAULT_OUTPUT_PARAM_NAME;
 import static com.moyz.adi.common.enums.ErrorEnum.*;
 import static com.moyz.adi.common.enums.ErrorEnum.B_BREAK_SEARCH;
 

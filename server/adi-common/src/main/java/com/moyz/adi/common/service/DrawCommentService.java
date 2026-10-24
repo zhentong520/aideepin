@@ -17,7 +17,7 @@ import org.springframework.stereotype.Service;
 
 import java.text.MessageFormat;
 
-import static com.moyz.adi.common.cosntant.RedisKeyConstant.DRAW_COMMENT_LIMIT_KEY;
+import static com.moyz.adi.common.constant.RedisKeyConstant.DRAW_COMMENT_LIMIT_KEY;
 import static com.moyz.adi.common.enums.ErrorEnum.A_DATA_NOT_FOUND;
 import static com.moyz.adi.common.enums.ErrorEnum.A_OPT_TOO_FREQUENTLY;
 

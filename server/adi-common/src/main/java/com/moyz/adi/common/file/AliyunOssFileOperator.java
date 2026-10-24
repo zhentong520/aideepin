@@ -21,8 +21,8 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Locale;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.POI_DOC_TYPES;
-import static com.moyz.adi.common.cosntant.AdiConstant.TEXT_DOC_TYPES;
+import static com.moyz.adi.common.constant.AdiConstant.POI_DOC_TYPES;
+import static com.moyz.adi.common.constant.AdiConstant.TEXT_DOC_TYPES;
 import static com.moyz.adi.common.enums.ErrorEnum.B_DELETE_FILE_ERROR;
 
 @Slf4j

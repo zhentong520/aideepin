@@ -1,7 +1,7 @@
 package com.moyz.adi.common.workflow.node.faqextractor;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.entity.User;
 import com.moyz.adi.common.entity.WorkflowComponent;
 import com.moyz.adi.common.entity.WorkflowNode;
@@ -26,7 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.WorkflowConstant.DEFAULT_INPUT_PARAM_NAME;
+import static com.moyz.adi.common.constant.AdiConstant.WorkflowConstant.DEFAULT_INPUT_PARAM_NAME;
 import static com.moyz.adi.common.enums.ErrorEnum.A_WF_NODE_CONFIG_ERROR;
 import static com.moyz.adi.common.enums.ErrorEnum.A_WF_NODE_CONFIG_NOT_FOUND;
 

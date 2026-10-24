@@ -14,7 +14,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.moyz.adi.common.base.SearchEngineRespTypeHandler;
 import com.moyz.adi.common.base.ThreadContextTaskDecorator;
 import com.moyz.adi.common.base.UUIDTypeHandler;
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.dto.SearchEngineResp;
 import com.moyz.adi.common.entity.AiModel;
 import com.moyz.adi.common.entity.ModelPlatform;

@@ -24,8 +24,8 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.util.Map;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.CustomChatRequestParameterKeys.ENABLE_WEB_SEARCH;
-import static com.moyz.adi.common.cosntant.AdiConstant.CustomChatRequestParameterKeys.ENABLE_THINKING;
+import static com.moyz.adi.common.constant.AdiConstant.CustomChatRequestParameterKeys.ENABLE_WEB_SEARCH;
+import static com.moyz.adi.common.constant.AdiConstant.CustomChatRequestParameterKeys.ENABLE_THINKING;
 import static com.moyz.adi.common.enums.ErrorEnum.B_LLM_SECRET_KEY_NOT_SET;
 
 /**

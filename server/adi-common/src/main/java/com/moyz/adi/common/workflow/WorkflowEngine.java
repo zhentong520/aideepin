@@ -1,7 +1,7 @@
 package com.moyz.adi.common.workflow;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.dto.workflow.WfRuntimeMetricsSummary;
 import com.moyz.adi.common.dto.workflow.WfRuntimeNodeDto;
 import com.moyz.adi.common.dto.workflow.WfRuntimeResp;
@@ -36,7 +36,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.*;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.WorkflowConstant.*;
+import static com.moyz.adi.common.constant.AdiConstant.WorkflowConstant.*;
 import static com.moyz.adi.common.enums.ErrorEnum.*;
 import static com.moyz.adi.common.workflow.WfComponentNameEnum.HUMAN_FEEDBACK;
 import static org.bsc.langgraph4j.StateGraph.END;

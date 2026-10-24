@@ -1,6 +1,6 @@
 package com.moyz.adi.common.searchengine;
 
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.dto.SearchReturn;
 import com.moyz.adi.common.dto.SearchReturnWebPage;
 import com.moyz.adi.common.interfaces.AbstractSearchEngineService;
@@ -16,7 +16,7 @@ import java.net.Proxy;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.SysConfigKey.GOOGLE_SETTING;
+import static com.moyz.adi.common.constant.AdiConstant.SysConfigKey.GOOGLE_SETTING;
 
 @Slf4j
 public class GoogleSearchEngineService extends AbstractSearchEngineService<GoogleSetting> {

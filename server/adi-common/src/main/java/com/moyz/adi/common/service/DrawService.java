@@ -6,7 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.moyz.adi.common.base.ThreadContext;
 import com.moyz.adi.common.config.AdiProperties;
-import com.moyz.adi.common.cosntant.RedisKeyConstant;
+import com.moyz.adi.common.constant.RedisKeyConstant;
 import com.moyz.adi.common.dto.*;
 import com.moyz.adi.common.entity.*;
 import com.moyz.adi.common.enums.ErrorEnum;
@@ -41,8 +41,8 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.GenerateImage.*;
-import static com.moyz.adi.common.cosntant.AdiConstant.MP_LIMIT_1;
+import static com.moyz.adi.common.constant.AdiConstant.GenerateImage.*;
+import static com.moyz.adi.common.constant.AdiConstant.MP_LIMIT_1;
 import static com.moyz.adi.common.enums.ErrorEnum.*;
 import static com.moyz.adi.common.util.LocalCache.MODEL_ID_TO_OBJ;
 

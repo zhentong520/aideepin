@@ -1,6 +1,6 @@
 package com.moyz.adi.common.rag;
 
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.entity.AiModel;
 import com.moyz.adi.common.helper.LLMContext;
 import com.moyz.adi.common.languagemodel.AbstractLLMService;

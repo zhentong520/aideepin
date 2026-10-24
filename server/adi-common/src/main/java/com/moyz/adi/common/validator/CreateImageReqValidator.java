@@ -6,7 +6,7 @@ import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 import org.apache.commons.lang3.StringUtils;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.GenerateImage.*;
+import static com.moyz.adi.common.constant.AdiConstant.GenerateImage.*;
 
 public class CreateImageReqValidator implements
         ConstraintValidator<CreateImageReqCheck, CreateImageDto> {

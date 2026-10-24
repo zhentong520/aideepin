@@ -17,7 +17,7 @@ import org.apache.commons.lang3.StringUtils;
 import java.util.List;
 import java.util.Optional;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.WorkflowConstant.DEFAULT_OUTPUT_PARAM_NAME;
+import static com.moyz.adi.common.constant.AdiConstant.WorkflowConstant.DEFAULT_OUTPUT_PARAM_NAME;
 import static com.moyz.adi.common.enums.ErrorEnum.*;
 
 /**

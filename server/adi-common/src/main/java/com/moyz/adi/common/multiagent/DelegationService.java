@@ -1,7 +1,7 @@
 package com.moyz.adi.common.multiagent;
 
 import com.moyz.adi.common.config.AdiProperties;
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.entity.AgentDelegationLog;
 import com.moyz.adi.common.entity.Character;
 import com.moyz.adi.common.entity.User;

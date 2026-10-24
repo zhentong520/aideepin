@@ -6,8 +6,8 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.baomidou.mybatisplus.extension.toolkit.ChainWrappers;
 import com.moyz.adi.common.base.ThreadContext;
 import com.moyz.adi.common.config.AdiProperties;
-import com.moyz.adi.common.cosntant.AdiConstant;
-import com.moyz.adi.common.cosntant.RedisKeyConstant;
+import com.moyz.adi.common.constant.AdiConstant;
+import com.moyz.adi.common.constant.RedisKeyConstant;
 import com.moyz.adi.common.dto.*;
 import com.moyz.adi.common.entity.User;
 import com.moyz.adi.common.enums.ErrorEnum;
@@ -35,7 +35,7 @@ import java.time.LocalDateTime;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
-import static com.moyz.adi.common.cosntant.RedisKeyConstant.*;
+import static com.moyz.adi.common.constant.RedisKeyConstant.*;
 import static com.moyz.adi.common.enums.ErrorEnum.*;
 
 /**

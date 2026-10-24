@@ -16,9 +16,9 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.text.MessageFormat;
 import java.util.Set;
 
-import static com.moyz.adi.common.cosntant.RedisKeyConstant.FIND_MY_PASSWORD;
-import static com.moyz.adi.common.cosntant.RedisKeyConstant.USER_TOKEN;
-import static com.moyz.adi.common.cosntant.RedisKeyConstant.USER_TOKEN_SET;
+import static com.moyz.adi.common.constant.RedisKeyConstant.FIND_MY_PASSWORD;
+import static com.moyz.adi.common.constant.RedisKeyConstant.USER_TOKEN;
+import static com.moyz.adi.common.constant.RedisKeyConstant.USER_TOKEN_SET;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;

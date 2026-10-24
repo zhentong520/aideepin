@@ -1,7 +1,7 @@
 package com.moyz.adi.common.service;
 
 import com.moyz.adi.common.config.AdiProperties;
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.dto.extapi.ExtKbRetrieveResp;
 import com.moyz.adi.common.entity.DocumentSegment;
 import com.moyz.adi.common.entity.KnowledgeBase;

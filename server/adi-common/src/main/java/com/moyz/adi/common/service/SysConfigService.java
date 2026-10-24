@@ -3,7 +3,7 @@ package com.moyz.adi.common.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.dto.SysConfigDto;
 import com.moyz.adi.common.dto.SysConfigEditDto;
 import com.moyz.adi.common.dto.SysConfigSearchReq;

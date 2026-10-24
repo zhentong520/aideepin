@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.baomidou.mybatisplus.extension.toolkit.ChainWrappers;
 import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.moyz.adi.common.base.ThreadContext;
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.dto.KbDocumentAttachmentDto;
 import com.moyz.adi.common.dto.KbDocumentDto;
 import com.moyz.adi.common.dto.KbDocumentEditReq;
@@ -48,11 +48,11 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.DOC_INDEX_TYPE_EMBEDDING;
-import static com.moyz.adi.common.cosntant.AdiConstant.DOC_INDEX_TYPE_GRAPHICAL;
-import static com.moyz.adi.common.cosntant.AdiConstant.RetrieveContentFrom.KNOWLEDGE_BASE;
-import static com.moyz.adi.common.cosntant.RedisKeyConstant.KB_STATISTIC_RECALCULATE_SIGNAL;
-import static com.moyz.adi.common.cosntant.RedisKeyConstant.USER_INDEXING;
+import static com.moyz.adi.common.constant.AdiConstant.DOC_INDEX_TYPE_EMBEDDING;
+import static com.moyz.adi.common.constant.AdiConstant.DOC_INDEX_TYPE_GRAPHICAL;
+import static com.moyz.adi.common.constant.AdiConstant.RetrieveContentFrom.KNOWLEDGE_BASE;
+import static com.moyz.adi.common.constant.RedisKeyConstant.KB_STATISTIC_RECALCULATE_SIGNAL;
+import static com.moyz.adi.common.constant.RedisKeyConstant.USER_INDEXING;
 import static com.moyz.adi.common.enums.ErrorEnum.*;
 
 @Slf4j

@@ -2,7 +2,7 @@ package com.moyz.adi.common.service;
 
 import com.moyz.adi.common.base.ThreadContext;
 import com.moyz.adi.common.config.AdiProperties;
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.dto.KbEmbeddingRebuildResp;
 import com.moyz.adi.common.entity.KnowledgeBase;
 import com.moyz.adi.common.entity.User;

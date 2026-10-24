@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-import static com.moyz.adi.common.cosntant.RedisKeyConstant.USER_INFO;
+import static com.moyz.adi.common.constant.RedisKeyConstant.USER_INFO;
 
 @Slf4j
 @Service

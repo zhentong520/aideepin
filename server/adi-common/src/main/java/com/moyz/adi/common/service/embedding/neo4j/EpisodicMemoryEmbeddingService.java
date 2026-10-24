@@ -1,7 +1,7 @@
 package com.moyz.adi.common.service.embedding.neo4j;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.dto.KbDocumentEmbeddingDto;
 import com.moyz.adi.common.rag.neo4j.AdiNeo4jEmbeddingStore;
 import com.moyz.adi.common.service.embedding.IEpisodicMemoryEmbeddingService;
@@ -19,8 +19,8 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.MetadataKey.CHARACTER_ID;
-import static com.moyz.adi.common.cosntant.AdiConstant.MetadataKey.CREATE_TIME;
+import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.CHARACTER_ID;
+import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.CREATE_TIME;
 
 /**
  * Neo4j implementation of {@link IEpisodicMemoryEmbeddingService}. Reverse-lookup

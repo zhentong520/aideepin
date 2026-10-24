@@ -1,6 +1,6 @@
 package com.moyz.adi.common.rag;
 
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.dto.RefGraphDto;
 import com.moyz.adi.common.exception.BaseException;
 import com.moyz.adi.common.util.AdiStringUtil;

@@ -1,6 +1,6 @@
 package com.moyz.adi.common.memory.longterm;
 
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.config.AdiProperties;
 import com.moyz.adi.common.enums.EventType;
 import com.moyz.adi.common.enums.MemoryType;
@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.MetadataKey.*;
+import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.*;
 
 /**
  * Append-only writer for episodic memory. Each event becomes a row in the dedicated

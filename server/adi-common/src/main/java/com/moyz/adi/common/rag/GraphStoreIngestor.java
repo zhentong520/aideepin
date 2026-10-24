@@ -1,6 +1,6 @@
 package com.moyz.adi.common.rag;
 
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.entity.DocumentGraphEdge;
 import com.moyz.adi.common.entity.DocumentGraphVertex;
 import com.moyz.adi.common.enums.ErrorEnum;
@@ -26,7 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.MAX_METADATA_VALUE_LENGTH;
+import static com.moyz.adi.common.constant.AdiConstant.MAX_METADATA_VALUE_LENGTH;
 
 /**
  * 图谱存储入库器：把「段抽取结果」写入图数据库，并同步维护段溯源账本（双写）。

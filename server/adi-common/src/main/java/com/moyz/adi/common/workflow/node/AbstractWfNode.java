@@ -34,7 +34,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import static com.moyz.adi.common.cosntant.AdiConstant.WorkflowConstant.*;
+import static com.moyz.adi.common.constant.AdiConstant.WorkflowConstant.*;
 import static com.moyz.adi.common.enums.ErrorEnum.A_WF_NODE_CONFIG_ERROR;
 import static com.moyz.adi.common.enums.ErrorEnum.A_WF_NODE_CONFIG_NOT_FOUND;
 

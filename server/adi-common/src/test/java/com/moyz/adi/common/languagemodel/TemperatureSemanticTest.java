@@ -1,6 +1,6 @@
 package com.moyz.adi.common.languagemodel;
 
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.entity.AiModel;
 import com.moyz.adi.common.entity.ModelPlatform;
 import com.moyz.adi.common.util.LocalCache;

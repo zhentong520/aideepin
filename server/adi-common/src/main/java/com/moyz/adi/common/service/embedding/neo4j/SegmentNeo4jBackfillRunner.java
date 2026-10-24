@@ -1,6 +1,6 @@
 package com.moyz.adi.common.service.embedding.neo4j;
 
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.entity.DocumentSegment;
 import com.moyz.adi.common.entity.KnowledgeBase;
 import com.moyz.adi.common.rag.neo4j.AdiNeo4jEmbeddingStore;

@@ -3,7 +3,7 @@ package com.moyz.adi.common.service;
 import com.baomidou.mybatisplus.extension.toolkit.ChainWrappers;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.moyz.adi.common.cosntant.AdiConstant;
+import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.entity.DocumentSegment;
 import com.moyz.adi.common.entity.DocumentSegmentQuestion;
 import com.moyz.adi.common.entity.KbDocument;
