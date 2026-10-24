@@ -94,6 +94,28 @@ jobs:
           if git ls-files | grep -E '(^|/)\.env($|\.)' | grep -v '\.env\.example'; then
             echo "::error::.env files must not be tracked (only .env.example)"; exit 1
           fi
+      - name: Assert contract types up to date (OPT-12 gate)
+        run: |
+          cd packages/aideepin-api-types
+          npm exec --yes openapi-typescript@7 openapi.json -o /tmp/schema-contract.d.ts
+          if ! diff -q /tmp/schema-contract.d.ts src/schema.d.ts > /dev/null; then
+            echo "::error::openapi.json and src/schema.d.ts are out of sync — run: pnpm --filter aideepin-api-types generate"
+            diff /tmp/schema-contract.d.ts src/schema.d.ts | head -20
+            exit 1
+          fi
+      - name: Assert toolchain major versions aligned (OPT-13 gate)
+        run: |
+          node -e "
+          const a = require('./admin-web/package.json'), u = require('./user-web/package.json');
+          const pick = (d, k) => (d.dependencies[k] || d.devDependencies[k] || '');
+          for (const pkg of ['vite', '@vitejs/plugin-vue', 'naive-ui', 'tailwindcss', 'vue-tsc', 'vue-i18n', 'vue']) {
+            const av = pick(a, pkg).replace(/[^0-9]/g, '').charAt(0);
+            const uv = pick(u, pkg).replace(/[^0-9]/g, '').charAt(0);
+            if (!av || !uv) continue;
+            if (av !== uv) { console.error('::error::' + pkg + ' major differs: admin=' + av + ' user=' + uv); process.exit(1); }
+          }
+          console.log('toolchain majors aligned');
+          "
       - name: Build server image
         run: docker build -t aideepin-api:sha-${{ github.sha }} ./server
       - name: Build user-web image (context = repo root, needs packages/aideepin-tokens)

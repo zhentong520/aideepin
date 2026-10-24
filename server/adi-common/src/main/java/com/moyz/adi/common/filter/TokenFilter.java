@@ -58,11 +58,27 @@ public class TokenFilter extends OncePerRequestFilter {
             "/file/"
     };
 
+    /** OPT-12：springdoc 文档资源，仅当 springdoc.api-docs.enabled=true 时放行（见 apiDocsEnabled）。 */
+    protected static final String[] OPENAPI_RESOURCES = {
+            "/v3/api-docs",
+            "/swagger-ui",
+            "/webjars/",
+    };
+
     @Resource
     private StringRedisTemplate stringRedisTemplate;
 
     @Value("${server.servlet.context-path:}")
     private String contextPath;
+
+    /**
+     * OPT-12（2026-10-24）：OpenAPI 契约出库。springdoc 的文档端点跟随
+     * {@code springdoc.api-docs.enabled} 配置放行——dev/test 默认开（application.yml 未关），
+     * prod 显式 false（application-prod.yml），生产行为不变；
+     * CI 契约门禁（导出 openapi.json 供前端生成类型）依赖此放行。
+     */
+    @Value("${springdoc.api-docs.enabled:true}")
+    private boolean apiDocsEnabled;
 
     /**
      * 归一化后的 context path：去掉尾部 '/'，根路径（/）归一化为空串。
@@ -149,6 +165,13 @@ public class TokenFilter extends OncePerRequestFilter {
         for (String path : EXCLUDE_API) {
             if (requestUri.startsWith(contextPathPrefix + path)) {
                 return true;
+            }
+        }
+        if (apiDocsEnabled) {
+            for (String path : OPENAPI_RESOURCES) {
+                if (requestUri.startsWith(contextPathPrefix + path)) {
+                    return true;
+                }
             }
         }
         for (String path : AdiConstant.WEB_RESOURCES) {
