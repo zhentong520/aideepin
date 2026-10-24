@@ -16,6 +16,8 @@
     <description>Chat,Draw,RAG,Workflow,MCP marketplace</description>
     <modules>
         <module>adi-common</module>
+        <!-- OPT-15 批 1：过渡聚合层，装全部业务域代码；后续批次逐域搬出后清空删除 -->
+        <module>adi-common-biz</module>
         <module>adi-chat</module>
         <module>adi-bootstrap</module>
         <module>adi-integration-test</module>

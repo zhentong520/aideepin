@@ -18,6 +18,12 @@
             <artifactId>adi-common</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
+        <!-- OPT-15 batch 1: transitional business aggregate layer -->
+        <dependency>
+            <groupId>com.moyz</groupId>
+            <artifactId>adi-common-biz</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
