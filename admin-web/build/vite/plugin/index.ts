@@ -8,7 +8,6 @@ import vueJsx from '@vitejs/plugin-vue-jsx';
 import { VitePWA } from 'vite-plugin-pwa';
 
 import { configHtmlPlugin } from './html';
-import { configMockPlugin } from './mock';
 import { configCompressPlugin } from './compress';
 
 // T9-11：PWA 插件（仅生产构建注入；开发环境不生成 SW，避免干扰调试）
@@ -42,8 +41,8 @@ function configPwaPlugin(viteEnv: ViteEnv) {
   });
 }
 
-export function createVitePlugins(viteEnv: ViteEnv, isBuild: boolean, prodMock: boolean) {
-  const { VITE_USE_MOCK, VITE_BUILD_COMPRESS, VITE_BUILD_COMPRESS_DELETE_ORIGIN_FILE } = viteEnv;
+export function createVitePlugins(viteEnv: ViteEnv, isBuild: boolean) {
+  const { VITE_BUILD_COMPRESS, VITE_BUILD_COMPRESS_DELETE_ORIGIN_FILE } = viteEnv;
 
   const vitePlugins: (Plugin | Plugin[] | PluginOption[])[] = [
     // have to
@@ -61,8 +60,8 @@ export function createVitePlugins(viteEnv: ViteEnv, isBuild: boolean, prodMock: 
   // vite-plugin-html
   vitePlugins.push(configHtmlPlugin(viteEnv, isBuild));
 
-  // vite-plugin-mock
-  VITE_USE_MOCK && vitePlugins.push(configMockPlugin(isBuild, prodMock));
+  // OPT-13（2026-10-24）：mock 插件已彻底移除——生产 mock 是 OPT-01 出清的历史遗留，
+  // 插件代码不再保留，mockjs / vite-plugin-mock 依赖同步删除。
 
   // T9-11：PWA 开关（VITE_GLOB_APP_PWA），仅生产构建生效
   if (isBuild && viteEnv.VITE_GLOB_APP_PWA) {
