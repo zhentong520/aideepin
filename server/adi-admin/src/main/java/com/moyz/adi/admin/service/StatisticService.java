@@ -1,7 +1,13 @@
-package com.moyz.adi.common.service;
+package com.moyz.adi.admin.service;
 
 import com.moyz.adi.common.entity.User;
 import com.moyz.adi.common.enums.UserStatusEnum;
+import com.moyz.adi.common.service.CharacterService;
+import com.moyz.adi.common.service.DrawService;
+import com.moyz.adi.common.service.KbDocumentService;
+import com.moyz.adi.common.service.KnowledgeBaseService;
+import com.moyz.adi.common.service.UserDayCostService;
+import com.moyz.adi.common.service.UserService;
 import com.moyz.adi.common.vo.*;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;

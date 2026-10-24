@@ -2,7 +2,7 @@ package com.moyz.adi.admin.controller;
 
 import com.moyz.adi.common.annotation.AdminOnly;
 import com.moyz.adi.common.dto.StatisticDto;
-import com.moyz.adi.common.service.StatisticService;
+import com.moyz.adi.admin.service.StatisticService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;

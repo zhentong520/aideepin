@@ -24,6 +24,12 @@
             <artifactId>adi-common-biz</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
+        <!-- OPT-15 batch 2: draw domain -->
+        <dependency>
+            <groupId>com.moyz</groupId>
+            <artifactId>adi-draw</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
         <!-- 验证码 -->
         <dependency>
             <groupId>com.ramostear</groupId>
