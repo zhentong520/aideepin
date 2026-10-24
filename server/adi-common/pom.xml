@@ -131,7 +131,7 @@
             <groupId>ws.schild</groupId>
             <artifactId>jave-all-deps</artifactId>
         </dependency>
-        <!-- ===== langchain4j 全家桶（版本由 langchain4j-bom / tmp-langchain4j.version 管理） ===== -->
+        <!-- ===== langchain4j 全家桶（版本由 langchain4j-bom / langchain4j-community.version 管理） ===== -->
         <dependency>
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j-spring-boot-starter</artifactId>

@@ -34,7 +34,9 @@
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <langchain4j.version>1.14.1</langchain4j.version>
-        <tmp-langchain4j.version>1.14.1-beta24</tmp-langchain4j.version>
+        <!-- OPT-14: community 线上游恒为 -betaN（无 GA），属性名去掉临时前缀、语义定版；
+             隔离执行见 dependencyManagement 注释（随 OPT-15 域拆分收敛） -->
+        <langchain4j-community.version>1.14.1-beta24</langchain4j-community.version>
         <langgraph4j.version>1.8.15</langgraph4j.version>
     </properties>
 
@@ -126,22 +128,26 @@
                 langchain4j BOM 托管坐标（core 全家桶：starter/mcp/pgvector/embeddings/parsers/
                 ollama/jsoup/google-custom/http-client-jdk 等）不在本段重声明——
                 重声明不带 version 会遮蔽 BOM；子模块无 version 引用即可从 langchain4j-bom 解析。
-                仅 BOM 外的 community 三件套在此固定 tmp-langchain4j.version。
+                仅 BOM 外的 community 三件套在此固定 langchain4j-community.version。
+                OPT-14（2026-10-24）：langchain4j-community 线上游恒为 -betaN 后缀、无正式版可转正
+                （Maven Central 实查 dashscope 线无 GA 版本号），按方案走"隔离"路径——三个 beta 依赖
+                随 OPT-15 域拆分收敛进 adi-kb-rag(neo4j) / adi-model(dashscope) 域模块，
+                主链路 classpath 只保留实际使用的域。
             -->
             <dependency>
                 <groupId>dev.langchain4j</groupId>
                 <artifactId>langchain4j-community-neo4j</artifactId>
-                <version>${tmp-langchain4j.version}</version>
+                <version>${langchain4j-community.version}</version>
             </dependency>
             <dependency>
                 <groupId>dev.langchain4j</groupId>
                 <artifactId>langchain4j-community-neo4j-retriever</artifactId>
-                <version>${tmp-langchain4j.version}</version>
+                <version>${langchain4j-community.version}</version>
             </dependency>
             <dependency>
                 <groupId>dev.langchain4j</groupId>
                 <artifactId>langchain4j-community-dashscope</artifactId>
-                <version>${tmp-langchain4j.version}</version>
+                <version>${langchain4j-community.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.antlr</groupId>
