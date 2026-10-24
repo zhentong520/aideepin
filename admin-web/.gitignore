@@ -28,6 +28,13 @@ pnpm-debug.log*
 
 # 环境变量不入库（.env.example 为模板）
 # 真实密钥不入库；VITE 构建配置（无密钥）需入库供 CI 构建
+# OPT-05（2026-10-24）：.env 本体一律出库，仅保留 .example 模板
+.env
+.env.development
+.env.production
 .env.local
 .env.*.local
 !.env.example
+
+# Mimosa security-hook runtime state (never commit)
+.mimosa/

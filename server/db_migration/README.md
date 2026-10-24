@@ -2,6 +2,12 @@
 
 > **[🇨🇳 中文文档](README.zh-CN.md)** | English
 
+> ⚠️ **FROZEN since 2026-10 (OPT-08/OPT-11)**: this directory is a historical archive of the
+> manual-numbering era and is no longer maintained. The single source of truth for schema is
+> **Flyway** (`adi-bootstrap/src/main/resources/db/migration/V*.sql`) — migrations run
+> automatically at startup. Do not execute these files manually and do not add new ones here.
+> The `all_*.sql` snapshots are kept for reference only (generated artifacts, may drift).
+
 ### 1. Install PostgreSQL
 
 For Ubuntu users, it's recommended to add the PGDG repository first (see [postgresql.org/download/linux/ubuntu](https://www.postgresql.org/download/linux/ubuntu/)), then install PostgreSQL along with the required extensions in one command:
@@ -81,7 +87,21 @@ Execute the migration scripts in sequence (do NOT run the `all_*` files):
 * `029_qianwen_maas_provider.sql` — Qianfan (Qianwen) MaaS platform and its models
 * `030_qianwen_rerank_default.sql` — switch the default rerank model to Qianfan
 * `031_kb_doc_source.sql` — knowledge-base document sources: fetch from a web URL or an HTTP API (also adds md/markdown parsing)
+* `032_kb_doc_raw_text.sql` — `adi_document.raw_text` keeps the pre-clean parse output
+* `033_global_scene_agent_user_conv.sql` — global scenes/agents + per-user agent conversations
+* `034_kb_category.sql` — knowledge-base categories
+* `035_finetune_sample_pool.sql` — finetune sample pool (session-to-finetune pipeline)
+* `036_rag_query_log.sql` — RAG query log (retrieval funnel / eval question source)
+* `037_kb_acl.sql` — knowledge-base ACL: default visibility groups + sensitivity
+* `038_acl_backfill.sql` — ACL backfill for existing rows
+* `039_credential_vault.sql` — credential vault (T2-07)
+* `040_wf_test_run.sql` — workflow single-node test-run records
+* `041_observability.sql` — observability additions
+* `042_embedding_provider_and_memory_user.sql` — embedding provider switch + user memory
 * `042_rag_quality_dashboard.sql` — RAG quality dashboard + failure loop: `adi_rag_query_log.query_text` column (eval-question source) and the thumbs-up/down feedback table `adi_rag_feedback`
+
+> **Note**: numbering collided at `042` (two files) and `018` (two files) — historical fact,
+> preserved as-is. Equivalent Flyway versions: see `adi-bootstrap/src/main/resources/db/migration/`.
 
 > **Note**: `019` inserts the workflow component row with an English placeholder title. To display
 > it in Chinese, run the language pack (`all_dml_cn.sql` / `all_dml_en.sql`) afterwards; both

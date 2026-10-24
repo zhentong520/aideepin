@@ -59,8 +59,11 @@ spring:
 
 logging:
   file:
-    # Log file path
-    # 日志文件路径
+    # Log file path: local dev uses a relative path; in the docker stack the app writes
+    # to /data/aideepin-logs (volume mount, see docker/docker-compose.yml) because the
+    # base data path defaults to /data/aideepin — keep the two in mind when switching.
+    # 日志文件路径：本地开发用相对路径；docker 栈内应用写 /data/aideepin-logs
+    # （compose 卷挂载，基础数据路径默认 /data/aideepin），切换环境时注意两种取值。
     path: ./data/aideepin/logs
   level:
     com.baomidou.mybatisplus: DEBUG

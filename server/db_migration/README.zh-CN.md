@@ -2,6 +2,11 @@
 
 > 中文文档 | **[🇬🇧 English](README.md)**
 
+> ⚠️ **自 2026-10 起本目录冻结（OPT-08/OPT-11）**：这里是手工编号时代的历史存档，不再维护。
+> schema 的唯一事实源是 **Flyway**（`adi-bootstrap/src/main/resources/db/migration/V*.sql`），
+> 应用启动时自动执行迁移。请勿手工执行本目录文件，也不要在此新增文件。
+> `all_*.sql` 快照仅作参考（生成产物，可能与实际漂移）。
+
 ### 1. 安装 PostgreSQL
 
 Ubuntu 用户建议先添加 PGDG 源（参考 [postgresql.org/download/linux/ubuntu](https://www.postgresql.org/download/linux/ubuntu/)），然后一键安装 PostgreSQL 及所需扩展：

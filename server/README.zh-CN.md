@@ -19,11 +19,14 @@
 
 ### 初始化数据库
 
-1. 创建数据库 `aideepin`
-2. 执行 `db_migration/all_ddl.sql` 创建表结构
-3. 执行 `db_migration/all_dml.sql` 插入基础数据
-4. 执行 `db_migration/all_dml_cn.sql`（中文）或 `db_migration/all_dml_en.sql`（英文）插入展示数据
-5. 配置并启用模型平台（至少启用一个，可参考[根目录 README](../README.zh-CN.md)中的表格选择），或使用[管理端](../admin-web/README.zh-CN.md)在界面上配置
+> ⚠️ **自 2026-10 起 schema 初始化走 Flyway 单一来源**：应用启动时自动执行
+> `adi-bootstrap/src/main/resources/db/migration/` 下的迁移（含 `V1__baseline.sql` 全量基线），
+> **无需也不应**手工执行 `db_migration/all_ddl.sql` / `all_dml*.sql`
+> （该目录为历史手工编号存档，已冻结维护，见 `db_migration/README.md`）。
+
+1. 创建数据库 `aideepin`（PostgreSQL 16，需 `pgvector` / `pgvector`+`Apache AGE` 扩展；docker 开发环境见根目录 `docker/dev-compose.yml`，扩展由 initdb 自动安装）
+2. 直接启动应用，Flyway 自动建表并写入基础/展示数据
+3. 配置并启用模型平台（至少启用一个，可参考[根目录 README](../README.zh-CN.md)中的表格选择），或使用[管理端](../admin-web/README.zh-CN.md)在界面上配置
 
 配置模型平台：
 
