@@ -19,6 +19,7 @@ import com.moyz.adi.common.languagemodel.AbstractLLMService;
 import com.moyz.adi.common.mapper.IndexTaskMapper;
 import com.moyz.adi.common.mapper.KbDocumentMapper;
 import com.moyz.adi.common.mapper.KnowledgeBaseMapper;
+import com.moyz.adi.common.mapper.UserMapper;
 import com.moyz.adi.common.rag.GraphRagContext;
 import com.moyz.adi.common.service.embedding.IKnowledgeEmbeddingService;
 import com.moyz.adi.common.vo.ChatModelBuilderProperties;
@@ -125,10 +126,10 @@ public class IndexTaskService {
     @Resource
     private ModelHealthService modelHealthService;
 
-    // @Lazy breaks the bean cycle; userService is only accessed when a task executes
+    // OPT-15 批4：UserService 在 biz，kb-rag 不依赖 biz，改注入 core 的 UserMapper（仅 getById）
     @Lazy
     @Resource
-    private UserService userService;
+    private UserMapper userMapper;
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
@@ -444,7 +445,7 @@ public class IndexTaskService {
                 .set(KbDocument::getEmbeddingStatus, EmbeddingStatusEnum.DOING)
                 .set(KbDocument::getFailReason, "")
                 .update();
-        segmentIndexService.reindexEmbedding(kb, doc, userService.getById(task.getUserId()), versionGuard(task));
+        segmentIndexService.reindexEmbedding(kb, doc, userMapper.selectById(task.getUserId()), versionGuard(task));
         // Conditional finalize: only takes effect when the version still matches; otherwise the
         // version advanced during execution -> this run's output is entirely stale, so take over
         // the cleanup too (segments written before a missed cancellation are still there, and
@@ -483,7 +484,7 @@ public class IndexTaskService {
             markHostFailed(task, EMPTY_PARSE_FAIL_REASON);
             return false;
         }
-        User user = userService.getById(task.getUserId());
+        User user = userMapper.selectById(task.getUserId());
         ChainWrappers.lambdaUpdateChain(kbDocumentMapper)
                 .eq(KbDocument::getId, doc.getId())
                 .set(KbDocument::getGraphicalStatusChangeTime, java.time.LocalDateTime.now())
@@ -542,7 +543,7 @@ public class IndexTaskService {
         if (doc == null || Boolean.TRUE.equals(doc.getIsDeleted()) || kb == null) {
             return false;
         }
-        segmentIndexService.vectorizeSegment(kb, doc, segment, userService.getById(task.getUserId()));
+        segmentIndexService.vectorizeSegment(kb, doc, segment, userMapper.selectById(task.getUserId()));
         boolean finalized = updateSegmentStatusConditionally(segment.getId(), task.getIndexVersion(),
                 DocumentSegment::getEmbeddingStatus, EmbeddingStatusEnum.DONE);
         if (!finalized) {
@@ -579,7 +580,7 @@ public class IndexTaskService {
         if (doc == null || Boolean.TRUE.equals(doc.getIsDeleted()) || kb == null) {
             return false;
         }
-        User user = userService.getById(task.getUserId());
+        User user = userMapper.selectById(task.getUserId());
         // Idempotently clear this segment's leftovers first (prevents duplicate appends) then
         // re-extract it alone; the ledger is rebuilt by the ingest double-write
         knowledgeBaseGraphService.removeSegmentGraphFootprint(kb.getUuid(), segment.getUuid());

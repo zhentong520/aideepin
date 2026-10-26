@@ -22,6 +22,8 @@
         <module>adi-draw</module>
         <!-- OPT-15 批 3：模型与工具接入域（languagemodel + AiModel/MCP/ExtApi/Credential 系） -->
         <module>adi-model</module>
+        <!-- OPT-15 批 4：知识库与 RAG 检索域（rag/ + Kb*/Document*/Rag*/SegmentIndex/IndexTask/Ocr 系） -->
+        <module>adi-kb-rag</module>
         <module>adi-chat</module>
         <module>adi-bootstrap</module>
         <module>adi-integration-test</module>

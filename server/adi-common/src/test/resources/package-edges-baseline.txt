@@ -41,6 +41,9 @@ filter -> constant
 filter -> entity
 filter -> util
 helper -> config
+helper -> entity
+helper -> enums
+helper -> service
 helper -> vo
 interfaces -> dto
 interfaces -> entity

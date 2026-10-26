@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.moyz</groupId>
+        <artifactId>aideepin</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>adi-kb-rag</artifactId>
+
+    <!--
+        OPT-15 批 4（2026-10-26）：知识库与 RAG 检索域（D-5 决策 3）。rag/ 全包 +
+        Kb*/KnowledgeBase*/Document*/Rag* 服务 + SegmentIndex/IndexTask/Ocr/ChunkPreview/
+        ExtKnowledgeSearch + embedding/（知识嵌入侧）+ config 图/向量存储装配 + eval/ QA 评测工具。
+        kb 与 rag 双向依赖实锤，合并为一域，不解环（D-5 原文）。
+        包名保持 com.moyz.adi.common.*（split package），import 零改动。
+        归属证据化调整（plan 允许以证据为准）：
+        - KbMcpToolService：plan 原划 adi-model（MCP 全系），但其唯一依赖 ExtKnowledgeSearch/
+          KnowledgeBase/KbDocument/KbAclFilterBuilder 全在 kb-rag 域，归 model 会引入
+          model→kb-rag 反向依赖，故随本域搬迁（McpService/UserMcpService 仍在 adi-model）。
+        - InputAdaptor：唯一业务引用方 rag/EmbeddingRag，随域走；InputAdaptorMsg 已在 core vo。
+        - eval/：KbQaEvalGateway 复用 KnowledgeBase/KbDocument/CompositeRag 检索链路，随本域；
+          DelegationScorer 虽属多 Agent 评测，但零业务依赖且测试同包，随包整体搬迁避免 eval 拆裂。
+        依赖方向：adi-kb-rag → adi-common（core）+ adi-model（AbstractLLMService/OpenAiCompatibleScoringModel），
+        对 adi-common-biz 无依赖；biz 反向引用本域类属过渡态，批 5/6 搬完 chat-core/workflow 后清零。
+    -->
+    <dependencies>
+        <dependency>
+            <groupId>com.moyz</groupId>
+            <artifactId>adi-common</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>com.moyz</groupId>
+            <artifactId>adi-model</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- ===== Spring 基础设施 ===== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <!-- ===== 持久层 ===== -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+        </dependency>
+        <!-- Apache AGE（图数据库）jdbc 扩展，本地仓库提供 -->
+        <dependency>
+            <groupId>org.apache</groupId>
+            <artifactId>age-jdbc</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+        <!-- ===== API 文档 / Web 配套 ===== -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+        <!-- ===== 工具库 ===== -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-collections4</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-text</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-core</artifactId>
+        </dependency>
+        <!-- ===== langchain4j RAG 主力依赖（pgvector/neo4j 存储与解析器） ===== -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-pgvector</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-community-neo4j</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-community-neo4j-retriever</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-embeddings-all-minilm-l6-v2</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-embeddings-bge-small-zh-v15</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-document-parser-apache-pdfbox</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-document-parser-apache-poi</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-document-transformer-jsoup</artifactId>
+        </dependency>
+        <!-- ===== 测试 ===== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

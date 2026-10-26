@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.moyz.adi.common.dto.CostDashboardResp;
 import com.moyz.adi.common.entity.ModelPrice;
 import com.moyz.adi.common.mapper.LLMCallRecordMapper;
+import com.moyz.adi.common.mapper.ModelPriceMapper;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,12 +31,14 @@ import static org.mockito.Mockito.when;
 /**
  * T6-13 验收：成本看板聚合正确性与「无数据/不可用」语义。
  * <p>⚠️ 数据源故障必须返回 UNAVAILABLE（不能把异常吞成 0——0 会被误读为没花钱）。</p>
+ * <p>OPT-15 批4：随被测类 LLMCallRecordService 迁至 adi-common；
+ * ModelPriceService 注入已改为 ModelPriceMapper，测试相应 mock mapper 并内联 loadPriceMap 打桩。</p>
  */
 class CostDashboardTest {
 
     private LLMCallRecordService service;
     private LLMCallRecordMapper mapper;
-    private ModelPriceService priceService;
+    private ModelPriceMapper priceMapper;
 
     @BeforeEach
     void setUp() {
@@ -44,14 +47,26 @@ class CostDashboardTest {
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(configuration, ""), ModelPrice.class);
         service = new LLMCallRecordService();
         mapper = mock(LLMCallRecordMapper.class);
-        priceService = mock(ModelPriceService.class);
+        priceMapper = mock(ModelPriceMapper.class);
         ReflectionTestUtils.setField(service, "baseMapper", mapper);
-        ReflectionTestUtils.setField(service, "modelPriceService", priceService);
+        ReflectionTestUtils.setField(service, "modelPriceMapper", priceMapper);
     }
 
     @AfterEach
     void tearDown() {
-        Mockito.reset(mapper, priceService);
+        Mockito.reset(mapper, priceMapper);
+    }
+
+    private void stubPriceMap(Map<String, ModelPrice> priceMap) {
+        when(priceMapper.selectList(any())).thenReturn(List.copyOf(priceMap.values()));
+    }
+
+    private static Map<String, ModelPrice> priceMapOf(Object... pairs) {
+        Map<String, ModelPrice> map = new HashMap<>();
+        for (int i = 0; i < pairs.length; i += 2) {
+            map.put((String) pairs[i], (ModelPrice) pairs[i + 1]);
+        }
+        return map;
     }
 
     private static Map<String, Object> modelRow(String platform, String name, long calls, long inTok, long outTok) {
@@ -77,7 +92,7 @@ class CostDashboardTest {
 
     @Test
     void aggregatesByModelWithCost() {
-        when(priceService.loadPriceMap()).thenReturn(Map.of(
+        stubPriceMap(priceMapOf(
                 "deepseek-chat", price("deepseek-chat", "1", "2"),
                 "deepseek|qwen-max", price("qwen-max", "3", "4")));
         when(mapper.aggregateByModel(any(), any())).thenReturn(List.of(
@@ -112,7 +127,7 @@ class CostDashboardTest {
 
     @Test
     void unpricedModelHasNullCostButTokensShown() {
-        when(priceService.loadPriceMap()).thenReturn(new HashMap<>());
+        stubPriceMap(new HashMap<>());
         when(mapper.aggregateByModel(any(), any())).thenReturn(List.of(
                 modelRow("", "some-model", 1, 100, 100)));
         when(mapper.aggregateByChannel(any(), any())).thenReturn(List.of(
@@ -133,7 +148,7 @@ class CostDashboardTest {
     void emptyRangeReturnsNoDataNotZero() {
         when(mapper.aggregateByModel(any(), any())).thenReturn(List.of());
         when(mapper.aggregateByChannel(any(), any())).thenReturn(List.of());
-        when(priceService.loadPriceMap()).thenReturn(new HashMap<>());
+        stubPriceMap(new HashMap<>());
 
         CostDashboardResp resp = service.costDashboard(LocalDateTime.now().minusDays(1), LocalDateTime.now());
 
@@ -144,7 +159,7 @@ class CostDashboardTest {
 
     @Test
     void dataSourceFailureReturnsUnavailableNeverZero() {
-        when(priceService.loadPriceMap()).thenThrow(new RuntimeException("table adi_model_price missing"));
+        when(priceMapper.selectList(any())).thenThrow(new RuntimeException("table adi_model_price missing"));
 
         CostDashboardResp resp = service.costDashboard(LocalDateTime.now().minusDays(1), LocalDateTime.now());
 
@@ -157,7 +172,7 @@ class CostDashboardTest {
 
     @Test
     void mapperFailureReturnsUnavailable() {
-        when(priceService.loadPriceMap()).thenReturn(new HashMap<>());
+        stubPriceMap(new HashMap<>());
         when(mapper.aggregateByModel(any(), any())).thenThrow(new RuntimeException("connection refused"));
 
         CostDashboardResp resp = service.costDashboard(LocalDateTime.now().minusDays(1), LocalDateTime.now());

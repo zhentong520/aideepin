@@ -14,6 +14,7 @@ import com.moyz.adi.common.enums.SegmentModeEnum;
 import com.moyz.adi.common.exception.BaseException;
 import com.moyz.adi.common.mapper.KbDocumentMapper;
 import com.moyz.adi.common.mapper.KnowledgeBaseMapper;
+import com.moyz.adi.common.mapper.UserMapper;
 import com.moyz.adi.common.rag.DocumentTextCleaner;
 import com.moyz.adi.common.util.UuidUtil;
 import dev.langchain4j.data.document.Document;
@@ -98,8 +99,9 @@ public class KbDocSourceService {
     @Resource
     private IndexTaskService indexTaskService;
 
+    // OPT-15 批4：UserService 在 biz，kb-rag 不依赖 biz，改注入 core 的 UserMapper（仅 getById）
     @Resource
-    private UserService userService;
+    private UserMapper userMapper;
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
@@ -601,6 +603,6 @@ public class KbDocSourceService {
         if (null == kb || null == kb.getOwnerId()) {
             return null;
         }
-        return userService.getById(kb.getOwnerId());
+        return userMapper.selectById(kb.getOwnerId());
     }
 }

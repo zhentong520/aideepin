@@ -20,6 +20,8 @@
         依赖 = adi-common（core 地基）+ adi-common 原有第三方依赖全集（后续批次按域裁剪）。
         OPT-15 批 3（2026-10-26）：model 域独立为 adi-model，biz→model 单向依赖
         （21 处 languagemodel.* 引用；反向经 core SPI 接口 SkillToolSpi/DelegateAgentSpi 倒置）。
+        OPT-15 批 4（2026-10-26）：kb-rag 域独立为 adi-kb-rag，biz→kb-rag 单向依赖
+        （chat-core/workflow 域残余类经 biz 引用 kb-rag 检索链路，批 5/6 搬完即清零）。
     -->
     <dependencies>
         <dependency>
@@ -30,6 +32,11 @@
         <dependency>
             <groupId>com.moyz</groupId>
             <artifactId>adi-model</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.moyz</groupId>
+            <artifactId>adi-kb-rag</artifactId>
             <version>${project.version}</version>
         </dependency>
         <!-- ===== Spring 基础设施 ===== -->

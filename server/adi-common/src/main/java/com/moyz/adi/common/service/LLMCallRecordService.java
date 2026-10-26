@@ -11,6 +11,8 @@ import com.moyz.adi.common.entity.ModelPrice;
 import com.moyz.adi.common.entity.User;
 import com.moyz.adi.common.enums.LLMCallRecordSourceType;
 import com.moyz.adi.common.mapper.LLMCallRecordMapper;
+import com.moyz.adi.common.mapper.ModelPriceMapper;
+import com.moyz.adi.common.mapper.UserMapper;
 import com.moyz.adi.common.util.LocalDateTimeUtil;
 import com.moyz.adi.common.util.MPPageUtil;
 import jakarta.annotation.Resource;
@@ -39,13 +41,17 @@ import java.util.stream.Collectors;
 @Service
 public class LLMCallRecordService extends ServiceImpl<LLMCallRecordMapper, LLMCallRecord> {
 
+    /**
+     * OPT-15 批4：本类下沉 core 后不得反向依赖 biz(UserService)/adi-model(ModelPriceService)，
+     * 改注入对应 Mapper（同库同表，查询语义一致）；priceKey 静态逻辑就地内联。
+     */
     @Lazy
     @Resource
-    private UserService userService;
+    private UserMapper userMapper;
 
     @Lazy
     @Resource
-    private ModelPriceService modelPriceService;
+    private ModelPriceMapper modelPriceMapper;
 
     /**
      * 异步保存 LLM 调用记录 | Save LLM call record asynchronously
@@ -96,9 +102,8 @@ public class LLMCallRecordService extends ServiceImpl<LLMCallRecordMapper, LLMCa
                     LocalDateTimeUtil.parse(req.getRequestTime()[1]));
         }
         if (StringUtils.isNotBlank(req.getUserName())) {
-            List<Long> userIds = userService.lambdaQuery()
-                    .like(User::getName, req.getUserName())
-                    .list()
+            List<Long> userIds = userMapper.selectList(
+                    new LambdaQueryWrapper<User>().like(User::getName, req.getUserName()))
                     .stream()
                     .map(User::getId)
                     .collect(Collectors.toList());
@@ -118,9 +123,8 @@ public class LLMCallRecordService extends ServiceImpl<LLMCallRecordMapper, LLMCa
                 .collect(Collectors.toList());
         Map<Long, String> idToName = new HashMap<>();
         if (!userIds.isEmpty()) {
-            idToName = userService.lambdaQuery()
-                    .in(User::getId, userIds)
-                    .list()
+            idToName = userMapper.selectList(
+                            new LambdaQueryWrapper<User>().in(User::getId, userIds))
                     .stream()
                     .collect(Collectors.toMap(User::getId, User::getName, (a, b) -> a));
         }
@@ -147,7 +151,7 @@ public class LLMCallRecordService extends ServiceImpl<LLMCallRecordMapper, LLMCa
         List<Map<String, Object>> byModelRows;
         List<Map<String, Object>> byChannelRows;
         try {
-            priceMap = modelPriceService.loadPriceMap();
+            priceMap = loadPriceMap();
             byModelRows = baseMapper.aggregateByModel(begin, end);
             byChannelRows = baseMapper.aggregateByChannel(begin, end);
         } catch (Exception e) {
@@ -167,8 +171,8 @@ public class LLMCallRecordService extends ServiceImpl<LLMCallRecordMapper, LLMCa
         for (Map<String, Object> row : byModelRows) {
             CostDashboardResp.CostAggItem item = toAggItem(row);
             item.setModelPlatform(str(row.get("modelPlatform")));
-            applyCost(item, priceMap.get(ModelPriceService.priceKey(item.getModelPlatform(), item.getGroupKey())),
-                    priceMap.get(ModelPriceService.priceKey("", item.getGroupKey())));
+            applyCost(item, priceMap.get(priceKey(item.getModelPlatform(), item.getGroupKey())),
+                    priceMap.get(priceKey("", item.getGroupKey())));
             resp.getByModel().add(item);
         }
         resp.getByModel().sort((a, b) -> Long.compare(
@@ -211,8 +215,29 @@ public class LLMCallRecordService extends ServiceImpl<LLMCallRecordMapper, LLMCa
         return resp;
     }
 
-    private CostDashboardResp.CostAggItem toAggItem(Map<String, Object> row) {
-        CostDashboardResp.CostAggItem item = new CostDashboardResp.CostAggItem();
+    /**
+     * 加载单价表（原 ModelPriceService.loadPriceMap，随本类下沉 core 内联）。
+     *
+     * @return key：platform 为空 → "modelName"；否则 → "platform|modelName"
+     */
+    private Map<String, ModelPrice> loadPriceMap() {
+        List<ModelPrice> list = modelPriceMapper.selectList(
+                new LambdaQueryWrapper<ModelPrice>().eq(ModelPrice::getIsDeleted, false));
+        Map<String, ModelPrice> map = new HashMap<>();
+        for (ModelPrice price : list) {
+            map.put(priceKey(price.getModelPlatform(), price.getModelName()), price);
+        }
+        return map;
+    }
+
+    static String priceKey(String platform, String modelName) {
+        if (StringUtils.isBlank(platform)) {
+            return modelName;
+        }
+        return platform + "|" + modelName;
+    }
+
+    private CostDashboardResp.CostAggItem toAggItem(Map<String, Object> row) {        CostDashboardResp.CostAggItem item = new CostDashboardResp.CostAggItem();
         item.setGroupKey(str(row.get("modelName")));
         item.setCallCount(longVal(row.get("callCount")));
         item.setInputTokens(longVal(row.get("inputTokens")));
