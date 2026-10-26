@@ -26,6 +26,8 @@
         <module>adi-kb-rag</module>
         <!-- OPT-15 批 5：对话核心域（Character*/memory/finetune/multiagent + User/Prompt/Scene/Skill 系） -->
         <module>adi-chat-core</module>
+        <!-- OPT-15 批 6：工作流域（workflow/ 引擎+节点 + Workflow*/Wf* 服务 + 触发基础设施 + AiAgentService） -->
+        <module>adi-workflow</module>
         <module>adi-chat</module>
         <module>adi-bootstrap</module>
         <module>adi-integration-test</module>

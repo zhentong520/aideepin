@@ -7,6 +7,7 @@ import com.moyz.adi.common.entity.*;
 import com.moyz.adi.common.entity.Character;
 import com.moyz.adi.common.enums.ExtApiResourceType;
 import com.moyz.adi.common.exception.BaseException;
+import com.moyz.adi.common.mapper.WorkflowMapper;
 import com.moyz.adi.common.util.AesUtil;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -32,8 +33,10 @@ public class ExtApiService {
     @Resource
     private KnowledgeBaseService knowledgeBaseService;
 
+    // OPT-15 批 6：WorkflowService 在 adi-workflow 域模块，chat-core 不反向依赖；
+    // 这里只需 Workflow 表 CRUD，直接注入 core 的 WorkflowMapper
     @Resource
-    private WorkflowService workflowService;
+    private WorkflowMapper workflowMapper;
 
     @Resource
     private UserService userService;
@@ -77,7 +80,7 @@ public class ExtApiService {
             case WORKFLOW -> {
                 Workflow wf = getWfOrThrow(uuid);
                 checkOwnership(wf.getUserId(), currentUser);
-                ChainWrappers.lambdaUpdateChain(workflowService.getBaseMapper())
+                ChainWrappers.lambdaUpdateChain(workflowMapper)
                         .eq(Workflow::getId, wf.getId())
                         .set(Workflow::getApiKey, encryptedValue)
                         .update();
@@ -188,7 +191,7 @@ public class ExtApiService {
                 yield new ValidateResult(kb.getUuid(), owner);
             }
             case WORKFLOW -> {
-                Workflow wf = ChainWrappers.lambdaQueryChain(workflowService.getBaseMapper())
+                Workflow wf = ChainWrappers.lambdaQueryChain(workflowMapper)
                         .eq(Workflow::getApiKey, encryptedValue)
                         .eq(Workflow::getIsDeleted, false)
                         .one();
@@ -378,7 +381,15 @@ public class ExtApiService {
     }
 
     private Workflow getWfOrThrow(String uuid) {
-        return workflowService.getByUuid(uuid);
+        Workflow wf = ChainWrappers.lambdaQueryChain(workflowMapper)
+                .eq(Workflow::getUuid, uuid)
+                .eq(Workflow::getIsDeleted, false)
+                .last("limit 1")
+                .one();
+        if (null == wf) {
+            throw new BaseException(A_DATA_NOT_FOUND);
+        }
+        return wf;
     }
 
     /**
