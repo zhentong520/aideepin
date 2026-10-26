@@ -12,12 +12,14 @@ on:
       - 'server/**'
       - 'user-web/**'
       - 'admin-web/**'
+      - 'packages/**'
       - '.github/workflows/ci.yml'
   pull_request:
     paths:
       - 'server/**'
       - 'user-web/**'
       - 'admin-web/**'
+      - 'packages/**'
       - '.github/workflows/ci.yml'
   workflow_dispatch:
 
@@ -116,6 +118,10 @@ jobs:
           }
           console.log('toolchain majors aligned');
           "
+      - name: jscpd workflow duplication gate (OPT-16)
+        # 两端 wf 代码重复基线 11.25%（OPT-16 纯逻辑层收敛后实测）；
+        # 阈值 12% 只拦恶化，组件层收敛（计划步骤②）后应下调。
+        run: npx --yes jscpd --min-tokens 100 --threshold 12 --silent "admin-web/src/wf" "admin-web/src/views/wf-designer" "user-web/src/views/workflow"
       - name: Build server image
         run: docker build -t aideepin-api:sha-${{ github.sha }} ./server
       - name: Build user-web image (context = repo root, needs packages/aideepin-tokens)

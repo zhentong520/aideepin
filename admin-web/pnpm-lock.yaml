@@ -53,6 +53,9 @@ importers:
       aideepin-tokens:
         specifier: link:../packages/aideepin-tokens
         version: link:../packages/aideepin-tokens
+      aideepin-wf-shared:
+        specifier: link:../packages/aideepin-wf-shared
+        version: link:../packages/aideepin-wf-shared
       axios:
         specifier: ^1.6.8
         version: 1.6.8

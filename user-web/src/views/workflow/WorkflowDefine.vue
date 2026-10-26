@@ -24,8 +24,9 @@ import WfDefineSidebar from '@/views/workflow/WfDefineSiderbar.vue'
 import { emptyWorkflowInfo } from '@/utils/functions'
 import { autoLayoutWorkflow, buildUiEdge, createNewEdge, createNewNode, getComponentTitle, rebuildUiWorkflow, remapClonedNodeConfig, wfNodeToUiNode } from '@/views/workflow/utils/workflow-util'
 // T9-08：画布分组（Container）—— 覆盖层方案，元数据存成员节点 data.layout
-import type { WfContainerView } from '@/views/workflow/utils/wf-container'
-import { collapsedAnchorBox, collectContainers, computeContainerBox, createContainer, moveContainerMembers, pruneContainer, removeContainer } from '@/views/workflow/utils/wf-container'
+// OPT-16：同源实现收敛到共享包，user 端原文件改为转发出口
+import type { WfContainerView } from 'aideepin-wf-shared'
+import { collapsedAnchorBox, collectContainers, computeContainerBox, createContainer, moveContainerMembers, pruneContainer, removeContainer } from 'aideepin-wf-shared'
 import { getWorkflowHistory, isSameWfSnapshot, pushWorkflowHistory, takeWfSnapshot } from '@/utils/workflow-history'
 import type { WfSnapshot } from '@/utils/workflow-history'
 import { validateWorkflow } from '@/utils/workflow-validate'

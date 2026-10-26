@@ -32,6 +32,9 @@ importers:
       aideepin-tokens:
         specifier: link:../packages/aideepin-tokens
         version: link:../packages/aideepin-tokens
+      aideepin-wf-shared:
+        specifier: link:../packages/aideepin-wf-shared
+        version: link:../packages/aideepin-wf-shared
       axios:
         specifier: ^1.7.0
         version: 1.20.0

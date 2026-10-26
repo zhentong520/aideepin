@@ -37,6 +37,7 @@
     "@vueuse/core": "^9.13.0",
     "aideepin-api-types": "link:../packages/aideepin-api-types",
     "aideepin-tokens": "link:../packages/aideepin-tokens",
+    "aideepin-wf-shared": "link:../packages/aideepin-wf-shared",
     "axios": "^1.7.0",
     "crypto-js": "^4.1.1",
     "cytoscape": "^3.30.2",

@@ -47,6 +47,7 @@
     "@vueuse/core": "^9.13.0",
     "aideepin-api-types": "link:../packages/aideepin-api-types",
     "aideepin-tokens": "link:../packages/aideepin-tokens",
+    "aideepin-wf-shared": "link:../packages/aideepin-wf-shared",
     "axios": "^1.6.8",
     "blueimp-md5": "^2.19.0",
     "date-fns": "^2.30.0",
