@@ -7,6 +7,7 @@ import com.moyz.adi.common.entity.AiModel;
 import com.moyz.adi.common.entity.ModelPlatform;
 import com.moyz.adi.common.enums.ErrorEnum;
 import com.moyz.adi.common.exception.BaseException;
+import com.moyz.adi.common.helper.LLMContext;
 import com.moyz.adi.common.helper.SseManager;
 import com.moyz.adi.common.helper.TtsModelContext;
 import com.moyz.adi.common.interfaces.TriConsumer;
@@ -15,12 +16,12 @@ import com.moyz.adi.common.languagemodel.data.ToolLoopBudget;
 import com.moyz.adi.common.languagemodel.data.LLMException;
 import com.moyz.adi.common.languagemodel.data.LLMResponseContent;
 import com.moyz.adi.common.memory.shortterm.MapDBChatMemoryStore;
+import com.moyz.adi.common.interfaces.DelegateAgentSpi;
+import com.moyz.adi.common.interfaces.SkillToolSpi;
 import com.moyz.adi.common.multiagent.AgentCallChain;
-import com.moyz.adi.common.multiagent.DelegateAgentTool;
 import com.moyz.adi.common.rag.TokenEstimatorFactory;
 import com.moyz.adi.common.rag.TokenEstimatorThreadLocal;
 import com.moyz.adi.common.service.ModelHealthService;
-import com.moyz.adi.common.service.skill.SkillToolService;
 import com.moyz.adi.common.util.*;
 import com.moyz.adi.common.vo.*;
 
@@ -68,6 +69,20 @@ import static com.moyz.adi.common.enums.ErrorEnum.B_LLM_SERVICE_DISABLED;
 
 @Slf4j
 public abstract class AbstractLLMService extends CommonModelService {
+
+    static {
+        // OPT-15 批 3：TokenEstimatorFactory 下沉 core 后，QWEN tokenizer 的解析能力
+        // 由本类（model 域）经可插拔 resolver 回注——core 依赖方向保持为零。
+        TokenEstimatorFactory.setQwenResolver(() -> LLMContext.getAllServices()
+                .stream()
+                .filter(item -> {
+                    AiModel aiModel = item.getAiModel();
+                    return aiModel.getPlatform().equals(AdiConstant.ModelPlatform.DASHSCOPE)
+                            && aiModel.getType().equals(AdiConstant.ModelType.TEXT);
+                })
+                .findFirst()
+                .map(AbstractLLMService::getTokenEstimator));
+    }
 
     protected StringRedisTemplate stringRedisTemplate;
 
@@ -666,13 +681,13 @@ public abstract class AbstractLLMService extends CommonModelService {
 
     /**
      * 收集本次对话可用的全部工具：MCP 工具 + Agent Skills 内置工具 + create_skill 常驻工具，
-     * 统一映射到 ToolExecutor（MCP 包装 client.executeTool，Skill 委托 SkillToolService）。
+     * 统一映射到 ToolExecutor（MCP 包装 client.executeTool，Skill 委托 SkillToolSpi）。
      * 二开（2026-09-21）：新增 create_skill 常驻注册（对话中直接创建技能），userId/characterUuid
      * 由装配层显式传入——工具在 LLM 回调线程执行，ThreadContext 不保证可达。
      * 二开（T7-02，2026-10-20）：新增 delegate_agent 常驻注册（agent-as-tool），开关关闭时不注册；
      * 调用链随参数透传（嵌套深度限制/防环在门面收口）。
      */
-    private Map<ToolSpecification, ToolExecutor> getRequestTools(List<McpClient> mcpClients, SkillToolService.SkillBundle skillBundle, Long chatUserId, String characterUuid, AgentCallChain agentCallChain) {
+    private Map<ToolSpecification, ToolExecutor> getRequestTools(List<McpClient> mcpClients, SkillToolSpi.SkillBundle skillBundle, Long chatUserId, String characterUuid, AgentCallChain agentCallChain) {
         Map<ToolSpecification, ToolExecutor> tools = new HashMap<>();
         if (!CollectionUtils.isEmpty(mcpClients)) {
             // MCP Tools
@@ -684,20 +699,20 @@ public abstract class AbstractLLMService extends CommonModelService {
         }
         // Agent Skills built-in tools
         if (null != skillBundle && !CollectionUtils.isEmpty(skillBundle.toolSpecifications())) {
-            ToolExecutor skillExecutor = SpringUtil.getBean(SkillToolService.class).executorFor(skillBundle.skills());
+            ToolExecutor skillExecutor = SpringUtil.getBean(SkillToolSpi.class).executorFor(skillBundle.skills());
             for (ToolSpecification toolSpecification : skillBundle.toolSpecifications()) {
                 tools.put(toolSpecification, skillExecutor);
             }
         }
         // create_skill：常驻注册，任何角色对话都可创建技能
-        SkillToolService skillToolService = SpringUtil.getBean(SkillToolService.class);
+        SkillToolSpi skillToolService = SpringUtil.getBean(SkillToolSpi.class);
         ToolSpecification createSpec = skillToolService.buildCreateSkillSpecification();
         tools.put(createSpec, (req, memoryId) -> skillToolService.executeCreateSkill(req, chatUserId, characterUuid));
         // T7-02：delegate_agent（agent-as-tool）常驻注册，热开关关闭时不注入（模型看不到该工具）
-        DelegateAgentTool delegateAgentTool = SpringUtil.getBean(DelegateAgentTool.class);
+        DelegateAgentSpi delegateAgentTool = SpringUtil.getBean(DelegateAgentSpi.class);
         if (delegateAgentTool.enabled()) {
             ToolSpecification delegateSpec = delegateAgentTool.buildSpecification();
-            tools.put(delegateSpec, (req, memoryId) -> delegateAgentTool.execute(req, chatUserId, characterUuid, agentCallChain));
+            tools.put(delegateSpec, (req, memoryId) -> delegateAgentTool.invoke(req, chatUserId, characterUuid, agentCallChain));
         }
         return tools;
     }
@@ -730,7 +745,7 @@ public abstract class AbstractLLMService extends CommonModelService {
         // 二开（2026-09-21）修复：Agent Skills 工具（read_skill 等）与 create_skill 的
         // ToolSpecification 此前从未进入 ChatRequest，模型根本看不到这些工具，自然永远不会调用
         // （执行侧 getRequestTools 按 name 匹配 executor，name 一致即可安全互通）。
-        SkillToolService skillToolService = SpringUtil.getBean(SkillToolService.class);
+        SkillToolSpi skillToolService = SpringUtil.getBean(SkillToolSpi.class);
         if (null != httpRequestParams.getSkillBundle()
                 && !CollectionUtils.isEmpty(httpRequestParams.getSkillBundle().toolSpecifications())) {
             toolSpecifications.addAll(httpRequestParams.getSkillBundle().toolSpecifications());
@@ -738,7 +753,7 @@ public abstract class AbstractLLMService extends CommonModelService {
         toolSpecifications.add(skillToolService.buildCreateSkillSpecification());
         // T7-02：delegate_agent（agent-as-tool）工具清单注入——执行侧 getRequestTools 按 name
         // 匹配 executor，两处 name 一致即可安全互通；热开关关闭时不注入（模型看不到）
-        DelegateAgentTool delegateAgentTool = SpringUtil.getBean(DelegateAgentTool.class);
+        DelegateAgentSpi delegateAgentTool = SpringUtil.getBean(DelegateAgentSpi.class);
         if (delegateAgentTool.enabled()) {
             toolSpecifications.add(delegateAgentTool.buildSpecification());
         }

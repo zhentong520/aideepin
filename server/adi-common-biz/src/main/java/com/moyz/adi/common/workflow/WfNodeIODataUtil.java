@@ -3,7 +3,6 @@ package com.moyz.adi.common.workflow;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
-import com.google.gson.JsonObject;
 import com.moyz.adi.common.enums.ErrorEnum;
 import com.moyz.adi.common.enums.WfIODataTypeEnum;
 import com.moyz.adi.common.exception.BaseException;

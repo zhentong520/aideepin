@@ -1,6 +1,7 @@
 package com.moyz.adi.common.vo;
 
-import com.moyz.adi.common.service.skill.SkillToolService;
+import com.moyz.adi.common.interfaces.SkillToolSpi;
+import com.moyz.adi.common.multiagent.AgentCallChain;
 import dev.langchain4j.mcp.client.McpClient;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -24,7 +25,7 @@ public class ChatModelRequest {
     private List<String> imageUrls;
     private List<McpClient> mcpClients;
     //Agent Skills 内置工具上下文（清单+工具集+技能映射），无技能时为 null
-    private SkillToolService.SkillBundle skillBundle;
+    private SkillToolSpi.SkillBundle skillBundle;
     /**
      * 二开新增（2026-09-21）：对话用户 id 与角色 uuid，供 create_skill 工具归属与绑定
      * （阻塞路径工具执行线程 ThreadContext 不可达，需显式传递）。
@@ -40,5 +41,5 @@ public class ChatModelRequest {
      * LLM 工具回调线程做嵌套深度限制与双向互调防环（工具线程 ThreadContext
      * 不可达，链必须随参数显式传递，与 chatUserId/characterUuid 同理）。
      */
-    private com.moyz.adi.common.multiagent.AgentCallChain agentCallChain;
+    private AgentCallChain agentCallChain;
 }

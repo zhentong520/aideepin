@@ -1,6 +1,7 @@
 package com.moyz.adi.common.service.skill;
 
 import com.moyz.adi.common.entity.Skill;
+import com.moyz.adi.common.interfaces.SkillToolSpi;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -49,7 +50,7 @@ class SkillToolServiceRelevanceTest {
         List<Skill> selected = service.selectRelevantSkills(manySkills(), "帮我总结这份 PDF 报告");
         assertEquals(8, selected.size(), "注入数量必须收敛到 topK");
 
-        SkillToolService.SkillBundle bundle = service.prepare(manySkills(), "帮我总结这份 PDF 报告");
+        SkillToolSpi.SkillBundle bundle = service.prepare(manySkills(), "帮我总结这份 PDF 报告");
         assertEquals(8, bundle.skills().size(), "manifest 注入的技能数应下降");
         assertFalse(bundle.manifest().contains("skill-noise-9"), "被裁掉的技能描述不应进 prompt");
         assertTrue(bundle.manifest().contains("pdf-summary"));

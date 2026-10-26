@@ -3,6 +3,7 @@ package com.moyz.adi.common.multiagent;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moyz.adi.common.entity.Character;
+import com.moyz.adi.common.interfaces.DelegateAgentSpi;
 import com.moyz.adi.common.entity.User;
 import com.moyz.adi.common.service.CharacterService;
 import com.moyz.adi.common.service.UserService;
@@ -38,7 +39,7 @@ import java.io.IOException;
  */
 @Slf4j
 @Component
-public class DelegateAgentTool {
+public class DelegateAgentTool implements DelegateAgentSpi {
 
     public static final String TOOL_NAME = "delegate_agent";
 
@@ -85,7 +86,7 @@ public class DelegateAgentTool {
     }
 
     /**
-     * 执行委派。userId/characterUuid/chain 由 LLM 服务装配层显式传入
+     * 执行委派（DelegateAgentSpi#invoke 实现）。userId/characterUuid/chain 由 LLM 服务装配层显式传入
      * （工具在回调线程执行，ThreadContext 不保证可达，与 create_skill 同理）。
      *
      * @param request             LLM 发出的工具调用请求（JSON 参数）
@@ -94,7 +95,8 @@ public class DelegateAgentTool {
      * @param chain               当前调用链（null = 以 sourceCharacterUuid 为链根播种新链）
      * @return 目标 Agent 的回答文本；被拒/失败返回 {@code ERROR: <原因>}
      */
-    public String execute(ToolExecutionRequest request, Long userId, String sourceCharacterUuid, AgentCallChain chain) {
+    @Override
+    public String invoke(ToolExecutionRequest request, Long userId, String sourceCharacterUuid, AgentCallChain chain) {
         JsonNode args;
         try {
             args = MAPPER.readTree(StringUtils.defaultIfBlank(request.arguments(), "{}"));

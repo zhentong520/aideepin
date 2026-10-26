@@ -17,7 +17,7 @@ import com.moyz.adi.common.rag.EmbeddingRagContext;
 import com.moyz.adi.common.rag.KbAclInfo;
 import com.moyz.adi.common.service.SkillService;
 import com.moyz.adi.common.service.UserMcpService;
-import com.moyz.adi.common.service.skill.SkillToolService;
+import com.moyz.adi.common.interfaces.SkillToolSpi;
 import com.moyz.adi.common.util.SpringUtil;
 import com.moyz.adi.common.util.AdiStringUtil;
 import com.moyz.adi.common.vo.ChatModelBuilderProperties;
@@ -364,12 +364,12 @@ public class CharacterChatHelper {
         builder.characterUuid(character.getUuid());
         builder.chatUserId(character.getUserId());
         if (StringUtils.isNotBlank(character.getSkillIds())) {
-            SkillToolService skillToolService = SpringUtil.getBean(SkillToolService.class);
+            SkillToolSpi skillToolService = SpringUtil.getBean(SkillToolSpi.class);
             SkillService skillService = SpringUtil.getBean(SkillService.class);
             List<Long> skillIds = AdiStringUtil.stringToList(character.getSkillIds(), ",", Long::parseLong);
             List<Skill> skills = skillService.listEnabledByIds(skillIds);
             // T6-07：技能描述按当前任务（userPrompt）相关性按需注入，不再全量进 prompt
-            SkillToolService.SkillBundle bundle = skillToolService.prepare(skills, userPrompt);
+            SkillToolSpi.SkillBundle bundle = skillToolService.prepare(skills, userPrompt);
             if (StringUtils.isNotBlank(bundle.manifest())) {
                 skillManifest = bundle.manifest();
                 builder.skillBundle(bundle);

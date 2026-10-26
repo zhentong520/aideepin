@@ -3,6 +3,7 @@ package com.moyz.adi.common.service.skill;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moyz.adi.common.entity.Skill;
+import com.moyz.adi.common.interfaces.SkillToolSpi;
 import com.moyz.adi.common.service.CharacterService;
 import com.moyz.adi.common.service.SkillService;
 import com.moyz.adi.common.util.SpringUtil;
@@ -42,7 +43,7 @@ import static com.moyz.adi.common.util.LogSanitizer.sanitize;
  */
 @Slf4j
 @Service
-public class SkillToolService {
+public class SkillToolService implements SkillToolSpi {
 
     public static final String TOOL_READ = "read_skill";
     public static final String TOOL_READ_FILE = "read_skill_file";
@@ -61,8 +62,7 @@ public class SkillToolService {
     @Value("${local.base-data-path:/data/aideepin}")
     private String baseDataPath;
 
-    public record SkillBundle(String manifest, List<ToolSpecification> toolSpecifications, Map<String, Skill> skills) {
-    }
+    // SkillBundle 定义已上移至 SkillToolSpi（OPT-15 批3 接口倒置），经继承可见
 
     /**
      * 兼容旧签名：全量注入（不按任务相关性过滤）。
@@ -81,6 +81,7 @@ public class SkillToolService {
      * 所有分数为 0（无任何相关性信号）时保守回退为全量注入，避免误伤召回。
      * 绑定技能数不超过 top-k 时行为与全量注入一致。
      */
+    @Override
     public SkillBundle prepare(List<Skill> skills, String query) {
         return prepareInternal(selectRelevantSkills(skills, query));
     }

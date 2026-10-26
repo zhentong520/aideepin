@@ -18,11 +18,18 @@
         chat-core → workflow）逐域搬出独立模块，本模块最终清空删除。
         包名保持 com.moyz.adi.common.* 不变（split package across jars，无 JPMS），import 零改动。
         依赖 = adi-common（core 地基）+ adi-common 原有第三方依赖全集（后续批次按域裁剪）。
+        OPT-15 批 3（2026-10-26）：model 域独立为 adi-model，biz→model 单向依赖
+        （21 处 languagemodel.* 引用；反向经 core SPI 接口 SkillToolSpi/DelegateAgentSpi 倒置）。
     -->
     <dependencies>
         <dependency>
             <groupId>com.moyz</groupId>
             <artifactId>adi-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.moyz</groupId>
+            <artifactId>adi-model</artifactId>
             <version>${project.version}</version>
         </dependency>
         <!-- ===== Spring 基础设施 ===== -->

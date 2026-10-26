@@ -20,6 +20,8 @@
         <module>adi-common-biz</module>
         <!-- OPT-15 批 2：draw 域试点模块 -->
         <module>adi-draw</module>
+        <!-- OPT-15 批 3：模型与工具接入域（languagemodel + AiModel/MCP/ExtApi/Credential 系） -->
+        <module>adi-model</module>
         <module>adi-chat</module>
         <module>adi-bootstrap</module>
         <module>adi-integration-test</module>

@@ -130,7 +130,7 @@ class DelegateAgentToolTest {
 
         ToolExecutionRequest req = request(
                 "{\"target_agent\":\"数据分析师\",\"objective\":\"分析上周销售数据\",\"output_format\":\"200字内\"}");
-        String out = tool.execute(req, 1L, "agent-main", null);
+        String out = tool.invoke(req, 1L, "agent-main", null);
 
         assertEquals("结论：增长 12%", out);
         assertEquals(1, chainAtInvoke.size());
@@ -142,7 +142,7 @@ class DelegateAgentToolTest {
     @DisplayName("契约缺 objective：返回可读 ERROR，不触发委派")
     void blankObjectiveReadableError() throws Exception {
         setUp(true);
-        String out = tool.execute(request("{\"target_agent\":\"分析师\",\"objective\":\"  \"}"), 1L, "agent-main", null);
+        String out = tool.invoke(request("{\"target_agent\":\"分析师\",\"objective\":\"  \"}"), 1L, "agent-main", null);
         assertTrue(out.startsWith("ERROR:"), out);
         assertTrue(out.contains("objective"), out);
         verify(agentService, org.mockito.Mockito.never()).invoke(any(), any(), any());
@@ -152,7 +152,7 @@ class DelegateAgentToolTest {
     @DisplayName("缺 target_agent：返回可读 ERROR")
     void missingTargetReadableError() throws Exception {
         setUp(true);
-        String out = tool.execute(request("{\"objective\":\"做事\"}"), 1L, "agent-main", null);
+        String out = tool.invoke(request("{\"objective\":\"做事\"}"), 1L, "agent-main", null);
         assertEquals("ERROR: target_agent is required (name or uuid of the agent to delegate to)", out);
     }
 
@@ -160,7 +160,7 @@ class DelegateAgentToolTest {
     @DisplayName("无用户上下文：返回可读 ERROR，不触发委派")
     void noUserContextRejected() throws Exception {
         setUp(true);
-        String out = tool.execute(request("{\"target_agent\":\"分析师\",\"objective\":\"做事\"}"), null, "agent-main", null);
+        String out = tool.invoke(request("{\"target_agent\":\"分析师\",\"objective\":\"做事\"}"), null, "agent-main", null);
         assertTrue(out.startsWith("ERROR:"), out);
         verify(agentService, org.mockito.Mockito.never()).invoke(any(), any(), any());
     }
@@ -175,7 +175,7 @@ class DelegateAgentToolTest {
         chain.enter("agent-main");
         chain.enter("agent-b");
 
-        String out = tool.execute(request("{\"target_agent\":\"C\",\"objective\":\"再嵌套一层\"}"),
+        String out = tool.invoke(request("{\"target_agent\":\"C\",\"objective\":\"再嵌套一层\"}"),
                 1L, "agent-b", chain);
 
         assertTrue(out.startsWith("ERROR:"), out);
@@ -199,7 +199,7 @@ class DelegateAgentToolTest {
         chain.enter("agent-main");
         chain.enter("agent-b");
 
-        String out = tool.execute(request("{\"target_agent\":\"agent-main\",\"objective\":\"回调发起方\"}"),
+        String out = tool.invoke(request("{\"target_agent\":\"agent-main\",\"objective\":\"回调发起方\"}"),
                 1L, "agent-b", chain);
 
         assertTrue(out.startsWith("ERROR:"), out);
@@ -217,7 +217,7 @@ class DelegateAgentToolTest {
         chain.enter("agent-main");
         chain.enter("agent-b");
 
-        String out = tool.execute(request("{\"target_agent\":\"agent-b\",\"objective\":\"自我委派\"}"),
+        String out = tool.invoke(request("{\"target_agent\":\"agent-b\",\"objective\":\"自我委派\"}"),
                 1L, "agent-b", chain);
 
         assertTrue(out.startsWith("ERROR:"), out);
@@ -228,7 +228,7 @@ class DelegateAgentToolTest {
     @DisplayName("开关关闭：委派被门面拒绝，工具返回可读 ERROR")
     void disabledSwitchSurfacesReadableError() throws Exception {
         setUp(false);
-        String out = tool.execute(request("{\"target_agent\":\"分析师\",\"objective\":\"做事\"}"),
+        String out = tool.invoke(request("{\"target_agent\":\"分析师\",\"objective\":\"做事\"}"),
                 1L, "agent-main", null);
         assertTrue(out.startsWith("ERROR:"), out);
         verify(agentService, org.mockito.Mockito.never()).invoke(any(), any(), any());
@@ -241,7 +241,7 @@ class DelegateAgentToolTest {
         when(agentResolver.resolve(eq("分析师"), any(User.class))).thenReturn(agent("agent-analyst", "分析师"));
         when(agentService.invoke(any(), any(User.class), any())).thenThrow(new RuntimeException("llm timeout"));
 
-        String out = tool.execute(request("{\"target_agent\":\"分析师\",\"objective\":\"分析数据\"}"),
+        String out = tool.invoke(request("{\"target_agent\":\"分析师\",\"objective\":\"分析数据\"}"),
                 1L, "agent-main", null);
 
         assertTrue(out.startsWith("ERROR:"), out);
