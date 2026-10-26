@@ -16,7 +16,7 @@ import java.net.Proxy;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.moyz.adi.common.constant.AdiConstant.SysConfigKey.GOOGLE_SETTING;
+import static com.moyz.adi.common.constant.SysConfigConstant.SysConfigKey.GOOGLE_SETTING;
 
 @Slf4j
 public class GoogleSearchEngineService extends AbstractSearchEngineService<GoogleSetting> {

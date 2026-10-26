@@ -18,7 +18,7 @@ import com.moyz.adi.common.workflow.metrics.ImageMetrics;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
-import static com.moyz.adi.common.constant.AdiConstant.ModelPlatform.DASHSCOPE;
+import static com.moyz.adi.common.constant.ModelConstant.ModelPlatform.DASHSCOPE;
 import static com.moyz.adi.common.enums.ErrorEnum.*;
 
 /**

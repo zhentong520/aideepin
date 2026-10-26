@@ -19,7 +19,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.util.List;
 
-import static com.moyz.adi.common.constant.AdiConstant.WorkflowConstant.DEFAULT_OUTPUT_PARAM_NAME;
+import static com.moyz.adi.common.workflow.WfConstant.DEFAULT_OUTPUT_PARAM_NAME;
 
 /**
  * Workflow node that executes a Character in agent mode.

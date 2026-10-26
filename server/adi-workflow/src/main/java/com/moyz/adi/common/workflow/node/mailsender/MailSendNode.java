@@ -21,8 +21,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import static com.moyz.adi.common.constant.AdiConstant.WorkflowConstant.DEFAULT_OUTPUT_PARAM_NAME;
-import static com.moyz.adi.common.constant.AdiConstant.WorkflowConstant.MAIL_SENDER_TYPE_CUSTOM;
+import static com.moyz.adi.common.workflow.WfConstant.DEFAULT_OUTPUT_PARAM_NAME;
+import static com.moyz.adi.common.workflow.WfConstant.MAIL_SENDER_TYPE_CUSTOM;
 import static com.moyz.adi.common.enums.ErrorEnum.*;
 
 @Slf4j

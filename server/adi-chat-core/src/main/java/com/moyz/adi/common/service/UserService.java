@@ -6,6 +6,8 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.baomidou.mybatisplus.extension.toolkit.ChainWrappers;
 import com.moyz.adi.common.base.ThreadContext;
 import com.moyz.adi.common.config.AdiProperties;
+import com.moyz.adi.common.config.props.Register;
+import com.moyz.adi.common.config.props.EmailCode;
 import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.constant.RedisKeyConstant;
 import com.moyz.adi.common.dto.*;
@@ -179,7 +181,7 @@ public class UserService extends ServiceImpl<UserMapper, User> {
      * 注册邮箱验证码是否已开启|Whether registration email code is enabled
      */
     private boolean registerEmailCodeEnabled() {
-        AdiProperties.Register register = adiProperties.getRegister();
+        Register register = adiProperties.getRegister();
         return null != register && null != register.getEmailCode() && register.getEmailCode().isEnable();
     }
 
@@ -217,7 +219,7 @@ public class UserService extends ServiceImpl<UserMapper, User> {
             throw new BaseException(A_USER_EXIST);
         }
 
-        AdiProperties.EmailCode config = adiProperties.getRegister().getEmailCode();
+        EmailCode config = adiProperties.getRegister().getEmailCode();
         String cooldownKey = MessageFormat.format(AUTH_REGISTER_EMAIL_CODE_COOLDOWN, mail);
         if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(cooldownKey))) {
             throw new BaseException(A_REGISTER_EMAIL_CODE_TOO_FREQUENTLY);

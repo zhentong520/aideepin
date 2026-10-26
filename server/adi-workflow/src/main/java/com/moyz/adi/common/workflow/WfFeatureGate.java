@@ -1,6 +1,7 @@
 package com.moyz.adi.common.workflow;
 
 import com.moyz.adi.common.config.AdiProperties;
+import com.moyz.adi.common.config.props.Wf;
 import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.service.SysConfigService;
 import com.moyz.adi.common.util.SpringUtil;
@@ -28,30 +29,30 @@ public final class WfFeatureGate {
 
     /** T9-02 Loop/Each 循环节点开关 */
     public static boolean loopEnabled() {
-        return check(AdiConstant.SysConfigKey.WF_LOOP_ENABLED, AdiProperties.Wf.class, "isLoopEnabled");
+        return check(AdiConstant.SysConfigKey.WF_LOOP_ENABLED, Wf.class, "isLoopEnabled");
     }
 
     /** T9-03 Parallel 并行节点开关 */
     public static boolean parallelEnabled() {
-        return check(AdiConstant.SysConfigKey.WF_PARALLEL_ENABLED, AdiProperties.Wf.class, "isParallelEnabled");
+        return check(AdiConstant.SysConfigKey.WF_PARALLEL_ENABLED, Wf.class, "isParallelEnabled");
     }
 
     /** T9-04 Code 代码节点开关 */
     public static boolean codeEnabled() {
-        return check(AdiConstant.SysConfigKey.WF_CODE_ENABLED, AdiProperties.Wf.class, "isCodeEnabled");
+        return check(AdiConstant.SysConfigKey.WF_CODE_ENABLED, Wf.class, "isCodeEnabled");
     }
 
     /** T9-07 SubWorkflow 子工作流节点开关 */
     public static boolean subWorkflowEnabled() {
-        return check(AdiConstant.SysConfigKey.WF_SUB_WORKFLOW_ENABLED, AdiProperties.Wf.class, "isSubWorkflowEnabled");
+        return check(AdiConstant.SysConfigKey.WF_SUB_WORKFLOW_ENABLED, Wf.class, "isSubWorkflowEnabled");
     }
 
     /** T9-07 节点 onError 错误分支开关 */
     public static boolean errorBranchEnabled() {
-        return check(AdiConstant.SysConfigKey.WF_ERROR_BRANCH_ENABLED, AdiProperties.Wf.class, "isErrorBranchEnabled");
+        return check(AdiConstant.SysConfigKey.WF_ERROR_BRANCH_ENABLED, Wf.class, "isErrorBranchEnabled");
     }
 
-    private static boolean check(String sysKey, Class<AdiProperties.Wf> wfClass, String getter) {
+    private static boolean check(String sysKey, Class<Wf> wfClass, String getter) {
         String sysValue = SysConfigService.getByKey(sysKey);
         if (StringUtils.isNotBlank(sysValue)) {
             return Boolean.parseBoolean(sysValue.trim());

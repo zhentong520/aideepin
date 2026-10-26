@@ -2,6 +2,7 @@ package com.moyz.adi.common.service.skill;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.moyz.adi.common.config.AdiProperties;
 import com.moyz.adi.common.entity.Skill;
 import com.moyz.adi.common.interfaces.SkillToolSpi;
 import com.moyz.adi.common.service.CharacterService;
@@ -124,7 +125,7 @@ public class SkillToolService implements SkillToolSpi {
         boolean enabled = true;
         int topK = 8;
         try {
-            com.moyz.adi.common.config.AdiProperties props = SpringUtil.getBean(com.moyz.adi.common.config.AdiProperties.class);
+            AdiProperties props = SpringUtil.getBean(AdiProperties.class);
             enabled = props.getSkill().isOnDemandInjectionEnabled();
             topK = props.getSkill().getInjectionTopK();
         } catch (Exception ignored) {

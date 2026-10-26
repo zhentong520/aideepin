@@ -29,7 +29,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static com.moyz.adi.common.constant.AdiConstant.ModelType.*;
+import static com.moyz.adi.common.constant.ModelConstant.ModelType.*;
 import static com.moyz.adi.common.util.LocalCache.MODEL_ID_TO_OBJ;
 
 @Slf4j

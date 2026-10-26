@@ -7,8 +7,8 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
-import static com.moyz.adi.common.constant.AdiConstant.WorkflowConstant.MAIL_SENDER_TYPE_CUSTOM;
-import static com.moyz.adi.common.constant.AdiConstant.WorkflowConstant.MAIL_SENDER_TYPE_SYS;
+import static com.moyz.adi.common.workflow.WfConstant.MAIL_SENDER_TYPE_CUSTOM;
+import static com.moyz.adi.common.workflow.WfConstant.MAIL_SENDER_TYPE_SYS;
 
 @Data
 @Slf4j

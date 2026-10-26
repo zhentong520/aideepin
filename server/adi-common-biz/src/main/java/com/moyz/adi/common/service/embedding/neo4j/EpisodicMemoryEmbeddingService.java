@@ -19,8 +19,8 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.CHARACTER_ID;
-import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.CREATE_TIME;
+import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.CHARACTER_ID;
+import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.CREATE_TIME;
 
 /**
  * Neo4j implementation of {@link IEpisodicMemoryEmbeddingService}. Reverse-lookup

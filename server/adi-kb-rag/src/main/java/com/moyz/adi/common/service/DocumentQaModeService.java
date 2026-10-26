@@ -3,6 +3,7 @@ package com.moyz.adi.common.service;
 import com.baomidou.mybatisplus.extension.toolkit.ChainWrappers;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.moyz.adi.common.config.AdiProperties;
 import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.entity.DocumentSegment;
 import com.moyz.adi.common.entity.DocumentSegmentQuestion;
@@ -124,7 +125,7 @@ public class DocumentQaModeService {
     private KnowledgeBaseMapper knowledgeBaseMapper;
 
     @Resource
-    private com.moyz.adi.common.config.AdiProperties adiProperties;
+    private AdiProperties adiProperties;
 
     // @Lazy: indexTaskService's dependency graph may point back at this service's callers
     // (KbDocumentService); lazy injection breaks the cycle

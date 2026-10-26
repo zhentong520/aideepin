@@ -14,7 +14,7 @@ import org.apache.commons.collections4.CollectionUtils;
 
 import java.util.List;
 
-import static com.moyz.adi.common.constant.AdiConstant.WorkflowConstant.DEFAULT_OUTPUT_PARAM_NAME;
+import static com.moyz.adi.common.workflow.WfConstant.DEFAULT_OUTPUT_PARAM_NAME;
 
 public class DrawNodeUtil {
 

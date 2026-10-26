@@ -3,6 +3,7 @@ package com.moyz.adi.common.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moyz.adi.common.config.AdiProperties;
+import com.moyz.adi.common.config.props.Ocr;
 import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.entity.AdiFile;
 import com.moyz.adi.common.file.FileOperatorContext;
@@ -67,7 +68,7 @@ public class OcrService {
      * @return true when an OCR endpoint is configured and the fallback is switched on
      */
     public boolean isEnabled() {
-        AdiProperties.Ocr ocr = adiProperties.getOcr();
+        Ocr ocr = adiProperties.getOcr();
         return null != ocr && ocr.isEnabled() && StringUtils.isNotBlank(ocr.getEndpoint());
     }
 
@@ -96,7 +97,7 @@ public class OcrService {
             return null;
         }
         String ext = null == file.getExt() ? "" : file.getExt().toLowerCase(Locale.ROOT);
-        AdiProperties.Ocr cfg = adiProperties.getOcr();
+        Ocr cfg = adiProperties.getOcr();
         try {
             byte[] bytes = readBytes(file);
             if (null == bytes || bytes.length == 0) {
@@ -129,7 +130,7 @@ public class OcrService {
      * {@code adi.ocr.max-pages} are dropped with a warning so a 500-page scan cannot occupy
      * the upload thread (and the OCR bill) forever.
      */
-    private String recognizePdf(AdiFile file, byte[] bytes, AdiProperties.Ocr cfg) throws IOException {
+    private String recognizePdf(AdiFile file, byte[] bytes, Ocr cfg) throws IOException {
         StringBuilder result = new StringBuilder();
         try (PDDocument document = PDDocument.load(bytes)) {
             int total = document.getNumberOfPages();
@@ -163,7 +164,7 @@ public class OcrService {
      * Post one image to the OCR endpoint as multipart form data and pull the text out of the
      * JSON response.
      */
-    private String callOcr(byte[] imageBytes, String fileName, AdiProperties.Ocr cfg) throws Exception {
+    private String callOcr(byte[] imageBytes, String fileName, Ocr cfg) throws Exception {
         String boundary = "adiOcr" + UUID.randomUUID().toString().replace("-", "");
         // The filename goes into a header line: strip quotes/CR/LF so a crafted upload name
         // cannot break the multipart framing (header injection)
@@ -189,7 +190,7 @@ public class OcrService {
         return extractText(response.body());
     }
 
-    private byte[] buildMultipart(String boundary, String fileName, byte[] imageBytes, AdiProperties.Ocr cfg) throws IOException {
+    private byte[] buildMultipart(String boundary, String fileName, byte[] imageBytes, Ocr cfg) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         String crlf = "\r\n";
         out.write(("--" + boundary + crlf
@@ -286,7 +287,7 @@ public class OcrService {
         return response.body();
     }
 
-    private HttpClient client(AdiProperties.Ocr cfg) {
+    private HttpClient client(Ocr cfg) {
         HttpClient local = httpClient;
         if (null == local) {
             synchronized (this) {

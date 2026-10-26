@@ -19,7 +19,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
-import static com.moyz.adi.common.constant.AdiConstant.TtsConstant.OPENAI_DEFAULT_VOICE;
+import static com.moyz.adi.common.constant.ModelConstant.TtsConstant.OPENAI_DEFAULT_VOICE;
 
 @Slf4j
 public class OpenAiTtsService extends AbstractTtsModelService {

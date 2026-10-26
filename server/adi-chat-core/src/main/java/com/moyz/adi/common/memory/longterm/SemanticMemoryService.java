@@ -31,8 +31,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.CHARACTER_ID;
-import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.USER_ID;
+import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.CHARACTER_ID;
+import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.USER_ID;
 
 /**
  * Semantic memory service: deduplicating merge candidates retrieval and

@@ -15,9 +15,9 @@ import org.apache.commons.collections4.CollectionUtils;
 
 import java.util.*;
 
-import static com.moyz.adi.common.constant.AdiConstant.IMAGE_EXTENSIONS;
-import static com.moyz.adi.common.constant.AdiConstant.WorkflowConstant.DEFAULT_INPUT_PARAM_NAME;
-import static com.moyz.adi.common.constant.AdiConstant.WorkflowConstant.DEFAULT_OUTPUT_PARAM_NAME;
+import static com.moyz.adi.common.constant.GeneralConstant.IMAGE_EXTENSIONS;
+import static com.moyz.adi.common.workflow.WfConstant.DEFAULT_INPUT_PARAM_NAME;
+import static com.moyz.adi.common.workflow.WfConstant.DEFAULT_OUTPUT_PARAM_NAME;
 
 public class WfNodeIODataUtil {
 

@@ -1,5 +1,6 @@
 package com.moyz.adi.common.rag;
 
+import com.moyz.adi.common.config.AdiProperties;
 import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.entity.RagQueryLog;
 import com.moyz.adi.common.exception.BaseException;
@@ -415,7 +416,7 @@ public class AdiEmbeddingStoreContentRetriever implements ContentRetriever {
      */
     private static String embeddingModelName() {
         try {
-            return StringUtils.defaultString(SpringUtil.getBean(com.moyz.adi.common.config.AdiProperties.class).getEmbeddingModel());
+            return StringUtils.defaultString(SpringUtil.getBean(AdiProperties.class).getEmbeddingModel());
         } catch (Exception e) {
             return "";
         }

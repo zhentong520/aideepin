@@ -30,7 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static com.moyz.adi.common.constant.AdiConstant.SplitStrategy.SENTENCE_CN;
+import static com.moyz.adi.common.constant.KbRagConstant.SplitStrategy.SENTENCE_CN;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;

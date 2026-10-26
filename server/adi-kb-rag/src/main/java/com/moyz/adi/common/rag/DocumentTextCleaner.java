@@ -1,6 +1,8 @@
 package com.moyz.adi.common.rag;
 
 import com.moyz.adi.common.config.AdiProperties;
+import com.moyz.adi.common.config.props.Clean;
+import com.moyz.adi.common.config.props.Ingest;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
@@ -89,7 +91,7 @@ public class DocumentTextCleaner {
      * Clean with an explicit config: the chunk preview uses it to compare cleanup on vs off,
      * while the real ingest path uses {@link #clean(String)}.
      */
-    public CleanResult clean(String raw, AdiProperties.Clean config) {
+    public CleanResult clean(String raw, Clean config) {
         if (null == raw) {
             return new CleanResult("", false, 0, 0, 0, 0, 0, 0, 0);
         }
@@ -129,8 +131,8 @@ public class DocumentTextCleaner {
     /**
      * 当前生效的清洗配置：没有配置段时返回 null（等价于关闭）。
      */
-    private AdiProperties.Clean config() {
-        AdiProperties.Ingest ingest = null == adiProperties ? null : adiProperties.getIngest();
+    private Clean config() {
+        Ingest ingest = null == adiProperties ? null : adiProperties.getIngest();
         return null == ingest ? null : ingest.getClean();
     }
 

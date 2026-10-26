@@ -36,7 +36,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.*;
 
-import static com.moyz.adi.common.constant.AdiConstant.WorkflowConstant.*;
+import static com.moyz.adi.common.workflow.WfConstant.*;
 import static com.moyz.adi.common.enums.ErrorEnum.*;
 import static com.moyz.adi.common.workflow.WfComponentNameEnum.HUMAN_FEEDBACK;
 import static org.bsc.langgraph4j.StateGraph.END;

@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.KB_UUID;
+import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.KB_UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;

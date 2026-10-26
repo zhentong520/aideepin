@@ -2,6 +2,7 @@ package com.moyz.adi.common.languagemodel;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.moyz.adi.common.config.AdiProperties;
 import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.entity.AiModel;
 import com.moyz.adi.common.entity.ModelPlatform;
@@ -60,10 +61,10 @@ import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
-import static com.moyz.adi.common.constant.AdiConstant.CustomChatRequestParameterKeys.ENABLE_WEB_SEARCH;
-import static com.moyz.adi.common.constant.AdiConstant.CustomChatRequestParameterKeys.ENABLE_THINKING;
-import static com.moyz.adi.common.constant.AdiConstant.LLM_MAX_INPUT_TOKENS_DEFAULT;
-import static com.moyz.adi.common.constant.AdiConstant.RESPONSE_FORMAT_TYPE_JSON_OBJECT;
+import static com.moyz.adi.common.constant.ModelConstant.CustomChatRequestParameterKeys.ENABLE_WEB_SEARCH;
+import static com.moyz.adi.common.constant.ModelConstant.CustomChatRequestParameterKeys.ENABLE_THINKING;
+import static com.moyz.adi.common.constant.ModelConstant.LLM_MAX_INPUT_TOKENS_DEFAULT;
+import static com.moyz.adi.common.constant.ModelConstant.RESPONSE_FORMAT_TYPE_JSON_OBJECT;
 import static com.moyz.adi.common.enums.ErrorEnum.A_PARAMS_ERROR;
 import static com.moyz.adi.common.enums.ErrorEnum.B_LLM_SERVICE_DISABLED;
 
@@ -378,7 +379,7 @@ public abstract class AbstractLLMService extends CommonModelService {
 
         int sameModelRetries = 1;
         try {
-            sameModelRetries = SpringUtil.getBean(com.moyz.adi.common.config.AdiProperties.class).getLlm().getStreamSameModelRetries();
+            sameModelRetries = SpringUtil.getBean(AdiProperties.class).getLlm().getStreamSameModelRetries();
         } catch (Exception ignored) {
         }
         int fallbackCount = LLMFallbackRouter.effectiveChain(this).size();

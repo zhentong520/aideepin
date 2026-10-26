@@ -41,8 +41,8 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import static com.moyz.adi.common.constant.AdiConstant.GenerateImage.*;
-import static com.moyz.adi.common.constant.AdiConstant.MP_LIMIT_1;
+import static com.moyz.adi.common.constant.GeneralConstant.GenerateImage.*;
+import static com.moyz.adi.common.constant.GeneralConstant.MP_LIMIT_1;
 import static com.moyz.adi.common.enums.ErrorEnum.*;
 import static com.moyz.adi.common.util.LocalCache.MODEL_ID_TO_OBJ;
 

@@ -7,7 +7,7 @@ import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
 
-import static com.moyz.adi.common.constant.AdiConstant.McpConstant.*;
+import static com.moyz.adi.common.constant.ModelConstant.McpConstant.*;
 
 @Data
 @Validated

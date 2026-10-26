@@ -28,9 +28,9 @@ import org.apache.commons.lang3.StringUtils;
 import java.util.HashSet;
 import java.util.List;
 
-import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.KB_UUID;
-import static com.moyz.adi.common.constant.AdiConstant.RAG_RETRIEVE_MIN_SCORE_DEFAULT;
-import static com.moyz.adi.common.constant.AdiConstant.WorkflowConstant.DEFAULT_OUTPUT_PARAM_NAME;
+import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.KB_UUID;
+import static com.moyz.adi.common.constant.KbRagConstant.RAG_RETRIEVE_MIN_SCORE_DEFAULT;
+import static com.moyz.adi.common.workflow.WfConstant.DEFAULT_OUTPUT_PARAM_NAME;
 import static com.moyz.adi.common.enums.ErrorEnum.*;
 import static com.moyz.adi.common.enums.ErrorEnum.B_BREAK_SEARCH;
 

@@ -1,6 +1,7 @@
 package com.moyz.adi.common.multiagent;
 
 import com.moyz.adi.common.config.AdiProperties;
+import com.moyz.adi.common.config.props.Agent;
 import com.moyz.adi.common.entity.Character;
 import com.moyz.adi.common.entity.User;
 import com.moyz.adi.common.service.AgentService;
@@ -58,7 +59,7 @@ class DelegateAgentToolTest {
     }
 
     private void setUp(boolean switchOn) throws Exception {
-        AdiProperties.Agent agentProps = mock(AdiProperties.Agent.class);
+        Agent agentProps = mock(Agent.class);
         when(agentProps.isDelegationEnabled()).thenReturn(switchOn);
         when(adiProperties.getAgent()).thenReturn(agentProps);
 

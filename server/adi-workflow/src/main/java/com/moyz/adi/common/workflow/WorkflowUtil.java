@@ -36,7 +36,7 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static com.moyz.adi.common.constant.AdiConstant.WorkflowConstant.DEFAULT_OUTPUT_PARAM_NAME;
+import static com.moyz.adi.common.workflow.WfConstant.DEFAULT_OUTPUT_PARAM_NAME;
 import static com.moyz.adi.common.enums.ErrorEnum.A_WF_VAR_PATH_NOT_FOUND;
 import static com.moyz.adi.common.enums.ErrorEnum.A_WF_VAR_ROOT_NOT_FOUND;
 

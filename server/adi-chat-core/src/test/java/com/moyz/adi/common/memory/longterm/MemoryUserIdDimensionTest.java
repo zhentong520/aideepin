@@ -11,10 +11,10 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
-import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.CHARACTER_ID;
-import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.MEMORY_TYPE;
-import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.USER_ID;
-import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.USER_ID_UNKNOWN;
+import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.CHARACTER_ID;
+import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.MEMORY_TYPE;
+import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.USER_ID;
+import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.USER_ID_UNKNOWN;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;

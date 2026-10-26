@@ -22,10 +22,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.CREATE_TIME;
-import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.EVENT_TYPE;
-import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.IMPORTANCE;
-import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.MEMORY_TYPE;
+import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.CREATE_TIME;
+import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.EVENT_TYPE;
+import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.IMPORTANCE;
+import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.MEMORY_TYPE;
 
 @Slf4j
 @Service

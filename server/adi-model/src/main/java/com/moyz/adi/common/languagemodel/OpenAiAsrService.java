@@ -22,7 +22,7 @@ import org.apache.http.util.EntityUtils;
 import java.io.File;
 import java.io.IOException;
 
-import static com.moyz.adi.common.constant.AdiConstant.FORM_DATA_BOUNDARY_PRE;
+import static com.moyz.adi.common.constant.GeneralConstant.FORM_DATA_BOUNDARY_PRE;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.http.HttpHeaders.CONTENT_TYPE;
 

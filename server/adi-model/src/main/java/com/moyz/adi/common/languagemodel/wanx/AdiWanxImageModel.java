@@ -16,7 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.List;
 import java.util.function.Consumer;
 
-import static com.moyz.adi.common.constant.AdiConstant.W_FAILED;
+import static com.moyz.adi.common.constant.ModelConstant.W_FAILED;
 import static com.moyz.adi.common.util.ImageUtil.imageUrl;
 import static com.moyz.adi.common.util.ImageUtil.imagesFrom;
 import static dev.langchain4j.internal.ValidationUtils.ensureNotNull;

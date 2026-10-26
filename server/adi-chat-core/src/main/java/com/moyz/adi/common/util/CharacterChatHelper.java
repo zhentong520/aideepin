@@ -49,11 +49,11 @@ import java.util.concurrent.TimeUnit;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
-import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.CHARACTER_ID;
-import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.KB_UUID;
-import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.MEMORY_TYPE;
-import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.USER_ID;
-import static com.moyz.adi.common.constant.AdiConstant.RAG_RETRIEVE_MIN_SCORE_DEFAULT;
+import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.CHARACTER_ID;
+import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.KB_UUID;
+import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.MEMORY_TYPE;
+import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.USER_ID;
+import static com.moyz.adi.common.constant.KbRagConstant.RAG_RETRIEVE_MIN_SCORE_DEFAULT;
 
 /**
  * Character 聊天辅助类

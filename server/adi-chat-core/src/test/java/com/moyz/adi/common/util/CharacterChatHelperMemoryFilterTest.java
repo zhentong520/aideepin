@@ -7,9 +7,9 @@ import dev.langchain4j.store.embedding.filter.comparison.IsNotEqualTo;
 import dev.langchain4j.store.embedding.filter.logical.And;
 import org.junit.jupiter.api.Test;
 
-import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.CHARACTER_ID;
-import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.MEMORY_TYPE;
-import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.USER_ID;
+import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.CHARACTER_ID;
+import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.MEMORY_TYPE;
+import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.USER_ID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;

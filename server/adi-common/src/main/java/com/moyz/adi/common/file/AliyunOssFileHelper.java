@@ -20,7 +20,7 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.List;
 
-import static com.moyz.adi.common.constant.AdiConstant.STORAGE_LOCATION_VALUE_ALI_OSS;
+import static com.moyz.adi.common.constant.GeneralConstant.STORAGE_LOCATION_VALUE_ALI_OSS;
 
 @Slf4j
 @Service

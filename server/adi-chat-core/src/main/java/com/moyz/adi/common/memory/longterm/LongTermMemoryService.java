@@ -33,7 +33,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import static com.moyz.adi.common.constant.AdiConstant.RESPONSE_FORMAT_TYPE_JSON_OBJECT;
+import static com.moyz.adi.common.constant.ModelConstant.RESPONSE_FORMAT_TYPE_JSON_OBJECT;
 
 /**
  * Long-term memory dispatcher. Owns the LLM extraction round-trip and dispatches

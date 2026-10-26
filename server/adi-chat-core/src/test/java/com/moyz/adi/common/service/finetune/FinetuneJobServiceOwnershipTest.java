@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static com.moyz.adi.common.constant.AdiConstant.COLUMN_NAME_USER_ID;
+import static com.moyz.adi.common.constant.GeneralConstant.COLUMN_NAME_USER_ID;
 
 /**
  * {@code FinetuneJobService} 的任务归属校验回归测试。

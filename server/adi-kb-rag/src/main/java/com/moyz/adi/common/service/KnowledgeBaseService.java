@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.baomidou.mybatisplus.extension.toolkit.ChainWrappers;
 import com.moyz.adi.common.base.ThreadContext;
+import com.moyz.adi.common.config.AdiProperties;
 import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.constant.RedisKeyConstant;
 import com.moyz.adi.common.dto.KbEditReq;
@@ -64,11 +65,11 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import static com.moyz.adi.common.constant.AdiConstant.RetrieveContentFrom.KNOWLEDGE_BASE;
-import static com.moyz.adi.common.constant.AdiConstant.EMPTY_PARSE_FAIL_REASON;
-import static com.moyz.adi.common.constant.AdiConstant.OCR_EMPTY_FAIL_REASON;
-import static com.moyz.adi.common.constant.AdiConstant.SSE_TIMEOUT;
-import static com.moyz.adi.common.constant.AdiConstant.SysConfigKey.QUOTA_BY_QA_ASK_DAILY;
+import static com.moyz.adi.common.constant.MetadataConstant.RetrieveContentFrom.KNOWLEDGE_BASE;
+import static com.moyz.adi.common.constant.KbRagConstant.EMPTY_PARSE_FAIL_REASON;
+import static com.moyz.adi.common.constant.KbRagConstant.OCR_EMPTY_FAIL_REASON;
+import static com.moyz.adi.common.constant.SseConstant.SSE_TIMEOUT;
+import static com.moyz.adi.common.constant.SysConfigConstant.SysConfigKey.QUOTA_BY_QA_ASK_DAILY;
 import static com.moyz.adi.common.constant.RedisKeyConstant.KB_STATISTIC_RECALCULATE_SIGNAL;
 import static com.moyz.adi.common.constant.RedisKeyConstant.USER_INDEXING;
 import static com.moyz.adi.common.enums.ErrorEnum.*;
@@ -138,7 +139,7 @@ public class KnowledgeBaseService extends ServiceImpl<KnowledgeBaseMapper, Knowl
     private EmbeddingProviderService embeddingProviderService;
 
     @Resource
-    private com.moyz.adi.common.config.AdiProperties adiProperties;
+    private AdiProperties adiProperties;
 
     public KnowledgeBase saveOrUpdate(KbEditReq kbEditReq) {
         Long editId = resolveEditId(kbEditReq);

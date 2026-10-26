@@ -1,6 +1,7 @@
 package com.moyz.adi.common.config.graphstore;
 
 import com.moyz.adi.common.config.AdiProperties;
+import com.moyz.adi.common.config.props.Neo4j;
 import com.moyz.adi.common.rag.GraphStore;
 import com.moyz.adi.common.rag.neo4j.Neo4jGraphStore;
 import jakarta.annotation.Resource;
@@ -22,7 +23,7 @@ public class Neo4jGraphStoreConfig {
     @Primary
     public GraphStore initGraphStore() {
         log.info("neo4j graph store init");
-        AdiProperties.Neo4j neo4j = adiProperties.getDatasource().getNeo4j();
+        Neo4j neo4j = adiProperties.getDatasource().getNeo4j();
         return Neo4jGraphStore
                 .builder()
                 .host(neo4j.getHost())

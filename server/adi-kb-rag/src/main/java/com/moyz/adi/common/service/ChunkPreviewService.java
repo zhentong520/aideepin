@@ -1,6 +1,8 @@
 package com.moyz.adi.common.service;
 
 import com.moyz.adi.common.config.AdiProperties;
+import com.moyz.adi.common.config.props.Clean;
+import com.moyz.adi.common.config.props.Ingest;
 import com.moyz.adi.common.dto.ChunkPreviewDto;
 import com.moyz.adi.common.dto.ChunkPreviewReq;
 import com.moyz.adi.common.entity.KbDocument;
@@ -90,7 +92,7 @@ public class ChunkPreviewService {
         dto.setRawSample(StringUtils.substring(raw, 0, SAMPLE_CHARS));
 
         // 2) 清洗：页面可覆盖开关，用来做「开/关清洗」对照
-        AdiProperties.Clean cleanConfig = resolveCleanConfig(params);
+        Clean cleanConfig = resolveCleanConfig(params);
         DocumentTextCleaner.CleanResult cleanResult = documentTextCleaner.clean(raw, cleanConfig);
         String text = cleanResult.text();
         dto.setClean(toCleanStats(cleanResult));
@@ -258,10 +260,10 @@ public class ChunkPreviewService {
         return stats;
     }
 
-    private AdiProperties.Clean resolveCleanConfig(ChunkPreviewReq req) {
-        AdiProperties.Ingest ingest = adiProperties.getIngest();
-        AdiProperties.Clean base = null == ingest || null == ingest.getClean() ? new AdiProperties.Clean() : ingest.getClean();
-        AdiProperties.Clean config = copy(base);
+    private Clean resolveCleanConfig(ChunkPreviewReq req) {
+        Ingest ingest = adiProperties.getIngest();
+        Clean base = null == ingest || null == ingest.getClean() ? new Clean() : ingest.getClean();
+        Clean config = copy(base);
         if (null != req.getClean()) {
             config.setEnabled(req.getClean());
         }
@@ -274,8 +276,8 @@ public class ChunkPreviewService {
         return config;
     }
 
-    private static AdiProperties.Clean copy(AdiProperties.Clean source) {
-        AdiProperties.Clean target = new AdiProperties.Clean();
+    private static Clean copy(Clean source) {
+        Clean target = new Clean();
         target.setEnabled(source.isEnabled());
         target.setMergeSoftLineBreaks(source.isMergeSoftLineBreaks());
         target.setMaxConsecutiveMerge(source.getMaxConsecutiveMerge());
@@ -286,7 +288,7 @@ public class ChunkPreviewService {
     }
 
     private ChunkPreviewDto.Params toParams(KnowledgeBase kb, KbDocument doc, ChunkPreviewReq req,
-                                            AdiProperties.Clean cleanConfig) {
+                                            Clean cleanConfig) {
         ChunkPreviewDto.Params params = new ChunkPreviewDto.Params();
         String strategy = StringUtils.isBlank(req.getStrategy()) ? kb.getIngestSplitStrategy() : req.getStrategy();
         params.setStrategy(DocumentSplitterFactory.normalizeStrategy(strategy));
@@ -358,7 +360,7 @@ public class ChunkPreviewService {
     }
 
     private int previewMaxChars() {
-        AdiProperties.Ingest ingest = adiProperties.getIngest();
+        Ingest ingest = adiProperties.getIngest();
         return null == ingest || ingest.getPreviewMaxChars() < 1000 ? 400_000 : ingest.getPreviewMaxChars();
     }
 

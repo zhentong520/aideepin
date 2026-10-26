@@ -37,8 +37,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static com.moyz.adi.common.constant.AdiConstant.WorkflowConstant.WORKFLOW_PROCESS_STATUS_DOING;
-import static com.moyz.adi.common.constant.AdiConstant.WorkflowConstant.WORKFLOW_PROCESS_STATUS_SUCCESS;
+import static com.moyz.adi.common.workflow.WfConstant.WORKFLOW_PROCESS_STATUS_DOING;
+import static com.moyz.adi.common.workflow.WfConstant.WORKFLOW_PROCESS_STATUS_SUCCESS;
 
 @Slf4j
 @Service

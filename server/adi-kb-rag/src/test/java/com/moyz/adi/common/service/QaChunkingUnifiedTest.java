@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static com.moyz.adi.common.constant.AdiConstant.SplitStrategy.SENTENCE_CN;
+import static com.moyz.adi.common.constant.KbRagConstant.SplitStrategy.SENTENCE_CN;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 

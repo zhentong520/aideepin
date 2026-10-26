@@ -32,7 +32,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.moyz.adi.common.constant.AdiConstant.GRAPH_STORE_MAIN_FIELDS;
+import static com.moyz.adi.common.constant.KbRagConstant.GRAPH_STORE_MAIN_FIELDS;
 import static dev.langchain4j.internal.ValidationUtils.*;
 import static dev.langchain4j.internal.ValidationUtils.ensureNotNull;
 import static org.neo4j.cypherdsl.core.Cypher.*;

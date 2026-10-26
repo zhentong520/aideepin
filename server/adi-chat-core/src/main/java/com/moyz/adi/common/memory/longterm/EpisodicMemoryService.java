@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import static com.moyz.adi.common.constant.AdiConstant.MetadataKey.*;
+import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.*;
 
 /**
  * Append-only writer for episodic memory. Each event becomes a row in the dedicated

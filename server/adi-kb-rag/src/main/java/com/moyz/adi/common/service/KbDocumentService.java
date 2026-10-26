@@ -48,9 +48,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
-import static com.moyz.adi.common.constant.AdiConstant.DOC_INDEX_TYPE_EMBEDDING;
-import static com.moyz.adi.common.constant.AdiConstant.DOC_INDEX_TYPE_GRAPHICAL;
-import static com.moyz.adi.common.constant.AdiConstant.RetrieveContentFrom.KNOWLEDGE_BASE;
+import static com.moyz.adi.common.constant.KbRagConstant.DOC_INDEX_TYPE_EMBEDDING;
+import static com.moyz.adi.common.constant.KbRagConstant.DOC_INDEX_TYPE_GRAPHICAL;
+import static com.moyz.adi.common.constant.MetadataConstant.RetrieveContentFrom.KNOWLEDGE_BASE;
 import static com.moyz.adi.common.constant.RedisKeyConstant.KB_STATISTIC_RECALCULATE_SIGNAL;
 import static com.moyz.adi.common.constant.RedisKeyConstant.USER_INDEXING;
 import static com.moyz.adi.common.enums.ErrorEnum.*;

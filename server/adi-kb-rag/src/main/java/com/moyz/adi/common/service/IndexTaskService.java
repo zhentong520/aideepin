@@ -50,9 +50,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import static com.moyz.adi.common.constant.AdiConstant.DOC_INDEX_TYPE_EMBEDDING;
-import static com.moyz.adi.common.constant.AdiConstant.DOC_INDEX_TYPE_GRAPHICAL;
-import static com.moyz.adi.common.constant.AdiConstant.EMPTY_PARSE_FAIL_REASON;
+import static com.moyz.adi.common.constant.KbRagConstant.DOC_INDEX_TYPE_EMBEDDING;
+import static com.moyz.adi.common.constant.KbRagConstant.DOC_INDEX_TYPE_GRAPHICAL;
+import static com.moyz.adi.common.constant.KbRagConstant.EMPTY_PARSE_FAIL_REASON;
 import static com.moyz.adi.common.constant.RedisKeyConstant.KB_STATISTIC_RECALCULATE_SIGNAL;
 import static com.moyz.adi.common.constant.RedisKeyConstant.USER_INDEXING;
 

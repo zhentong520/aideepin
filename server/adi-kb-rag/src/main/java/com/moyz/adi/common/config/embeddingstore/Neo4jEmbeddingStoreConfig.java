@@ -1,6 +1,7 @@
 package com.moyz.adi.common.config.embeddingstore;
 
 import com.moyz.adi.common.config.AdiProperties;
+import com.moyz.adi.common.config.props.Neo4j;
 import com.moyz.adi.common.rag.neo4j.AdiNeo4jEmbeddingStore;
 import com.moyz.adi.common.util.AdiPropertiesUtil;
 import dev.langchain4j.community.store.embedding.neo4j.Neo4jEmbeddingStore;
@@ -102,7 +103,7 @@ public class Neo4jEmbeddingStoreConfig {
 
     private EmbeddingStore<TextSegment> createEmbeddingStore(String indexName, String tableName, int dimension) {
         log.info("Creating Neo4jEmbeddingStore with table name:{},dimension:{}", tableName, dimension);
-        AdiProperties.Neo4j neo4j = adiProperties.getDatasource().getNeo4j();
+        Neo4j neo4j = adiProperties.getDatasource().getNeo4j();
         Neo4jEmbeddingStore neo4jEmbeddingStore = Neo4jEmbeddingStore.builder()
                 .databaseName(neo4j.getDatabase())
                 .indexName(indexName)

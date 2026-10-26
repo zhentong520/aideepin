@@ -24,7 +24,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-import static com.moyz.adi.common.constant.AdiConstant.IMAGE_EXTENSIONS;
+import static com.moyz.adi.common.constant.GeneralConstant.IMAGE_EXTENSIONS;
 import static com.moyz.adi.common.enums.ErrorEnum.A_FILE_NOT_EXIST;
 import static com.moyz.adi.common.enums.ErrorEnum.B_IMAGE_LOAD_ERROR;
 import static org.springframework.http.HttpHeaders.CACHE_CONTROL;
