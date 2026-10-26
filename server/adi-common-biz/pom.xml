@@ -22,6 +22,8 @@
         （21 处 languagemodel.* 引用；反向经 core SPI 接口 SkillToolSpi/DelegateAgentSpi 倒置）。
         OPT-15 批 4（2026-10-26）：kb-rag 域独立为 adi-kb-rag，biz→kb-rag 单向依赖
         （chat-core/workflow 域残余类经 biz 引用 kb-rag 检索链路，批 5/6 搬完即清零）。
+        OPT-15 批 5（2026-10-26）：chat-core 域独立为 adi-chat-core，biz→chat-core 单向依赖
+        （workflow 域残余类经 biz 引用 Character/User/Skill 等服务，批 6 搬完即清零）。
     -->
     <dependencies>
         <dependency>
@@ -37,6 +39,11 @@
         <dependency>
             <groupId>com.moyz</groupId>
             <artifactId>adi-kb-rag</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.moyz</groupId>
+            <artifactId>adi-chat-core</artifactId>
             <version>${project.version}</version>
         </dependency>
         <!-- ===== Spring 基础设施 ===== -->

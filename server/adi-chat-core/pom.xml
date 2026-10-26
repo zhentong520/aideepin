@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.moyz</groupId>
+        <artifactId>aideepin</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>adi-chat-core</artifactId>
+
+    <!--
+        OPT-15 批 5（2026-10-26）：对话核心域（D-5 决策 3）。Character* 全系 +
+        CharacterChatService/CharacterMessageService + User/Prompt/Scene/Skill(UserSkill/
+        UserExtApiKey) 服务 + memory/ 全包（长期记忆三层 + PII 检测）+ finetune/ 全包 +
+        multiagent/ 全包（委托代理）+ AgentService/AgentTraceSpanService + embedding/
+        对话侧 SPI（ICharacterMemoryEmbeddingService/IEpisodicMemoryEmbeddingService 及
+        pgvector 实现）+ CharacterChatHelper + AgentRequest/AgentResult VO。
+        包名保持 com.moyz.adi.common.*（split package），import 零改动。
+        归属证据化调整（plan 允许以证据为准，闭包分析脚本 batch5_closure.py）：
+        - multiagent/：plan 原划 adi-model，但 adi-model 仅引用 adi-common 的 AgentCallChain，
+          不引用 multiagent 包本体；multiagent 反向依赖本域 AgentService/CharacterService/
+          UserService，归 model 会引入 model→chat-core 依赖倒置，故随本域搬迁。
+        - AgentService/AgentTraceSpanService/AgentRequest/AgentResult：CharacterChatService
+          与 multiagent 的直接依赖，闭包连带，随本域。
+        依赖方向：adi-chat-core → adi-common（core）+ adi-model + adi-kb-rag
+        （CharacterChatService 引用 KbDocumentService/DocumentSegmentService），
+        对 adi-common-biz 无依赖；biz 反向引用本域类属过渡态，批 6 搬完 workflow 后清零。
+    -->
+    <dependencies>
+        <dependency>
+            <groupId>com.moyz</groupId>
+            <artifactId>adi-common</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>com.moyz</groupId>
+            <artifactId>adi-model</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>com.moyz</groupId>
+            <artifactId>adi-kb-rag</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- ===== Spring 基础设施 ===== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <!-- ===== 持久层 ===== -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+        </dependency>
+        <!-- Apache AGE（图数据库）jdbc 扩展，本地仓库提供 -->
+        <dependency>
+            <groupId>org.apache</groupId>
+            <artifactId>age-jdbc</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+        <!-- ===== API 文档 / Web 配套 ===== -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+        <!-- ===== 工具库 ===== -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-collections4</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-text</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-core</artifactId>
+        </dependency>
+        <!-- ===== langchain4j（记忆嵌入 pgvector 实现） ===== -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-pgvector</artifactId>
+        </dependency>
+        <!-- ===== 测试 ===== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

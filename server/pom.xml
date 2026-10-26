@@ -24,6 +24,8 @@
         <module>adi-model</module>
         <!-- OPT-15 批 4：知识库与 RAG 检索域（rag/ + Kb*/Document*/Rag*/SegmentIndex/IndexTask/Ocr 系） -->
         <module>adi-kb-rag</module>
+        <!-- OPT-15 批 5：对话核心域（Character*/memory/finetune/multiagent + User/Prompt/Scene/Skill 系） -->
+        <module>adi-chat-core</module>
         <module>adi-chat</module>
         <module>adi-bootstrap</module>
         <module>adi-integration-test</module>
