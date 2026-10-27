@@ -1,6 +1,5 @@
 package com.moyz.adi.common.util;
 
-import com.moyz.adi.common.config.AdiProperties;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
@@ -101,26 +100,31 @@ public final class ConversationCompressor {
     }
 
     /**
-     * 从配置读取压缩参数执行（adi.chat.summarize-*）。
-     * 无 Spring 上下文或开关关闭时原样返回。
+     * S1-02：运行期配置由启动期推送（ChatStaticConfigInitializer @PostConstruct 调 applyConfig），
+     * 替代原先在调用路径里 SpringUtil.getBean(AdiProperties) 的服务定位器写法。
+     * 默认值与旧行为一致（enabled=true / threshold=8000 / keepRecent=4），
+     * 无 Spring 上下文（单测/启动早期）走默认值。
+     */
+    private static volatile boolean cfgEnabled = true;
+    private static volatile int cfgThreshold = 8000;
+    private static volatile int cfgKeepRecent = 4;
+
+    public static void applyConfig(boolean enabled, int thresholdTokens, int keepRecent) {
+        cfgEnabled = enabled;
+        cfgThreshold = thresholdTokens;
+        cfgKeepRecent = keepRecent;
+    }
+
+    /**
+     * 从配置执行压缩（adi.chat.summarize-*，配置由启动期推送）。
+     * 开关关闭时原样返回。
      */
     public static List<ChatMessage> compressWithConfig(List<ChatMessage> messages, ChatModel chatModel,
                                                        TokenCountEstimator estimator) {
-        boolean enabled = true;
-        int threshold = 8000;
-        int keepRecent = 4;
-        try {
-            AdiProperties props = SpringUtil.getBean(AdiProperties.class);
-            enabled = props.getChat().isSummarizeEnabled();
-            threshold = props.getChat().getSummarizeTokenThreshold();
-            keepRecent = props.getChat().getSummarizeKeepRecentMessages();
-        } catch (Exception ignored) {
-            // 无 Spring 上下文，走默认值
-        }
-        if (!enabled) {
+        if (!cfgEnabled) {
             return messages;
         }
-        return compressIfNeeded(messages, chatModel, estimator, threshold, keepRecent);
+        return compressIfNeeded(messages, chatModel, estimator, cfgThreshold, cfgKeepRecent);
     }
 
     /**

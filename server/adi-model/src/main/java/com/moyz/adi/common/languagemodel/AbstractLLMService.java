@@ -87,6 +87,18 @@ public abstract class AbstractLLMService extends CommonModelService {
 
     protected StringRedisTemplate stringRedisTemplate;
 
+    /**
+     * S1-02：streaming 同模型重试次数由启动期推送（ModelStaticConfigInitializer），
+     * 替代调用路径里 SpringUtil.getBean(AdiProperties) 的服务定位器写法。
+     * 默认 1 与旧代码异常兜底值一致；实例由 AiModelInitializer 手动 new（非 Spring bean），
+     * 无法字段注入。
+     */
+    private static volatile int streamSameModelRetriesDefault = 1;
+
+    public static void applyStreamConfig(int sameModelRetries) {
+        streamSameModelRetriesDefault = sameModelRetries;
+    }
+
     //User#uuid => ttsJobInfo
     private final Cache<String, TtsJobInfo> ttsJobCache;
 
@@ -377,11 +389,7 @@ public abstract class AbstractLLMService extends CommonModelService {
         LLMErrorType type = LLMErrorClassifier.classify(error);
         LLMFallbackMetrics.get().recordDetected(type, aiModel.getName(), error.getMessage());
 
-        int sameModelRetries = 1;
-        try {
-            sameModelRetries = SpringUtil.getBean(AdiProperties.class).getLlm().getStreamSameModelRetries();
-        } catch (Exception ignored) {
-        }
+        int sameModelRetries = streamSameModelRetriesDefault;
         int fallbackCount = LLMFallbackRouter.effectiveChain(this).size();
         StreamingRetryPolicy.StreamingDecision decision = StreamingRetryPolicy.decide(
                 type, params.isFirstTokenSent(), params.getStreamAttempt() + 1, sameModelRetries, fallbackCount);

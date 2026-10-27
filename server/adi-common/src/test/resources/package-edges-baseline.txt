@@ -39,6 +39,7 @@ filter -> base
 filter -> config
 filter -> constant
 filter -> entity
+filter -> enums
 filter -> util
 helper -> config
 helper -> entity

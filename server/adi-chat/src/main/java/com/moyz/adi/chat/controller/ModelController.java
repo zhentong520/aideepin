@@ -8,7 +8,6 @@ import com.moyz.adi.common.service.ModelHealthService;
 import com.moyz.adi.common.service.ModelPlatformService;
 import com.moyz.adi.common.languagemodel.data.ImageModelInfo;
 import com.moyz.adi.common.languagemodel.data.LLMModelInfo;
-import com.moyz.adi.common.util.SpringUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.annotation.Resource;
 import org.springframework.beans.BeanUtils;
@@ -26,11 +25,13 @@ public class ModelController {
     @Resource
     private ModelPlatformService modelPlatformService;
 
+    @Resource
+    private ModelHealthService modelHealthService;
+
     @Operation(summary = "支持的大语言模型列表 | Supported LLM List")
     @GetMapping(value = "/llms")
     public List<LLMModelInfo> llms() {
-        ModelHealthService healthService = SpringUtil.getBean(ModelHealthService.class);
-        Map<String, ModelHealthService.HealthCheckResult> allStatuses = healthService.getAllStatuses();
+        Map<String, ModelHealthService.HealthCheckResult> allStatuses = modelHealthService.getAllStatuses();
         return LLMContext.getAllServices().stream().map(item -> {
             AiModel aiModel = item.getAiModel();
             LLMModelInfo modelInfo = new LLMModelInfo();

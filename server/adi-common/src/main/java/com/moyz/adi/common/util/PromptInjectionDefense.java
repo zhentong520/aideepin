@@ -1,6 +1,5 @@
 package com.moyz.adi.common.util;
 
-import com.moyz.adi.common.config.AdiProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
@@ -123,14 +122,19 @@ public final class PromptInjectionDefense {
         return DETECTION_HITS.get();
     }
 
+    /**
+     * S1-02：运行期开关由启动期推送（ChatStaticConfigInitializer @PostConstruct 调
+     * {@link #setDefenseEnabled}），替代原先每次调用 SpringUtil.getBean(AdiProperties)
+     * 的服务定位器写法。默认 true，与旧行为一致（无 Spring 上下文/启动早期按开启处理）。
+     */
+    private static volatile boolean defenseEnabledFlag = true;
+
+    public static void setDefenseEnabled(boolean enabled) {
+        defenseEnabledFlag = enabled;
+    }
+
     private static boolean defenseEnabled() {
-        try {
-            AdiProperties props = SpringUtil.getBean(AdiProperties.class);
-            return props.getChat().isPromptInjectionDefenseEnabled();
-        } catch (Exception e) {
-            // 无 Spring 上下文（单测/启动早期）按默认开启处理
-            return true;
-        }
+        return defenseEnabledFlag;
     }
 
     private static String preview(String text) {

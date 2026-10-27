@@ -10,6 +10,7 @@ import dev.langchain4j.web.search.WebSearchRequest;
 import dev.langchain4j.web.search.WebSearchResults;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.web.client.RestTemplate;
 
 import java.net.InetSocketAddress;
 import java.net.Proxy;
@@ -21,8 +22,8 @@ import static com.moyz.adi.common.constant.SysConfigConstant.SysConfigKey.GOOGLE
 @Slf4j
 public class GoogleSearchEngineService extends AbstractSearchEngineService<GoogleSetting> {
 
-    public GoogleSearchEngineService(InetSocketAddress proxy) {
-        super(AdiConstant.SearchEngineName.GOOGLE, GOOGLE_SETTING, GoogleSetting.class, proxy);
+    public GoogleSearchEngineService(InetSocketAddress proxy, RestTemplate restTemplate) {
+        super(AdiConstant.SearchEngineName.GOOGLE, GOOGLE_SETTING, GoogleSetting.class, proxy, restTemplate);
     }
 
     @Override

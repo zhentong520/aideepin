@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
@@ -41,6 +42,9 @@ public class AiModelInitializer {
 
     @Resource
     private ModelPlatformService modelPlatformService;
+
+    @Resource
+    private RestTemplate restTemplate;
 
     private InetSocketAddress proxyAddress;
 
@@ -115,7 +119,8 @@ public class AiModelInitializer {
         initImageModelService(AdiConstant.ModelPlatform.SILICONFLOW, model -> new SiliconflowImageModelService(model, nameToPlatform.get(AdiConstant.ModelPlatform.SILICONFLOW)));
 
         //search engine
-        SearchEngineServiceContext.addWebSearcher(AdiConstant.SearchEngineName.GOOGLE, new GoogleSearchEngineService(proxyAddress));
+        // S1-02：RestTemplate 由本 Spring bean 注入后传给搜索引擎（引擎实例非 Spring bean）
+        SearchEngineServiceContext.addWebSearcher(AdiConstant.SearchEngineName.GOOGLE, new GoogleSearchEngineService(proxyAddress, restTemplate));
     }
 
     /**
