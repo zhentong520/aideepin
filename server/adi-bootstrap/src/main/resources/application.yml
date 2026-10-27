@@ -100,6 +100,14 @@ adi:
   #     - /auth/
   #     - /workflow/public
   #     - /actuator/health
+  # S1-13：CORS 来源白名单（allowedOriginPatterns，支持端口通配；未配置时回退
+  # frontendUrl + localhost/127.0.0.1 任意端口）。多前端域名部署时显式配置：
+  #   cors-allowed-origin-patterns:
+  #     - https://www.aideepin.com
+  #     - https://admin.aideepin.com
+  # S1-13：登录 Cookie 是否带 Secure（仅 HTTPS 回传）。本地 http 调试 false，生产 true。
+  auth:
+    cookie-secure: ${ADI_COOKIE_SECURE:false}
   mail:
     # mock 模式：不连 SMTP，邮件内容打日志并落盘 {local.base-data-path}/mail-outbox/
     # 生产请配置真实 spring.mail 并保持 false（或设 ADI_MAIL_MOCK=false）

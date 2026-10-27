@@ -23,6 +23,18 @@ public class Auth {
      */
     private List<String> excludeUrls = new ArrayList<>(DEFAULT_EXCLUDE_URLS);
 
+    /**
+     * S1-13（2026-10-27）：CORS 允许的来源白名单（allowedOriginPatterns，支持 * 通配端口）。
+     * 未配置时回退为「frontendUrl + 本地开发端点」，不再默认放行任意来源。
+     */
+    private List<String> corsAllowedOriginPatterns;
+
+    /**
+     * S1-13（2026-10-27）：登录 Cookie 是否带 Secure 属性（仅 HTTPS 回传）。
+     * 本地 http 调试保持 false；生产（https）必须 true（prod yml 默认已设）。
+     */
+    private boolean cookieSecure = false;
+
     public static final List<String> DEFAULT_EXCLUDE_URLS = List.of(
             "/auth/",
             "/model/",
@@ -43,5 +55,13 @@ public class Auth {
             "/mcp/kb/",
             // OPS-01：容器探活端点（application.yml 已限制只暴露 health 一个 actuator 端点）
             "/actuator/health"
+    );
+
+    /**
+     * S1-13：corsAllowedOriginPatterns 未配置时的回退值（frontendUrl 由 WebMvcConfig 运行时并入）。
+     */
+    public static final List<String> DEFAULT_CORS_DEV_PATTERNS = List.of(
+            "http://localhost:*",
+            "http://127.0.0.1:*"
     );
 }

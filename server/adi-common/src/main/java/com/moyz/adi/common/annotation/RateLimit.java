@@ -34,4 +34,13 @@ public @interface RateLimit {
      * 对匿名端点误配 byUser=true 会拿到 null 用户，切面会退化为按 IP 限流并告警。
      */
     boolean byUser() default false;
+
+    /**
+     * S1-13（2026-10-27）：true = 账号+IP 双维度独立限流（两把计数器各自判超限）。
+     * 账号取自方法首个参数对象的 {@code getEmail()} / {@code getAccount()}（先 email 后 account）。
+     * 适用匿名但携带账号的端点（登录）：单靠 IP 可被攻击者轮换出口绕过，
+     * 单靠账号可被高频打别人账号锁死——两把锁同时存在才完整。
+     * 与 byUser 互斥使用（同时为 true 时以双维度为准）。
+     */
+    boolean byAccountAndIp() default false;
 }

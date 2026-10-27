@@ -18,7 +18,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.constraints.NotBlank;
@@ -26,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.hibernate.validator.constraints.Length;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseCookie;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -38,6 +38,7 @@ import java.util.stream.Collectors;
 import static com.moyz.adi.common.enums.ErrorEnum.B_ACTIVE_USER_ERROR;
 import static com.moyz.adi.common.enums.ErrorEnum.B_RESET_PASSWORD_ERROR;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
+import static org.springframework.http.HttpHeaders.SET_COOKIE;
 
 
 @Slf4j
@@ -157,13 +158,35 @@ public class AuthController {
     }
 
     @Operation(summary = "登录 | Login")
+    @RateLimit(times = 10, perMinutes = 1, byAccountAndIp = true)
     @PostMapping("login")
     public LoginResp login(@Validated @RequestBody LoginReq loginReq, HttpServletResponse response) {
         LoginResp loginResp = userService.login(loginReq);
         response.setHeader(AUTHORIZATION, loginResp.getToken());
-        Cookie cookie = new Cookie(AUTHORIZATION, loginResp.getToken());
-        response.addCookie(cookie);
+        // S1-13：Cookie 补 HttpOnly/Secure/SameSite=Lax（原先裸 Cookie，可被 JS 读取、无跨站防护）。
+        // Secure 由 adi.auth.cookie-secure 控制（本地 http 调试 false，prod yml 默认 true）。
+        response.addHeader(SET_COOKIE, buildAuthCookie(loginResp.getToken(), adiProperties.getAuth().isCookieSecure()).toString());
         return loginResp;
+    }
+
+    /**
+     * S1-13（2026-10-27）：构造登录态 Cookie。
+     * <ul>
+     *   <li>HttpOnly：阻断 XSS 通过 document.cookie 窃取 token；</li>
+     *   <li>SameSite=Lax：阻断跨站 CSRF 携带（顶级导航 GET 仍可带，符合常规）；</li>
+     *   <li>Secure：仅 HTTPS 回传（ adi.auth.cookie-secure 控制）；</li>
+     *   <li>Path=/：与原 Cookie 默认作用域一致（原实现未设 Path，浏览器按当前目录，
+     *       实际上反而是错的，这里显式收敛为全站）。</li>
+     * </ul>
+     * 包级静态便于单测断言属性。
+     */
+    static ResponseCookie buildAuthCookie(String token, boolean secure) {
+        return ResponseCookie.from(AUTHORIZATION, token)
+                .httpOnly(true)
+                .secure(secure)
+                .sameSite("Lax")
+                .path("/")
+                .build();
     }
 
     @Operation(summary = "获取登录验证码 | Get Login Captcha")
