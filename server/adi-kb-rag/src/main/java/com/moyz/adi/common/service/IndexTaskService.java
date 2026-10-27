@@ -15,6 +15,7 @@ import com.moyz.adi.common.util.AdiStringUtil;
 import com.moyz.adi.common.enums.SegmentModeEnum;
 import com.moyz.adi.common.exception.IndexTaskCancelledException;
 import com.moyz.adi.common.helper.LLMContext;
+import com.moyz.adi.common.helper.RedisGuard;
 import com.moyz.adi.common.languagemodel.AbstractLLMService;
 import com.moyz.adi.common.mapper.IndexTaskMapper;
 import com.moyz.adi.common.mapper.KbDocumentMapper;
@@ -134,6 +135,10 @@ public class IndexTaskService {
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
+
+    // S1-10：Redis 故障降级守卫——USER_INDEXING 计数与统计信号属于辅助数据，故障时跳过不阻塞索引
+    @Resource
+    private RedisGuard redisGuard;
 
     /**
      * Enqueue a document-level task (version in key: a newer version inserts a new row and
@@ -338,8 +343,10 @@ public class IndexTaskService {
 
     private void execute(IndexTask task) {
         String userIndexKey = MessageFormat.format(USER_INDEXING, task.getUserId());
-        stringRedisTemplate.opsForValue().increment(userIndexKey);
-        stringRedisTemplate.expire(userIndexKey, 10, TimeUnit.MINUTES);
+        redisGuard.run("index-user-count-inc", () -> {
+            stringRedisTemplate.opsForValue().increment(userIndexKey);
+            stringRedisTemplate.expire(userIndexKey, 10, TimeUnit.MINUTES);
+        });
         ScheduledFuture<?> heartbeat = startHeartbeat(task);
         try {
             boolean skipped = route(task);
@@ -363,13 +370,15 @@ public class IndexTaskService {
             }
         } finally {
             heartbeat.cancel(false);
-            if (DOC_INDEX_TYPE_EMBEDDING.equals(task.getTaskType())) {
-                stringRedisTemplate.opsForSet().add(KB_STATISTIC_RECALCULATE_SIGNAL, task.getKbUuid());
-            }
-            Long remaining = stringRedisTemplate.opsForValue().decrement(userIndexKey);
-            if (remaining != null && remaining <= 0) {
-                stringRedisTemplate.delete(userIndexKey);
-            }
+            redisGuard.run("index-user-count-dec", () -> {
+                if (DOC_INDEX_TYPE_EMBEDDING.equals(task.getTaskType())) {
+                    stringRedisTemplate.opsForSet().add(KB_STATISTIC_RECALCULATE_SIGNAL, task.getKbUuid());
+                }
+                Long remaining = stringRedisTemplate.opsForValue().decrement(userIndexKey);
+                if (remaining != null && remaining <= 0) {
+                    stringRedisTemplate.delete(userIndexKey);
+                }
+            });
         }
     }
 

@@ -11,6 +11,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -267,5 +268,59 @@ class TokenFilterHttpBehaviourTest {
 
         assertEquals(200, response.getStatus());
         assertNotNull(captured[0], "白名单路径带有效 token 时应解析出用户");
+    }
+
+    // ------------------------------------------------------------------
+    // S1-10：Redis 故障降级（停 Redis 不是全站 500）
+    // ------------------------------------------------------------------
+
+    private void givenRedisDown() {
+        when(valueOperations.get(anyString()))
+                .thenThrow(new RedisConnectionFailureException("Connection refused: localhost/127.0.0.1:6379"));
+    }
+
+    @DisplayName("S1-10：Redis 故障时白名单路径降级为匿名放行（200，不 500）")
+    @Test
+    void whitelistPathDegradedToAnonymousWhenRedisDown() throws Exception {
+        givenRedisDown();
+        User[] captured = new User[1];
+
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/model/platforms");
+        request.addHeader("Authorization", VALID_TOKEN);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilterInternal(request, response, new MockFilterChain() {
+            @Override
+            public void doFilter(jakarta.servlet.ServletRequest req, jakarta.servlet.ServletResponse res) {
+                captured[0] = ThreadContext.getCurrentUser();
+            }
+        });
+
+        assertEquals(200, response.getStatus(), "白名单路径 Redis 故障时应继续放行而非 500");
+        assertNull(captured[0], "降级期间不得伪造登录态");
+    }
+
+    @DisplayName("S1-10：Redis 故障时受保护路径返回 503 + A_REDIS_UNAVAILABLE（不 500、不 401）")
+    @Test
+    void protectedPathReturns503WhenRedisDown() throws Exception {
+        givenRedisDown();
+        MockHttpServletResponse response = doFilter("/user/profile", VALID_TOKEN);
+        assertEquals(503, response.getStatus(), "受保护路径应明确报服务暂不可用");
+        String body = response.getContentAsString();
+        assertNotNull(body);
+        org.junit.jupiter.api.Assertions.assertTrue(body.contains("A_REDIS_UNAVAILABLE"),
+                "503 响应体应携带 A_REDIS_UNAVAILABLE 错误码，实际:" + body);
+        assertNull(ThreadContext.getCurrentUser(), "降级拒绝时不得残留上下文");
+    }
+
+    @DisplayName("S1-10：Redis 恢复后自动痊愈（无需重启）")
+    @Test
+    void recoversAfterRedisComesBack() throws Exception {
+        givenRedisDown();
+        assertEquals(503, doFilter("/user/profile", VALID_TOKEN).getStatus());
+
+        // Redis 回来了：重新打桩（旧桩会抛异常，须用 doReturn 语法覆盖），下一个请求恢复正常
+        org.mockito.Mockito.doReturn(JsonUtil.toJson(user(false))).when(valueOperations).get(anyString());
+        assertEquals(200, doFilter("/user/profile", VALID_TOKEN).getStatus(), "Redis 恢复后应自动痊愈");
     }
 }

@@ -8,6 +8,9 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSourceResolvable;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.data.redis.RedisConnectionFailureException;
+import org.springframework.data.redis.RedisSystemException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.method.ParameterValidationResult;
@@ -160,6 +163,23 @@ public class GlobalExceptionHandler {
         data.put("supportedMethods", String.join(",", exception.getSupportedMethods() == null ? new String[0] : exception.getSupportedMethods()));
         log.warn("HTTP method not supported:{}", data);
         return new BaseResponse(ErrorEnum.A_PARAMS_ERROR.getCode(), SpringUtil.getMessage(ErrorEnum.A_PARAMS_ERROR.getInfo()), data);
+    }
+
+    /**
+     * S1-10：Redis 连接故障（登录写 token、缓存读写等硬依赖场景）。
+     * <p>
+     * 只拦 Redis 侧连接异常（RedisConnectionFailureException / RedisSystemException /
+     * 通用的 DataAccessResourceFailureException），不吞普通 DataAccessException——
+     * 后者覆盖 JDBC，错把数据库故障报成"缓存不可用"会误导排障。
+     * 调用方拿到 A_REDIS_UNAVAILABLE 明确语义，而非兜底 B0003 全局异常（HTTP 500 观感）。
+     * </p>
+     */
+    @ExceptionHandler({RedisConnectionFailureException.class, RedisSystemException.class,
+            DataAccessResourceFailureException.class})
+    private BaseResponse handleRedisUnavailable(final Exception exception) {
+        log.error("Redis unavailable intercepted:", exception);
+        return new BaseResponse(ErrorEnum.A_REDIS_UNAVAILABLE.getCode(),
+                SpringUtil.getMessage(ErrorEnum.A_REDIS_UNAVAILABLE.getInfo()), null);
     }
 
     /**

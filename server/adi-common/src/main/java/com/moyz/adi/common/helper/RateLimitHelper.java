@@ -16,6 +16,9 @@ public class RateLimitHelper {
     @Resource
     private StringRedisTemplate stringRedisTemplate;
 
+    @Resource
+    private RedisGuard redisGuard;
+
     /**
      * 按固定时间窗口计算请求次数
      * Calculate request count using a fixed time window
@@ -33,8 +36,11 @@ public class RateLimitHelper {
             log.error("Rate limit config is null, request allowed without rate limiting, key:{}", requestTimesKey);
             return true;
         }
+        // S1-10：Redis 故障时 fail-open（放行）——故障期间限流暂不生效，但对话链路不塌；
+        // 计数仍留在 Redis 里，恢复后从原计数继续，不会重复发放额度。
+        String rateLimitVal = redisGuard.call("rate-limit-check",
+                () -> stringRedisTemplate.opsForValue().get(requestTimesKey), null);
         int requestCountInTimeWindow = 0;
-        String rateLimitVal = stringRedisTemplate.opsForValue().get(requestTimesKey);
         if (StringUtils.isNotBlank(rateLimitVal)) {
             requestCountInTimeWindow = Integer.parseInt(rateLimitVal);
         }
@@ -45,14 +51,18 @@ public class RateLimitHelper {
         if (null == rateLimitConfig) {
             return;
         }
-        long expireTime = stringRedisTemplate.getExpire(requestTimesKey).longValue();
-        if (expireTime == -1) {
-            stringRedisTemplate.opsForValue().increment(requestTimesKey);
-            stringRedisTemplate.opsForValue().set(requestTimesKey, String.valueOf(1), rateLimitConfig.getMinutes(), TimeUnit.MINUTES);
-        } else if (expireTime > 3) {
-            //If expireTime <= 3, too short to cache
-            stringRedisTemplate.opsForValue().increment(requestTimesKey);
-        }
+        // S1-10：Redis 故障时跳过计数（仅少记一次），不向调用链抛异常
+        redisGuard.run("rate-limit-increase", () -> {
+            Long expire = stringRedisTemplate.getExpire(requestTimesKey);
+            long expireTime = expire == null ? -2L : expire;
+            if (expireTime == -1) {
+                stringRedisTemplate.opsForValue().increment(requestTimesKey);
+                stringRedisTemplate.opsForValue().set(requestTimesKey, String.valueOf(1), rateLimitConfig.getMinutes(), TimeUnit.MINUTES);
+            } else if (expireTime > 3) {
+                //If expireTime <= 3, too short to cache
+                stringRedisTemplate.opsForValue().increment(requestTimesKey);
+            }
+        });
     }
 
 }

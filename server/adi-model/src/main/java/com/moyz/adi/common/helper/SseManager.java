@@ -14,12 +14,14 @@ import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Set;
 import java.text.MessageFormat;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -53,6 +55,13 @@ public class SseManager {
     }
 
     private final ConcurrentHashMap<String, SseEntry> entries = new ConcurrentHashMap<>();
+
+    /**
+     * S1-10：Redis 故障时的本地并发计数降级（按实例生效）。
+     * key=userId，value=该用户在本实例上的活跃 SSE uuid 集合。
+     * Redis 恢复后 Redis 侧集合由 6min TTL 自愈清理，本地集合随 unregister 移除。
+     */
+    private final ConcurrentHashMap<Long, Set<String>> localActiveSseCount = new ConcurrentHashMap<>();
 
     /**
      * Web 用户最大并发 SSE 数 / Max concurrent SSE for web users
@@ -180,14 +189,30 @@ public class SseManager {
 
         //Check: concurrent SSE count
         String activeKey = MessageFormat.format(RedisKeyConstant.USER_ACTIVE_SSE_COUNT, user.getId());
-        stringRedisTemplate.opsForSet().add(activeKey, sseUuid);
-        //每次添加都刷新 TTL = 6min（略大于 SseEmitter 5min timeout），防止 crash 导致集合永不清理
-        stringRedisTemplate.expire(activeKey, 6, TimeUnit.MINUTES);
-        Long size = stringRedisTemplate.opsForSet().size(activeKey);
+        Long size = null;
+        try {
+            stringRedisTemplate.opsForSet().add(activeKey, sseUuid);
+            //每次添加都刷新 TTL = 6min（略大于 SseEmitter 5min timeout），防止 crash 导致集合永不清理
+            stringRedisTemplate.expire(activeKey, 6, TimeUnit.MINUTES);
+            size = stringRedisTemplate.opsForSet().size(activeKey);
+        } catch (DataAccessException e) {
+            // S1-10：Redis 故障时降级为本地计数（本实例内仍限并发），不让对话入口整体塌掉
+            log.warn("SseManager degraded to local concurrency count, userId:{}, cause:{}", user.getId(), e.getMessage());
+            Set<String> local = localActiveSseCount.computeIfAbsent(user.getId(), k -> ConcurrentHashMap.newKeySet());
+            local.add(sseUuid);
+            size = (long) local.size();
+        }
         boolean isApi = ThreadContext.isExtApiRequest();
         int maxConcurrent = isApi ? MAX_API_CONCURRENT : maxWebConcurrent;
         if (size != null && size > maxConcurrent) {
-            stringRedisTemplate.opsForSet().remove(activeKey, sseUuid);
+            try {
+                stringRedisTemplate.opsForSet().remove(activeKey, sseUuid);
+            } catch (DataAccessException e) {
+                localActiveSseCount.computeIfPresent(user.getId(), (k, v) -> {
+                    v.remove(sseUuid);
+                    return v;
+                });
+            }
             doSendErrorAndComplete(user.getId(), sseUuid, sseEmitter, SpringUtil.getMessage("SSE_RESPONDING"));
             return false;
         }
@@ -571,6 +596,14 @@ public class SseManager {
      */
     private void decActiveSseCount(long userId, String sseUuid) {
         String activeKey = MessageFormat.format(RedisKeyConstant.USER_ACTIVE_SSE_COUNT, userId);
-        stringRedisTemplate.opsForSet().remove(activeKey, sseUuid);
+        try {
+            stringRedisTemplate.opsForSet().remove(activeKey, sseUuid);
+        } catch (DataAccessException e) {
+            // S1-10：Redis 故障时同步移除本地降级计数，保持两条计数路径各自自洽
+            localActiveSseCount.computeIfPresent(userId, (k, v) -> {
+                v.remove(sseUuid);
+                return v;
+            });
+        }
     }
 }

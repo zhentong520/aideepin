@@ -1,10 +1,13 @@
 package com.moyz.adi.common.filter;
 
+import com.moyz.adi.common.base.BaseResponse;
 import com.moyz.adi.common.base.ThreadContext;
 import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.constant.RedisKeyConstant;
 import com.moyz.adi.common.entity.User;
+import com.moyz.adi.common.enums.ErrorEnum;
 import com.moyz.adi.common.util.JsonUtil;
+import com.moyz.adi.common.util.SpringUtil;
 import io.micrometer.common.util.StringUtils;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
@@ -15,6 +18,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -113,20 +117,35 @@ public class TokenFilter extends OncePerRequestFilter {
             if (excludePath(requestUri)) {
 
                 if (StringUtils.isNotBlank(token)) {
-                    String tokenKey = MessageFormat.format(RedisKeyConstant.USER_TOKEN, token);
-                    String userJson = stringRedisTemplate.opsForValue().get(tokenKey);
-                    if (StringUtils.isNotBlank(userJson)) {
-                        User user = JsonUtil.fromJson(userJson, User.class);
-                        if (null != user) {
-                            ThreadContext.setCurrentUser(user);
-                            ThreadContext.setToken(token);
+                    // S1-10：白名单路径本就允许匿名访问，Redis 故障时降级为"未登录"继续放行，
+                    // 而不是把登录页/公开接口一起拖成 500。恢复后下个请求自动带回用户身份。
+                    try {
+                        String tokenKey = MessageFormat.format(RedisKeyConstant.USER_TOKEN, token);
+                        String userJson = stringRedisTemplate.opsForValue().get(tokenKey);
+                        if (StringUtils.isNotBlank(userJson)) {
+                            User user = JsonUtil.fromJson(userJson, User.class);
+                            if (null != user) {
+                                ThreadContext.setCurrentUser(user);
+                                ThreadContext.setToken(token);
+                            }
                         }
+                    } catch (DataAccessException e) {
+                        log.warn("TokenFilter degraded (redis unavailable) on whitelist path:{}, cause:{}", requestUri, e.getMessage());
                     }
                 }
                 filterChain.doFilter(request, response);
             } else if (StringUtils.isNotBlank(token)) {
-                String tokenKey = MessageFormat.format(RedisKeyConstant.USER_TOKEN, token);
-                String userJson = stringRedisTemplate.opsForValue().get(tokenKey);
+                String userJson;
+                try {
+                    String tokenKey = MessageFormat.format(RedisKeyConstant.USER_TOKEN, token);
+                    userJson = stringRedisTemplate.opsForValue().get(tokenKey);
+                } catch (DataAccessException e) {
+                    // S1-10：受保护路径无法核实 token 时，既不能放行（越权）也不能 401
+                    //（401 会误导前端反复跳登录页），明确报 503"服务暂不可用"。
+                    log.error("TokenFilter redis unavailable on protected path:{}", requestUri, e);
+                    respondServiceUnavailable(response);
+                    return;
+                }
                 if (StringUtils.isBlank(userJson)) {
                     log.warn("Not logged in:{}", requestUri);
                     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
@@ -199,5 +218,18 @@ public class TokenFilter extends OncePerRequestFilter {
     /** is_admin 列可空，null 视为非管理员；避免原先的拆箱 NPE 写法。 */
     private boolean isAdmin(User user) {
         return user != null && Boolean.TRUE.equals(user.getIsAdmin());
+    }
+
+    /**
+     * S1-10：Redis 故障时受保护路径返回 503 + 结构化错误体（A_REDIS_UNAVAILABLE），
+     * 前端可凭 code 与 401 区分"该去登录"和"服务端依赖故障"。
+     */
+    private void respondServiceUnavailable(HttpServletResponse response) throws IOException {
+        response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+        response.setContentType("application/json;charset=UTF-8");
+        response.getWriter().write(JsonUtil.toJson(new BaseResponse<>(
+                ErrorEnum.A_REDIS_UNAVAILABLE.getCode(),
+                SpringUtil.getMessage(ErrorEnum.A_REDIS_UNAVAILABLE.getInfo()),
+                null)));
     }
 }
