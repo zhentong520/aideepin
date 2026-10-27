@@ -13,6 +13,7 @@ import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
 import com.tngtech.archunit.library.freeze.FreezingArchRule;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 
 import static com.tngtech.archunit.core.domain.JavaClass.Predicates.containAnyMethodsThat;
@@ -127,4 +128,32 @@ class WholeAppArchitectureTest {
             })
             .because("多实例部署时 @Scheduled 缺 @SchedulerLock 会跨实例重复执行（S1-07a）；"
                     + "lockAtMostFor 至少取最长执行时间的 2 倍");
+
+    /**
+     * 同类内对 @Async 方法的调用点（无论 this 直调还是 self 代理，字节码层面无法区分，
+     * 因此全部列出并用冻结基线管理）。
+     */
+    private static final DescribedPredicate<JavaMethodCall> SAME_CLASS_ASYNC_CALL =
+            new DescribedPredicate<>("call an @Async method from within its own class") {
+                @Override
+                public boolean test(JavaMethodCall call) {
+                    return call.getTargetOwner().equals(call.getOrigin().getOwner())
+                            && call.getTarget().isAnnotatedWith(Async.class);
+                }
+            };
+
+    /**
+     * 规则六：@Async 方法必须走代理调用（S1-03）。
+     * this 直调会绕过 Spring 代理，@Async 退化为同步执行——这正是 DocumentQaModeService
+     * 曾经的线上 bug（QA 生成阻塞聊天线程）。静态分析无法区分 this 与 self 前缀
+     * （receiver 都是本类类型），所以把「同类调用 @Async 方法」的全部调用点冻结入库：
+     * 现有 8 处 self.* 合法调用已存档；新增任何同类调用（包括合法的 self 代理）都会变红，
+     * 属于有意识行为——若确为 self 代理调用，跑 refreeze 入库并在 PR 说明；若是 this 直调，必须改 self。
+     */
+    @ArchTest
+    static final ArchRule asyncMethodsMustGoThroughProxy = FreezingArchRule.freeze(
+            noClasses()
+                    .should().callMethodWhere(SAME_CLASS_ASYNC_CALL)
+                    .because("同类直调 @Async 方法会绕过代理退化为同步执行（S1-03）；"
+                            + "必须通过 @Lazy self 自注入代理调用（见 DocumentQaModeService/WorkflowTriggerRunner 模式）"));
 }

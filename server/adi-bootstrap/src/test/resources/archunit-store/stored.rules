@@ -1,3 +1,4 @@
 #
-#Tue Oct 27 14:10:07 CST 2026
+#Tue Oct 27 15:09:39 CST 2026
+no\ classes\ should\ call\ method\ where\ call\ an\ @Async\ method\ from\ within\ its\ own\ class,\ because\ \u540C\u7C7B\u76F4\u8C03\ @Async\ \u65B9\u6CD5\u4F1A\u7ED5\u8FC7\u4EE3\u7406\u9000\u5316\u4E3A\u540C\u6B65\u6267\u884C\uFF08S1-03\uFF09\uFF1B\u5FC5\u987B\u901A\u8FC7\ @Lazy\ self\ \u81EA\u6CE8\u5165\u4EE3\u7406\u8C03\u7528\uFF08\u89C1\ DocumentQaModeService/WorkflowTriggerRunner\ \u6A21\u5F0F\uFF09=7868ab89-6ec2-47d6-9dbe-a085ed218abe
 no\ classes\ should\ call\ method\ where\ call\ SpringUtil\#getBean*,\ because\ \u670D\u52A1\u5B9A\u4F4D\u5668\u7ED5\u8FC7\u6A21\u5757\u8FB9\u754C\u4E0E\u4F9D\u8D56\u6CE8\u5165\uFF0CS1-01\ \u51BB\u7ED3\u5B58\u91CF\u3001S1-02\ \u6E05\u96F6\uFF1B\u65B0\u4EE3\u7801\u4E00\u5F8B\u6784\u9020\u5668\u6CE8\u5165=29c38e9b-6e5b-47d4-8ccd-b2460b12c242
