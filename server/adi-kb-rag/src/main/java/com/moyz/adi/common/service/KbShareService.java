@@ -44,6 +44,13 @@ public class KbShareService extends ServiceImpl<KnowledgeBaseShareMapper, Knowle
         baseMapper.deleteByKbAndTarget(kbUuid, TARGET_USER, targetId);
     }
 
+    /**
+     * S1-15：删库时清理该库全部授权行（物理删，授权是派生数据，无保留价值）
+     */
+    public void deleteByKb(String kbUuid) {
+        lambdaUpdate().eq(KnowledgeBaseShare::getKbUuid, kbUuid).remove();
+    }
+
     public List<KnowledgeBaseShare> listByKb(String kbUuid) {
         return baseMapper.listByKb(kbUuid);
     }

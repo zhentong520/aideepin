@@ -19,6 +19,42 @@
         where metadata ->> 'kb_item_uuid' = #{kbItemUuid}
     </delete>
 
+    <!-- S1-15: KB-level vector delete on KB delete cascade (metadata kb_uuid key) -->
+    <delete id="deleteByKbUuid">
+        delete
+        from
+        <include refid="getTableName"/>
+        where metadata ->> 'kb_uuid' = #{kbUuid}
+    </delete>
+
+    <!--
+      S1-15 reconciliation sweep: orphan vector = a row whose embedding_id no live row of any
+      of the three segment tables references (segment rows are soft-deleted or never existed).
+      Batched by LIMIT to keep each statement short; the caller loops until 0 rows come back.
+      embedding_id is unique across the three tables (segment row backfills it after upsert),
+      so a single NOT EXISTS per table is sufficient and index-friendly (embedding_id indexed).
+    -->
+    <delete id="deleteOrphanBatch">
+        delete from <include refid="getTableName"/>
+        where embedding_id in (
+            select e.embedding_id
+            from <include refid="getTableName"/> e
+            where not exists (
+                select 1 from adi_document_segment s
+                where s.embedding_id = e.embedding_id and s.is_deleted = false
+            )
+            and not exists (
+                select 1 from adi_document_segment_question q
+                where q.embedding_id = e.embedding_id and q.is_deleted = false
+            )
+            and not exists (
+                select 1 from adi_document_segment_child_chunk c
+                where c.embedding_id = e.embedding_id and c.is_deleted = false
+            )
+            limit #{batchSize}
+        )
+    </delete>
+
     <sql id="getTableName">
         <if test="tableSuffix != null and tableSuffix != ''">
             adi_knowledge_base_embedding_${tableSuffix}

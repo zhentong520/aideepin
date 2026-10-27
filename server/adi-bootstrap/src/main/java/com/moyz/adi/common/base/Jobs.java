@@ -4,6 +4,7 @@ import com.moyz.adi.common.service.KbDocSourceService;
 import com.moyz.adi.common.service.KnowledgeBaseService;
 import com.moyz.adi.common.service.ModelHealthService;
 import com.moyz.adi.common.service.SysConfigService;
+import com.moyz.adi.common.service.embedding.EmbeddingOrphanSweepService;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -25,6 +26,9 @@ public class Jobs {
 
     @Resource
     private KbDocSourceService kbDocSourceService;
+
+    @Resource
+    private EmbeddingOrphanSweepService embeddingOrphanSweepService;
 
     @Scheduled(initialDelay = 180_000, fixedDelay = 10 * 60_000)
     @SchedulerLock(name = "Jobs_scheduledHealthCheck", lockAtMostFor = "10m")
@@ -55,6 +59,19 @@ public class Jobs {
         int refreshed = kbDocSourceService.syncDueSources();
         if (refreshed > 0) {
             log.info("Scheduled document source sync done, refreshed:{}", refreshed);
+        }
+    }
+
+    /**
+     * S1-15：每日凌晨 03:30 孤儿向量对账。删除路径的向量清理是尽力而为，残留向量
+     * 不可达但占存储；每天一轮分批收敛，量级为零成本（无孤儿时一条查询都不执行删除）。
+     */
+    @Scheduled(cron = "0 30 3 * * ?")
+    @SchedulerLock(name = "Jobs_sweepOrphanEmbeddings", lockAtMostFor = "1h")
+    public void sweepOrphanEmbeddings() {
+        int deleted = embeddingOrphanSweepService.sweep();
+        if (deleted > 0) {
+            log.info("Scheduled orphan embedding sweep done, deleted:{}", deleted);
         }
     }
 }

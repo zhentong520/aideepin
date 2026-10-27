@@ -92,4 +92,14 @@ public class DocumentSegmentQuestionService extends ServiceImpl<DocumentSegmentQ
                 .set(DocumentSegmentQuestion::getIsDeleted, true)
                 .update();
     }
+
+    /**
+     * S1-15：软删除整个知识库下的全部问题行（删库级联）
+     */
+    public void deleteByKbUuid(String kbUuid) {
+        lambdaUpdate()
+                .eq(DocumentSegmentQuestion::getKbUuid, kbUuid)
+                .set(DocumentSegmentQuestion::getIsDeleted, true)
+                .update();
+    }
 }

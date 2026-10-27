@@ -92,4 +92,14 @@ public class DocumentSegmentChildChunkService extends ServiceImpl<DocumentSegmen
                 .set(DocumentSegmentChildChunk::getIsDeleted, true)
                 .update();
     }
+
+    /**
+     * S1-15：软删除整个知识库下的全部子块行（删库级联）
+     */
+    public void deleteByKbUuid(String kbUuid) {
+        lambdaUpdate()
+                .eq(DocumentSegmentChildChunk::getKbUuid, kbUuid)
+                .set(DocumentSegmentChildChunk::getIsDeleted, true)
+                .update();
+    }
 }

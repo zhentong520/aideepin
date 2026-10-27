@@ -280,6 +280,14 @@ public class IndexTaskService {
     }
 
     /**
+     * S1-15: cancel every unfinished task of a knowledge base (called on KB delete): same
+     * semantics as {@link #cancelByDoc}, one statement for the whole KB via kb_uuid.
+     */
+    public void cancelByKb(String kbUuid) {
+        indexTaskMapper.cancelUnfinishedByKb(kbUuid, "knowledge base deleted");
+    }
+
+    /**
      * Consume loop: claim and execute until nothing is claimable. Triggered on enqueue;
      * re-triggered by the poller as a fallback.
      */

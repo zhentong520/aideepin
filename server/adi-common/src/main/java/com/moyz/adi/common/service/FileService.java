@@ -1,8 +1,11 @@
 package com.moyz.adi.common.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.baomidou.mybatisplus.extension.toolkit.ChainWrappers;
 import com.moyz.adi.common.base.ThreadContext;
 import com.moyz.adi.common.entity.AdiFile;
+import com.moyz.adi.common.entity.KbDocument;
 import com.moyz.adi.common.entity.User;
 import com.moyz.adi.common.enums.ErrorEnum;
 import com.moyz.adi.common.exception.BaseException;
@@ -10,9 +13,11 @@ import com.moyz.adi.common.file.FileOperatorContext;
 import com.moyz.adi.common.file.LocalFileUtil;
 import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.mapper.FileMapper;
+import com.moyz.adi.common.mapper.KbDocumentMapper;
 import com.moyz.adi.common.util.HashUtil;
 import com.moyz.adi.common.util.UuidUtil;
 import com.moyz.adi.common.vo.SaveRemoteImageResult;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -22,6 +27,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.awt.image.BufferedImage;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -32,12 +40,20 @@ import java.util.Optional;
 
 import static com.moyz.adi.common.enums.ErrorEnum.A_AI_IMAGE_NO_AUTH;
 import static com.moyz.adi.common.enums.ErrorEnum.A_FILE_NOT_EXIST;
+import static com.moyz.adi.common.enums.ErrorEnum.A_FILE_IN_USE;
 import static com.moyz.adi.common.enums.ErrorEnum.A_UPLOAD_FILE_TYPE_NOT_ALLOWED;
 import static com.moyz.adi.common.enums.ErrorEnum.A_UPLOAD_IMAGE_TYPE_NOT_ALLOWED;
 
 @Slf4j
 @Service
 public class FileService extends ServiceImpl<FileMapper, AdiFile> {
+
+    /**
+     * S1-15（G-10）：物理删除前的引用检查需要查知识库文档表（source_file_id 列）。
+     * KbDocumentMapper 在本模块，无循环依赖。
+     */
+    @Resource
+    private KbDocumentMapper kbDocumentMapper;
 
     @Value("${local.images}")
     private String imagePath;
@@ -152,6 +168,32 @@ public class FileService extends ServiceImpl<FileMapper, AdiFile> {
                 .update();
     }
 
+    /**
+     * S1-15：引用计数原子减一（G-10 补齐「增加对应减一」的另一半）。
+     * WHERE ref_count > 0 保证并发下不会减成负数；返回是否实际减掉。
+     * 调用方（如绘图记录删除）应在删除文件前先减掉自己加过的引用。
+     */
+    public boolean decrementRefCount(String uuid) {
+        return this.lambdaUpdate()
+                .eq(AdiFile::getUuid, uuid)
+                .gt(AdiFile::getRefCount, 0)
+                .setSql("ref_count = ref_count - 1")
+                .update();
+    }
+
+    /**
+     * 物理删除文件并软删记录（S1-15 / G-10 加固）。
+     * <p>
+     * 旧实现拿到文件后直接 {@code FileOperatorContext.delete}：被知识库文档引用的
+     * 源文件、被绘图记录等引用（ref_count &gt; 0）的文件都会被无声删掉，前端立刻 404。
+     * 现在：
+     * <ol>
+     *   <li>被活跃（未删除）知识库文档引用 → 拒绝（A_FILE_IN_USE），让用户先删文档；</li>
+     *   <li>ref_count &gt; 0（绘图等场景的显式引用）→ 拒绝，调用方负责先 {@link #decrementRefCount}；</li>
+     *   <li>通过检查后，主文件、缩略图、水印副本、水印缩略图一并删除（后三者尽力而为，
+     *       历史缺失/已删不阻断）。</li>
+     * </ol>
+     */
     public boolean removeFileAndSoftDel(String uuid) {
         AdiFile adiFile = this.lambdaQuery()
                 .eq(AdiFile::getUserId, ThreadContext.getCurrentUserId())
@@ -161,8 +203,43 @@ public class FileService extends ServiceImpl<FileMapper, AdiFile> {
         if (null == adiFile) {
             return false;
         }
+        // 引用检查 1：活跃知识库文档的源文件（软删文档不拦——文档删了文件就是孤儿，可安全物理删）
+        LambdaQueryWrapper<KbDocument> refWrapper = new LambdaQueryWrapper<KbDocument>()
+                .eq(KbDocument::getSourceFileId, adiFile.getId())
+                .eq(KbDocument::getIsDeleted, false);
+        boolean referencedByDoc = kbDocumentMapper.exists(refWrapper);
+        if (referencedByDoc) {
+            throw new BaseException(A_FILE_IN_USE, "knowledge base document");
+        }
+        // 引用检查 2：显式引用计数（绘图成功图等；引用方删除前须先 decrementRefCount）
+        if (null != adiFile.getRefCount() && adiFile.getRefCount() > 0) {
+            throw new BaseException(A_FILE_IN_USE, "other records (ref_count=" + adiFile.getRefCount() + ")");
+        }
         FileOperatorContext.delete(adiFile);
+        deleteDerivedCopies(adiFile);
         return this.softDel(uuid);
+    }
+
+    /**
+     * S1-15：随主文件删除其派生副本（缩略图 / 水印副本 / 水印缩略图）。
+     * 旧实现只删主文件，派生副本永远残留（磁盘无限增长）。
+     * 尽力而为：任何副本缺失或删除失败只记日志，不阻断主文件删除。
+     */
+    private void deleteDerivedCopies(AdiFile adiFile) {
+        String name = adiFile.getUuid() + "." + adiFile.getExt();
+        for (String dir : List.of(thumbnailsPath, watermarkImagesPath, watermarkThumbnailsPath)) {
+            if (StringUtils.isBlank(dir)) {
+                continue;
+            }
+            try {
+                Path path = Paths.get(dir, name);
+                if (!Files.deleteIfExists(path)) {
+                    log.debug("Derived copy already absent, path:{}", path);
+                }
+            } catch (Exception e) {
+                log.warn("Delete derived copy failed, path:{}{}", dir, name, e);
+            }
+        }
     }
 
     public AdiFile getByUuid(String uuid) {

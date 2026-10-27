@@ -220,7 +220,8 @@ public enum ErrorEnum {
     /**
      * T9-06：模板 id 不存在（内置模板清单中无匹配）。参数：模板 id
      */
-    A_WF_TEMPLATE_NOT_FOUND("A0096", "A_WF_TEMPLATE_NOT_FOUND");
+    A_WF_TEMPLATE_NOT_FOUND("A0096", "A_WF_TEMPLATE_NOT_FOUND"),
+    A_FILE_IN_USE("A0097", "A_FILE_IN_USE");
 
     private final String code;
     private final String info;

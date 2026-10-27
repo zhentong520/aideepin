@@ -29,6 +29,7 @@ import com.moyz.adi.common.entity.DocumentSegment;
 import com.moyz.adi.common.rag.*;
 import com.moyz.adi.common.service.embedding.EmbeddingProviderInfo;
 import com.moyz.adi.common.service.embedding.EmbeddingProviderService;
+import com.moyz.adi.common.service.embedding.IKnowledgeEmbeddingService;
 import com.moyz.adi.common.util.*;
 import com.moyz.adi.common.util.NumberUtil;
 import com.moyz.adi.common.vo.*;
@@ -130,6 +131,13 @@ public class KnowledgeBaseService extends ServiceImpl<KnowledgeBaseMapper, Knowl
 
     @Resource
     private KbShareService kbShareService;
+
+    /**
+     * S1-15：向量清理入口（pgvector 条件装配）。单测无容器时未注入，
+     * 删库路径对其判空跳过——向量残留可由每日对账 job 兜底。
+     */
+    @Resource
+    private IKnowledgeEmbeddingService iKnowledgeEmbeddingService;
 
     /**
      * 二开新增（T7-05）：embedding provider 解析。为 null 时（历史单测未注入）跳过
@@ -593,15 +601,59 @@ public class KnowledgeBaseService extends ServiceImpl<KnowledgeBaseMapper, Knowl
     public boolean softDelete(String uuid) {
         checkWritePrivilege(null, uuid);
         KnowledgeBase kb = getOrThrow(uuid);
+        // S1-15: cascade in one DB transaction; remote store cleanup (vectors, graph) stays
+        // OUTSIDE it — same pattern as the document-level delete (remote calls must not hold
+        // a pooled DB connection; on failure the leftovers are unreachable and get purged by
+        // the daily orphan-vector reconciliation job).
+        if (!self.softDeleteCascadeDb(uuid)) {
+            return false;
+        }
+        // best-effort vector cleanup for the whole KB in one statement (metadata kb_uuid key)
+        try {
+            iKnowledgeEmbeddingService.deleteByKbUuid(uuid);
+        } catch (Exception e) {
+            log.error("Delete KB vectors failed, kbUuid:{}", uuid, e);
+        }
+        // best-effort graph footprint cleanup, per document (ledger-driven, doc-scoped API)
+        try {
+            kbDocumentService.removeGraphFootprintsByKb(uuid);
+        } catch (Exception e) {
+            log.error("Remove KB graph footprints failed, kbUuid:{}", uuid, e);
+        }
+        kbAuditLogService.record(uuid, kb.getTitle(), KbAuditLogService.ACTION_KB_DELETE,
+                KbAuditLogService.TARGET_KB, uuid, true, "cascade=true");
+        return true;
+    }
+
+    /**
+     * S1-15: DB part of the KB delete cascade (single transaction): soft-delete the KB row,
+     * cancel all its unfinished index tasks, soft-delete every document, every segment row
+     * (questions and child chunks follow), and the derived share / star records.
+     * Defined on self-proxy so @Transactional applies when called from {@link #softDelete(String)}.
+     */
+    @Transactional
+    public boolean softDeleteCascadeDb(String uuid) {
         boolean ok = ChainWrappers.lambdaUpdateChain(baseMapper)
                 .eq(KnowledgeBase::getUuid, uuid)
                 .set(KnowledgeBase::getIsDeleted, true)
                 .update();
-        if (ok) {
-            kbAuditLogService.record(uuid, kb.getTitle(), KbAuditLogService.ACTION_KB_DELETE,
-                    KbAuditLogService.TARGET_KB, uuid, true, "");
+        if (!ok) {
+            return false;
         }
-        return ok;
+        // cancel queued/running index tasks first: pending fails in place, running aborts at
+        // its next checkpoint — otherwise an in-flight task would re-embed a deleted KB
+        indexTaskService.cancelByKb(uuid);
+        // soft-delete every document of the KB
+        ChainWrappers.lambdaUpdateChain(kbDocumentService.getBaseMapper())
+                .eq(KbDocument::getKbUuid, uuid)
+                .set(KbDocument::getIsDeleted, true)
+                .update();
+        // segment rows (questions and child chunks cascade inside)
+        documentSegmentService.deleteByKbUuid(uuid);
+        // derived records: shares are physical rows (re-grantable), stars keep audit trail
+        kbShareService.deleteByKb(uuid);
+        knowledgeBaseStarRecordService.softDeleteByKb(uuid);
+        return true;
     }
 
     /**

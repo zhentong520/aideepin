@@ -93,6 +93,18 @@
           AND status IN ('pending', 'running')
     </update>
 
+    <!-- S1-15: KB-level cancel on KB delete — same semantics as cancelUnfinishedByDoc,
+         scoped by the denormalized kb_uuid column (one statement for the whole KB queue) -->
+    <update id="cancelUnfinishedByKb">
+        UPDATE adi_index_task
+        SET status      = CASE WHEN status = 'pending' THEN 'failed' ELSE status END,
+            fail_reason = CASE WHEN status = 'pending' THEN #{reason} ELSE fail_reason END,
+            stop_flag   = true,
+            update_time = now()
+        WHERE kb_uuid = #{kbUuid}
+          AND status IN ('pending', 'running')
+    </update>
+
     <!--
       Finalize (done/failed). Guards: status='running' (a row already stale-reset or force-failed
       is no longer running) AND the claiming executor's epoch (a re-claimed row belongs to the new

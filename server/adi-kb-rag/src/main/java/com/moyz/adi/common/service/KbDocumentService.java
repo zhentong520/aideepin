@@ -461,6 +461,25 @@ public class KbDocumentService extends ServiceImpl<KbDocumentMapper, KbDocument>
         return true;
     }
 
+    /**
+     * S1-15：删库时清理整库的图谱足迹（账本驱动、文档外无贡献者的元素定点删除）。
+     * 图谱 API 是文档粒度，这里按库内全部文档（含本次已软删的行）逐个清理；
+     * 单文档失败只记日志继续——残留可由该库后续图谱操作收敛，不阻断删库主流程。
+     */
+    public void removeGraphFootprintsByKb(String kbUuid) {
+        List<KbDocument> docs = ChainWrappers.lambdaQueryChain(baseMapper)
+                .eq(KbDocument::getKbUuid, kbUuid)
+                .select(KbDocument::getUuid)
+                .list();
+        for (KbDocument doc : docs) {
+            try {
+                knowledgeBaseGraphService.removeDocumentGraphFootprint(kbUuid, doc.getUuid());
+            } catch (Exception e) {
+                log.error("Remove document graph footprint failed, kbUuid:{}, docUuid:{}", kbUuid, doc.getUuid(), e);
+            }
+        }
+    }
+
 
     public int countByKbUuid(String kbUuid) {
         return ChainWrappers.lambdaQueryChain(baseMapper)

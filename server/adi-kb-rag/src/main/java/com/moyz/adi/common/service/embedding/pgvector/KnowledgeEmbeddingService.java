@@ -34,4 +34,14 @@ public class KnowledgeEmbeddingService extends ServiceImpl<KnowledgeBaseEmbeddin
         }
         return baseMapper.deleteByIds(embeddingIds, AdiPropertiesUtil.EMBEDDING_TABLE_SUFFIX);
     }
+
+    @Override
+    public boolean deleteByKbUuid(String kbUuid) {
+        return baseMapper.deleteByKbUuid(kbUuid, AdiPropertiesUtil.EMBEDDING_TABLE_SUFFIX);
+    }
+
+    @Override
+    public int deleteOrphanBatch(int batchSize) {
+        return baseMapper.deleteOrphanBatch(AdiPropertiesUtil.EMBEDDING_TABLE_SUFFIX, batchSize);
+    }
 }

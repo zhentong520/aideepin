@@ -90,6 +90,18 @@ public class DocumentSegmentService extends ServiceImpl<DocumentSegmentMapper, D
     }
 
     /**
+     * S1-15：软删除整个知识库下的全部段行及子表数据（删库级联，问题、子块同法）
+     */
+    public void deleteByKbUuid(String kbUuid) {
+        lambdaUpdate()
+                .eq(DocumentSegment::getKbUuid, kbUuid)
+                .set(DocumentSegment::getIsDeleted, true)
+                .update();
+        questionService.deleteByKbUuid(kbUuid);
+        childChunkService.deleteByKbUuid(kbUuid);
+    }
+
+    /**
      * 清空该段名下全部向量条目id（主表行 + 问题 + 子块；段停用删向量后调用，
      * 使统计口径与"embeddingId == null 即待嵌"的既有判断自然正确）
      */

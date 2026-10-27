@@ -43,4 +43,15 @@ public class KnowledgeBaseStarService extends ServiceImpl<KnowledgeBaseStarMappe
         return MPPageUtil.convertToPage(list, result, KbStarInfoResp.class);
     }
 
+    /**
+     * S1-15：删库时软删该库全部收藏记录（保留审计痕迹，与用户主动取消收藏同路径）
+     */
+    public void softDeleteByKb(String kbUuid) {
+        lambdaUpdate()
+                .eq(KnowledgeBaseStar::getKbUuid, kbUuid)
+                .eq(KnowledgeBaseStar::getIsDeleted, false)
+                .set(KnowledgeBaseStar::getIsDeleted, true)
+                .update();
+    }
+
 }

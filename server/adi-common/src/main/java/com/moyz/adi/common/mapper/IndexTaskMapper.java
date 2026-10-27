@@ -48,6 +48,13 @@ public interface IndexTaskMapper extends BaseMapper<IndexTask> {
     int cancelUnfinishedByDoc(@Param("docUuid") String docUuid, @Param("reason") String reason);
 
     /**
+     * Cancel every unfinished task of a knowledge base (KB delete, S1-15): same semantics as
+     * {@link #cancelUnfinishedByDoc} but scoped by the denormalized kb_uuid column, so the
+     * whole KB's queue is drained in one statement instead of one call per document.
+     */
+    int cancelUnfinishedByKb(@Param("kbUuid") String kbUuid, @Param("reason") String reason);
+
+    /**
      * Finalize (done/failed). Guards: status='running' AND the claiming executor's epoch —
      * a row stale-reset and re-claimed under a new epoch must not be finalized by the previous
      * (zombie) executor. Returns 0 for exactly that case — the caller must not finalize the

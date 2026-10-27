@@ -523,6 +523,9 @@ public class DrawService extends ServiceImpl<DrawMapper, Draw> {
         if (StringUtils.isNotBlank(draw.getGeneratedImages())) {
             String[] uuids = draw.getGeneratedImages().split(",");
             for (String fileUuid : uuids) {
+                // S1-15：成功生成时该图 ref_count 已 +1（updateDrawSuccess），删除前先减掉，
+                // 否则 removeFileAndSoftDel 的 ref_count>0 引用检查会拦截物理删除
+                fileService.decrementRefCount(fileUuid);
                 fileService.removeFileAndSoftDel(fileUuid);
             }
         }
@@ -546,6 +549,8 @@ public class DrawService extends ServiceImpl<DrawMapper, Draw> {
         for (int i = 0; i < uuids.length; i++) {
             String fileUuid = uuids[i];
             if (fileUuid.equals(generatedImageUuid)) {
+                // S1-15：同 del()——先减掉成功时的引用计数，再走带引用检查的删除
+                fileService.decrementRefCount(fileUuid);
                 fileService.removeFileAndSoftDel(fileUuid);
                 uuids[i] = "";
             }
