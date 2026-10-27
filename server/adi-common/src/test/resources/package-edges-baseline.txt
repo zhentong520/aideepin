@@ -1,7 +1,13 @@
 # OPT-15 package-level dependency edges (regenerate: -Dadi.edges.dump=<file>)
 annotation -> validator
 aop -> annotation
+aop -> base
+aop -> entity
+aop -> enums
+aop -> exception
+aop -> helper
 aop -> util
+aop -> vo
 base -> dto
 base -> entity
 base -> enums

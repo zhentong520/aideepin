@@ -15,8 +15,8 @@
         OPT-15 批 2（2026-10-24）：draw 域试点（方案「由低耦合到高耦合」的第一批）。
         DrawService / DrawStarService / DrawCommentService 独立模块化；包名保持
         com.moyz.adi.common.service 不变（split package），import 零改动。
-        依赖 biz 是过渡态：AbstractImageModelService 尚在 adi-common-biz（批 3 adi-model
-        搬出后本模块改为依赖 adi-common + adi-model，最终不再依赖 biz）。
+        S1-04（2026-10-27）biz 删除后改为直接依赖：adi-model（ImageModelContext/
+        languagemodel/AiModelService）+ adi-chat-core（UserService）。
     -->
     <dependencies>
         <dependency>
@@ -26,7 +26,12 @@
         </dependency>
         <dependency>
             <groupId>com.moyz</groupId>
-            <artifactId>adi-common-biz</artifactId>
+            <artifactId>adi-model</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>com.moyz</groupId>
+            <artifactId>adi-chat-core</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
         <dependency>

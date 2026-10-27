@@ -18,6 +18,26 @@
             <artifactId>adi-common</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
+        <dependency>
+            <groupId>com.moyz</groupId>
+            <artifactId>adi-chat-core</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>com.moyz</groupId>
+            <artifactId>adi-kb-rag</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>com.moyz</groupId>
+            <artifactId>adi-model</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>com.moyz</groupId>
+            <artifactId>adi-workflow</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
         <!-- OPT-15 batch 3: model & tool-access domain -->
         <dependency>
             <groupId>com.moyz</groupId>
@@ -25,11 +45,6 @@
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
         <!-- OPT-15 batch 1: transitional business aggregate layer -->
-        <dependency>
-            <groupId>com.moyz</groupId>
-            <artifactId>adi-common-biz</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
-        </dependency>
         <!-- OPT-15 batch 2: draw domain -->
         <dependency>
             <groupId>com.moyz</groupId>

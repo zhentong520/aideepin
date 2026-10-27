@@ -16,8 +16,8 @@
     <description>Chat,Draw,RAG,Workflow,MCP marketplace</description>
     <modules>
         <module>adi-common</module>
-        <!-- OPT-15 批 1：过渡聚合层，装全部业务域代码；后续批次逐域搬出后清空删除 -->
-        <module>adi-common-biz</module>
+        <!-- OPT-15 批 1（已收口 S1-04）：过渡聚合层 adi-common-biz 已逐域搬出并删除
+             （aspects->adi-common，BeanConfig/Jobs/Initializer->adi-bootstrap，embedding 实现->adi-chat-core） -->
         <!-- OPT-15 批 2：draw 域试点模块 -->
         <module>adi-draw</module>
         <!-- OPT-15 批 3：模型与工具接入域（languagemodel + AiModel/MCP/ExtApi/Credential 系） -->
