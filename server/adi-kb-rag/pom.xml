@@ -44,6 +44,11 @@
             <optional>true</optional>
         </dependency>
         <!-- ===== Spring 基础设施 ===== -->
+        <!-- S1-07a：@Scheduled 注解防重（@EnableSchedulerLock 在 adi-bootstrap） -->
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-spring</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>

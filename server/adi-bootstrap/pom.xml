@@ -61,6 +61,16 @@
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-database-postgresql</artifactId>
         </dependency>
+        <!-- S1-07a：ShedLock JDBC 锁提供者（@EnableSchedulerLock 配置见 SchedulerLockConfig）；
+             shedlock-spring 一并声明，供 WholeAppArchitectureTest 在断言 @SchedulerLock 时引用 -->
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-spring</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-provider-jdbc-template</artifactId>
+        </dependency>
         <!--
             S1-01（2026-10-27）跨模块架构护栏。
             adi-bootstrap 是唯一聚合全部域模块的可运行模块，跨模块/跨切面规则只在这里生效：

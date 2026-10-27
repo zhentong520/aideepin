@@ -21,6 +21,7 @@ import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -236,6 +237,7 @@ public class FinetuneJobService extends ServiceImpl<FinetuneJobMapper, FinetuneJ
      * 仍在心跳但超过最大时长的行强制失败（进程活着但卡死）。
      */
     @Scheduled(fixedDelay = 60_000)
+    @SchedulerLock(name = "FinetuneJobService_pollStale", lockAtMostFor = "10m")
     public void pollStale() {
         try {
             int reset = getBaseMapper().resetStaleRunning(STALE_RUNNING_MINUTES);

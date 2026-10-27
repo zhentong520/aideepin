@@ -6,6 +6,7 @@ import com.moyz.adi.common.service.ModelHealthService;
 import com.moyz.adi.common.service.SysConfigService;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -26,17 +27,20 @@ public class Jobs {
     private KbDocSourceService kbDocSourceService;
 
     @Scheduled(initialDelay = 180_000, fixedDelay = 10 * 60_000)
+    @SchedulerLock(name = "Jobs_scheduledHealthCheck", lockAtMostFor = "10m")
     public void scheduledHealthCheck() {
         log.info("Scheduled health check starting");
         modelHealthService.checkAll();
     }
 
     @Scheduled(initialDelay = 10 * 60 * 1000, fixedDelay = 10 * 60 * 1000)
+    @SchedulerLock(name = "Jobs_reloadConfig", lockAtMostFor = "5m")
     public void reloadConfig() {
         sysConfigService.loadAndCache();
     }
 
     @Scheduled(fixedDelay = 60 * 1000)
+    @SchedulerLock(name = "Jobs_updateKbStatistic", lockAtMostFor = "10m")
     public void run() {
         knowledgeBaseService.updateStatistic();
     }
@@ -46,6 +50,7 @@ public class Jobs {
      * 更密的扫描没有意义，更慢则赶不上用户配的周期。
      */
     @Scheduled(initialDelay = 120_000, fixedDelay = 10 * 60_000)
+    @SchedulerLock(name = "Jobs_syncDocSources", lockAtMostFor = "30m")
     public void syncDocSources() {
         int refreshed = kbDocSourceService.syncDueSources();
         if (refreshed > 0) {

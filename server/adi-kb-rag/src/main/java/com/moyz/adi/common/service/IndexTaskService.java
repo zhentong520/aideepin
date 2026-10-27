@@ -31,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -310,6 +311,7 @@ public class IndexTaskService {
      * crash (auto rerun over manual retry). Re-trigger consumption if anything was done.
      */
     @Scheduled(fixedDelay = 60_000)
+    @SchedulerLock(name = "IndexTaskService_pollStale", lockAtMostFor = "30m")
     public void pollStale() {
         try {
             int reset = indexTaskMapper.resetStaleRunning(STALE_RUNNING_MINUTES);

@@ -46,6 +46,7 @@
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <langchain4j.version>1.14.1</langchain4j.version>
+        <shedlock.version>5.16.0</shedlock.version>
         <!-- OPT-14: community 线上游恒为 -betaN（无 GA），属性名去掉临时前缀、语义定版；
              隔离执行见 dependencyManagement 注释（随 OPT-15 域拆分收敛） -->
         <langchain4j-community.version>1.14.1-beta24</langchain4j-community.version>
@@ -202,6 +203,17 @@
                 <groupId>ws.schild</groupId>
                 <artifactId>jave-all-deps</artifactId>
                 <version>3.5.0</version>
+            </dependency>
+            <!-- S1-07a：ShedLock 定时任务防重（多实例共库部署时 @Scheduled 不重复执行） -->
+            <dependency>
+                <groupId>net.javacrumbs.shedlock</groupId>
+                <artifactId>shedlock-spring</artifactId>
+                <version>${shedlock.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.javacrumbs.shedlock</groupId>
+                <artifactId>shedlock-provider-jdbc-template</artifactId>
+                <version>${shedlock.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

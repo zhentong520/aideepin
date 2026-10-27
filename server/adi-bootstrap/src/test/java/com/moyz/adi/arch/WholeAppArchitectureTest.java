@@ -2,13 +2,22 @@ package com.moyz.adi.arch;
 
 import com.moyz.adi.common.util.SpringUtil;
 import com.tngtech.archunit.base.DescribedPredicate;
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaMethodCall;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
+import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ArchRule;
+import com.tngtech.archunit.lang.ConditionEvents;
+import com.tngtech.archunit.lang.SimpleConditionEvent;
 import com.tngtech.archunit.library.freeze.FreezingArchRule;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.springframework.scheduling.annotation.Scheduled;
 
+import static com.tngtech.archunit.core.domain.JavaClass.Predicates.containAnyMethodsThat;
+import static com.tngtech.archunit.core.domain.properties.CanBeAnnotated.Predicates.annotatedWith;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 /**
@@ -92,4 +101,30 @@ class WholeAppArchitectureTest {
             noClasses()
                     .should().callMethodWhere(SPRING_UTIL_GET_BEAN)
                     .because("服务定位器绕过模块边界与依赖注入，S1-01 冻结存量、S1-02 清零；新代码一律构造器注入"));
+
+    /**
+     * 规则五：@Scheduled 必须配 @SchedulerLock（S1-07a）。
+     * 多实例共库部署时，没有 ShedLock 的定时任务会在每个实例重复执行。
+     * 写法用「含 @Scheduled 方法的类必须也含 @SchedulerLock 方法」——同一方法双注解即可满足。
+     * 新增定时任务漏加锁 = 此规则变红。
+     */
+    @ArchTest
+    static final ArchRule scheduledTasksMustCarrySchedulerLock = classes()
+            .that(containAnyMethodsThat(annotatedWith(Scheduled.class)))
+            .should(new ArchCondition<JavaClass>("annotate every @Scheduled method with @SchedulerLock") {
+                @Override
+                public void check(JavaClass clazz, ConditionEvents events) {
+                    for (var method : clazz.getMethods()) {
+                        if (!method.isAnnotatedWith(Scheduled.class)
+                                || method.isAnnotatedWith(SchedulerLock.class)) {
+                            continue;
+                        }
+                        events.add(SimpleConditionEvent.violated(clazz,
+                                clazz.getName() + "#" + method.getName()
+                                        + " 有 @Scheduled 但缺 @SchedulerLock（S1-07a，多实例会重复执行）"));
+                    }
+                }
+            })
+            .because("多实例部署时 @Scheduled 缺 @SchedulerLock 会跨实例重复执行（S1-07a）；"
+                    + "lockAtMostFor 至少取最长执行时间的 2 倍");
 }

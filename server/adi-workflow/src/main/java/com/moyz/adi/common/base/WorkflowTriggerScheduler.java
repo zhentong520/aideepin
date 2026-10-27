@@ -3,6 +3,7 @@ package com.moyz.adi.common.base;
 import com.moyz.adi.common.service.WorkflowTriggerService;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -27,6 +28,7 @@ public class WorkflowTriggerScheduler {
      * initialDelay 60s：避开应用启动高峰（索引任务/缓存预热）。
      */
     @Scheduled(initialDelay = 60_000, fixedDelay = 30_000)
+    @SchedulerLock(name = "WorkflowTriggerScheduler_poll", lockAtMostFor = "5m")
     public void poll() {
         try {
             workflowTriggerService.pollAndDispatch();
