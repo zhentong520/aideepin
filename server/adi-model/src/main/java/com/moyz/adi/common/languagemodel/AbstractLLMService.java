@@ -99,6 +99,30 @@ public abstract class AbstractLLMService extends CommonModelService {
         streamSameModelRetriesDefault = sameModelRetries;
     }
 
+    /**
+     * S1-02：实例由 AiModelInitializer 手动 new（非 Spring bean），无法字段注入。
+     * 启动期由 ModelStaticConfigInitializer 把依赖推给静态字段，替代调用路径里
+     * SpringUtil.getBean 的服务定位器写法。null 时按各自调用点的旧兜底行为处理。
+     */
+    private static volatile StringRedisTemplate staticStringRedisTemplate;
+
+    private static volatile ModelHealthService staticModelHealthService;
+
+    private static volatile SkillToolSpi staticSkillToolService;
+
+    private static volatile DelegateAgentSpi staticDelegateAgentTool;
+
+    /** ModelStaticConfigInitializer 启动期调用 */
+    public static void initDependencies(StringRedisTemplate stringRedisTemplate,
+                                        ModelHealthService modelHealthService,
+                                        SkillToolSpi skillToolService,
+                                        DelegateAgentSpi delegateAgentTool) {
+        staticStringRedisTemplate = stringRedisTemplate;
+        staticModelHealthService = modelHealthService;
+        staticSkillToolService = skillToolService;
+        staticDelegateAgentTool = delegateAgentTool;
+    }
+
     //User#uuid => ttsJobInfo
     private final Cache<String, TtsJobInfo> ttsJobCache;
 
@@ -127,7 +151,7 @@ public abstract class AbstractLLMService extends CommonModelService {
 
     public StringRedisTemplate getStringRedisTemplate() {
         if (null == this.stringRedisTemplate) {
-            this.stringRedisTemplate = SpringUtil.getBean(StringRedisTemplate.class);
+            this.stringRedisTemplate = staticStringRedisTemplate;
         }
         return this.stringRedisTemplate;
     }
@@ -190,7 +214,11 @@ public abstract class AbstractLLMService extends CommonModelService {
      */
     private void recordInvocationFailure(Throwable error) {
         try {
-            ModelHealthService healthService = SpringUtil.getBean(ModelHealthService.class);
+            ModelHealthService healthService = staticModelHealthService;
+            if (null == healthService) {
+                // ModelHealthService may not be available (e.g. during startup)
+                return;
+            }
             healthService.recordFailure(aiModel.getName(), error);
         } catch (Exception ignored) {
             // ModelHealthService may not be available (e.g. during startup)
@@ -708,17 +736,17 @@ public abstract class AbstractLLMService extends CommonModelService {
         }
         // Agent Skills built-in tools
         if (null != skillBundle && !CollectionUtils.isEmpty(skillBundle.toolSpecifications())) {
-            ToolExecutor skillExecutor = SpringUtil.getBean(SkillToolSpi.class).executorFor(skillBundle.skills());
+            ToolExecutor skillExecutor = staticSkillToolService.executorFor(skillBundle.skills());
             for (ToolSpecification toolSpecification : skillBundle.toolSpecifications()) {
                 tools.put(toolSpecification, skillExecutor);
             }
         }
         // create_skill：常驻注册，任何角色对话都可创建技能
-        SkillToolSpi skillToolService = SpringUtil.getBean(SkillToolSpi.class);
+        SkillToolSpi skillToolService = staticSkillToolService;
         ToolSpecification createSpec = skillToolService.buildCreateSkillSpecification();
         tools.put(createSpec, (req, memoryId) -> skillToolService.executeCreateSkill(req, chatUserId, characterUuid));
         // T7-02：delegate_agent（agent-as-tool）常驻注册，热开关关闭时不注入（模型看不到该工具）
-        DelegateAgentSpi delegateAgentTool = SpringUtil.getBean(DelegateAgentSpi.class);
+        DelegateAgentSpi delegateAgentTool = staticDelegateAgentTool;
         if (delegateAgentTool.enabled()) {
             ToolSpecification delegateSpec = delegateAgentTool.buildSpecification();
             tools.put(delegateSpec, (req, memoryId) -> delegateAgentTool.invoke(req, chatUserId, characterUuid, agentCallChain));
@@ -754,7 +782,7 @@ public abstract class AbstractLLMService extends CommonModelService {
         // 二开（2026-09-21）修复：Agent Skills 工具（read_skill 等）与 create_skill 的
         // ToolSpecification 此前从未进入 ChatRequest，模型根本看不到这些工具，自然永远不会调用
         // （执行侧 getRequestTools 按 name 匹配 executor，name 一致即可安全互通）。
-        SkillToolSpi skillToolService = SpringUtil.getBean(SkillToolSpi.class);
+        SkillToolSpi skillToolService = staticSkillToolService;
         if (null != httpRequestParams.getSkillBundle()
                 && !CollectionUtils.isEmpty(httpRequestParams.getSkillBundle().toolSpecifications())) {
             toolSpecifications.addAll(httpRequestParams.getSkillBundle().toolSpecifications());
@@ -762,7 +790,7 @@ public abstract class AbstractLLMService extends CommonModelService {
         toolSpecifications.add(skillToolService.buildCreateSkillSpecification());
         // T7-02：delegate_agent（agent-as-tool）工具清单注入——执行侧 getRequestTools 按 name
         // 匹配 executor，两处 name 一致即可安全互通；热开关关闭时不注入（模型看不到）
-        DelegateAgentSpi delegateAgentTool = SpringUtil.getBean(DelegateAgentSpi.class);
+        DelegateAgentSpi delegateAgentTool = staticDelegateAgentTool;
         if (delegateAgentTool.enabled()) {
             toolSpecifications.add(delegateAgentTool.buildSpecification());
         }

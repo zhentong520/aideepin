@@ -18,7 +18,6 @@ import com.moyz.adi.common.rag.QueryEmbeddingCache;
 import com.moyz.adi.common.rag.RerankContentReranker;
 import com.moyz.adi.common.rag.RrfFusion;
 import com.moyz.adi.common.rag.SegmentHitResolver;
-import com.moyz.adi.common.util.SpringUtil;
 import com.moyz.adi.common.vo.KeywordSegmentHit;
 import com.moyz.adi.common.vo.RetrieverContext;
 import dev.langchain4j.data.document.Metadata;
@@ -88,6 +87,9 @@ public class KbRecallTestService {
 
     @Resource
     private DocumentSegmentMapper documentSegmentMapper;
+
+    @Resource
+    private ContentReranker contentReranker;
 
     public KbRecallTestResp test(KbRecallTestReq req) {
         long started = System.currentTimeMillis();
@@ -369,8 +371,8 @@ public class KbRecallTestService {
         if (contents.isEmpty()) {
             return RerankContentReranker.RerankOutcome.skipped(contents);
         }
-        // 走 Bean 拿实现：@Primary 上挂的是 RerankContentReranker，与生产链路同一个实例
-        ContentReranker bean = SpringUtil.getBean(ContentReranker.class);
+        // 注入的即 @Primary 上挂的 RerankContentReranker，与生产链路同一个实例
+        ContentReranker bean = contentReranker;
         if (bean instanceof RerankContentReranker concrete) {
             return concrete.rerankWithScores(query, contents, ctx);
         }

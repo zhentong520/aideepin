@@ -66,8 +66,11 @@ class EmbeddingRagNodeOverrideTest {
         knowledgeBaseService = mock(KnowledgeBaseService.class);
         ApplicationContext applicationContext = mock(ApplicationContext.class);
         when(applicationContext.getBean(KnowledgeBaseService.class)).thenReturn(knowledgeBaseService);
-        when(applicationContext.getBean(SegmentExpandProcessor.class)).thenReturn(mock(SegmentExpandProcessor.class));
+        SegmentExpandProcessor expandProcessor = mock(SegmentExpandProcessor.class);
+        when(applicationContext.getBean(SegmentExpandProcessor.class)).thenReturn(expandProcessor);
         new SpringUtil().setApplicationContext(applicationContext);
+        // S1-02：EmbeddingRag 改为启动期静态推送（RagStaticConfigInitializer），无容器测试需手动推送
+        EmbeddingRag.initStatics(knowledgeBaseService, expandProcessor);
 
         // 库级配置读取点的最小同构：rerank/扩窗开关按库行落进 ctx。
         // buildRetrieverContext 本身的字段映射已有独立覆盖，这里不重复。
@@ -89,6 +92,7 @@ class EmbeddingRagNodeOverrideTest {
     @AfterEach
     void tearDown() {
         KbAclFilterBuilder.setEnabledForTest(null);
+        EmbeddingRag.initStatics(null, null);
         new SpringUtil().setApplicationContext(previousContext);
     }
 

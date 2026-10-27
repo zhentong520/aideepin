@@ -8,7 +8,6 @@ import com.moyz.adi.common.entity.User;
 import com.moyz.adi.common.languagemodel.data.ToolLoopBudget;
 import com.moyz.adi.common.service.AgentService;
 import com.moyz.adi.common.service.SysConfigService;
-import com.moyz.adi.common.util.SpringUtil;
 import com.moyz.adi.common.util.TraceUtil;
 import com.moyz.adi.common.vo.AgentRequest;
 import com.moyz.adi.common.vo.AgentResult;
@@ -57,6 +56,14 @@ public class DelegationService {
     @Resource
     private AdiProperties adiProperties;
 
+    /** 静态推送：newChain() 是静态方法取不到实例字段，启动期把配置快照推给静态上下文 */
+    private static volatile AdiProperties staticAdiProperties;
+
+    @jakarta.annotation.PostConstruct
+    void pushStaticConfig() {
+        staticAdiProperties = adiProperties;
+    }
+
     /**
      * 构造一条新的调用链（嵌套深度取配置 adi.agent.delegation-max-depth，默认 1）。
      */
@@ -65,14 +72,13 @@ public class DelegationService {
     }
 
     private static int resolveMaxDepth() {
-        try {
-            AdiProperties props = SpringUtil.getBean(AdiProperties.class);
-            int depth = props.getAgent().getDelegationMaxDepth();
-            return depth < 1 ? 1 : depth;
-        } catch (Exception ignored) {
+        AdiProperties props = staticAdiProperties;
+        if (null == props) {
             // 单测/启动早期无 Spring 上下文，走任务书规定的默认硬限制 1
             return 1;
         }
+        int depth = props.getAgent().getDelegationMaxDepth();
+        return depth < 1 ? 1 : depth;
     }
 
     /**

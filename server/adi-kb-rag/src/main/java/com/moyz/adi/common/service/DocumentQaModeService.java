@@ -22,7 +22,6 @@ import com.moyz.adi.common.mapper.KnowledgeBaseMapper;
 import com.moyz.adi.common.rag.DocumentSplitterFactory;
 import com.moyz.adi.common.rag.TokenEstimatorFactory;
 import com.moyz.adi.common.service.UserDayCostService;
-import com.moyz.adi.common.util.SpringUtil;
 import com.moyz.adi.common.util.UuidUtil;
 import com.moyz.adi.common.vo.ChatModelBuilderProperties;
 import dev.langchain4j.data.document.DefaultDocument;
@@ -126,6 +125,9 @@ public class DocumentQaModeService {
 
     @Resource
     private AdiProperties adiProperties;
+
+    @Resource
+    private UserDayCostService userDayCostService;
 
     // @Lazy: indexTaskService's dependency graph may point back at this service's callers
     // (KbDocumentService); lazy injection breaks the cycle
@@ -445,7 +447,7 @@ public class DocumentQaModeService {
                     totalTokens += response.tokenUsage().totalTokenCount();
                     // deduct per chunk (same as graph extraction): tokens already spent must
                     // count against the daily quota even if a later chunk fails
-                    SpringUtil.getBean(UserDayCostService.class).appendCostToUser(
+                    userDayCostService.appendCostToUser(
                             user, response.tokenUsage().totalTokenCount(), llmService.getAiModel().getIsFree());
                 }
                 pairs.addAll(parseQaJson(response.aiMessage().text()));

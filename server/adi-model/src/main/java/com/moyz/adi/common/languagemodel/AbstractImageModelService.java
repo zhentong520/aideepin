@@ -8,7 +8,6 @@ import com.moyz.adi.common.exception.BaseException;
 import com.moyz.adi.common.service.FileService;
 import com.moyz.adi.common.file.LocalFileOperator;
 import com.moyz.adi.common.file.LocalFileUtil;
-import com.moyz.adi.common.util.SpringUtil;
 import com.moyz.adi.common.util.UuidUtil;
 import com.moyz.adi.common.languagemodel.data.LLMException;
 import dev.langchain4j.data.image.Image;
@@ -85,9 +84,17 @@ public abstract class AbstractImageModelService extends CommonModelService {
 
     protected abstract LLMException parseError(Object error);
 
+    /** 启动期推送（ModelStaticConfigInitializer）：实例手动 new（非 bean）无法注入 */
+    private static volatile FileService staticFileService;
+
+    /** ModelStaticConfigInitializer 启动期调用 */
+    public static void initStatics(FileService fileService) {
+        staticFileService = fileService;
+    }
+
     public FileService getFileService() {
         if (null == fileService) {
-            fileService = SpringUtil.getBean(FileService.class);
+            fileService = staticFileService;
         }
         return fileService;
     }

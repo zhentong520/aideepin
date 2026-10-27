@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.moyz.adi.common.entity.AiModel;
 import com.moyz.adi.common.entity.ModelPlatform;
 import com.moyz.adi.common.exception.BaseException;
-import com.moyz.adi.common.util.SpringUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.client.RestTemplate;
 
@@ -19,6 +18,14 @@ import static com.moyz.adi.common.enums.ErrorEnum.B_URL_INVALID;
 
 @Slf4j
 public class DashScopeAsrService extends AbstractAsrModelService {
+
+    /** 启动期推送（ModelStaticConfigInitializer）：转写结果下载用（实例手动 new 非 bean） */
+    private static volatile RestTemplate staticRestTemplate;
+
+    /** ModelStaticConfigInitializer 启动期调用 */
+    public static void initStatics(RestTemplate restTemplate) {
+        staticRestTemplate = restTemplate;
+    }
 
     public DashScopeAsrService(AiModel model, ModelPlatform modelPlatform) {
         super(model, modelPlatform);
@@ -53,7 +60,7 @@ public class DashScopeAsrService extends AbstractAsrModelService {
                         log.error("Transcription task failed: {}", transcriptionTaskResult.getMessage());
                         continue;
                     }
-                    JsonNode jsonNode = SpringUtil.getBean(RestTemplate.class).getForObject(new URI(transcriptionTaskResult.getTranscriptionUrl()), JsonNode.class);
+                    JsonNode jsonNode = staticRestTemplate.getForObject(new URI(transcriptionTaskResult.getTranscriptionUrl()), JsonNode.class);
                     JsonNode transcripts = jsonNode.get("transcripts");
                     if (null == transcripts) {
                         log.error("Failed to parse transcription JSON: {}", jsonNode);

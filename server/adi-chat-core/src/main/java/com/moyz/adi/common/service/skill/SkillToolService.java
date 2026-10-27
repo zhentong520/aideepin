@@ -7,7 +7,7 @@ import com.moyz.adi.common.entity.Skill;
 import com.moyz.adi.common.interfaces.SkillToolSpi;
 import com.moyz.adi.common.service.CharacterService;
 import com.moyz.adi.common.service.SkillService;
-import com.moyz.adi.common.util.SpringUtil;
+import jakarta.annotation.Resource;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.model.chat.request.json.JsonObjectSchema;
@@ -62,6 +62,15 @@ public class SkillToolService implements SkillToolSpi {
 
     @Value("${local.base-data-path:/data/aideepin}")
     private String baseDataPath;
+
+    @Resource
+    private AdiProperties adiProperties;
+
+    @Resource
+    private SkillService skillService;
+
+    @Resource
+    private CharacterService characterService;
 
     // SkillBundle 定义已上移至 SkillToolSpi（OPT-15 批3 接口倒置），经继承可见
 
@@ -124,12 +133,10 @@ public class SkillToolService implements SkillToolSpi {
         }
         boolean enabled = true;
         int topK = 8;
-        try {
-            AdiProperties props = SpringUtil.getBean(AdiProperties.class);
+        AdiProperties props = adiProperties;
+        if (null != props) {
             enabled = props.getSkill().isOnDemandInjectionEnabled();
             topK = props.getSkill().getInjectionTopK();
-        } catch (Exception ignored) {
-            // 无 Spring 上下文，走默认值
         }
         if (!enabled || StringUtils.isBlank(query) || skills.size() <= topK) {
             return skills;
@@ -297,11 +304,9 @@ public class SkillToolService implements SkillToolSpi {
         if (StringUtils.isBlank(description) || StringUtils.isBlank(content)) {
             return "ERROR: description and content are required";
         }
-        SkillService skillService = SpringUtil.getBean(SkillService.class);
         Skill saved = skillService.saveSkill(userId, null, name, title, description, "1.0.0", content);
         boolean bound = false;
         if (bind && StringUtils.isNotBlank(characterUuid) && null != userId) {
-            CharacterService characterService = SpringUtil.getBean(CharacterService.class);
             bound = characterService.appendSkillId(characterUuid, userId, saved.getId());
         }
         log.info("create_skill executed, name:{}, userId:{}, characterUuid:{}, bound:{}", name, userId, characterUuid, bound);

@@ -7,7 +7,6 @@ import com.moyz.adi.common.enums.ErrorEnum;
 import com.moyz.adi.common.exception.BaseException;
 import com.moyz.adi.common.service.DocumentGraphProvenanceService;
 import com.moyz.adi.common.util.AdiStringUtil;
-import com.moyz.adi.common.util.SpringUtil;
 import com.moyz.adi.common.vo.*;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.store.embedding.filter.Filter;
@@ -41,6 +40,14 @@ import static com.moyz.adi.common.constant.MetadataConstant.MAX_METADATA_VALUE_L
 @AllArgsConstructor
 @Slf4j
 public class GraphStoreIngestor {
+
+    /** 启动期推送（RagStaticConfigInitializer）：账本落库（@Builder 造的非 bean 实例无法注入） */
+    private static volatile DocumentGraphProvenanceService staticProvenanceService;
+
+    /** RagStaticConfigInitializer 启动期调用 */
+    public static void initStatics(DocumentGraphProvenanceService provenanceService) {
+        staticProvenanceService = provenanceService;
+    }
 
     private final GraphStore graphStore;
 
@@ -307,7 +314,7 @@ public class GraphStoreIngestor {
         if (vertexRows.isEmpty() && edgeRows.isEmpty()) {
             return;
         }
-        SpringUtil.getBean(DocumentGraphProvenanceService.class)
+        staticProvenanceService
                 .saveContributions(new ArrayList<>(vertexRows.values()), new ArrayList<>(edgeRows.values()));
     }
 

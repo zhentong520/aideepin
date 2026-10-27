@@ -6,7 +6,6 @@ import com.moyz.adi.common.entity.RagQueryLog;
 import com.moyz.adi.common.exception.BaseException;
 import com.moyz.adi.common.service.RagQueryLogService;
 import com.moyz.adi.common.util.JsonUtil;
-import com.moyz.adi.common.util.SpringUtil;
 import com.moyz.adi.common.util.UuidUtil;
 import com.moyz.adi.common.vo.RetrieverContext;
 import dev.langchain4j.data.document.Metadata;
@@ -47,6 +46,17 @@ public class AdiEmbeddingStoreContentRetriever implements ContentRetriever {
     public static final Function<Query, Filter> DEFAULT_FILTER = (query) -> null;
 
     public static final String DEFAULT_DISPLAY_NAME = "Default";
+
+    /** 启动期推送（RagStaticConfigInitializer）：检索日志落库与配置读取（builder 造的非 bean 实例无法注入） */
+    private static volatile RagQueryLogService staticRagQueryLogService;
+
+    private static volatile AdiProperties staticAdiProperties;
+
+    /** RagStaticConfigInitializer 启动期调用 */
+    public static void initStatics(AdiProperties props, RagQueryLogService ragQueryLogService) {
+        staticAdiProperties = props;
+        staticRagQueryLogService = ragQueryLogService;
+    }
 
     private final EmbeddingStore<TextSegment> embeddingStore;
     private final EmbeddingModel embeddingModel;
@@ -395,7 +405,10 @@ public class AdiEmbeddingStoreContentRetriever implements ContentRetriever {
                     (int) (System.currentTimeMillis() - startTime),
                     embeddingModelName(),
                     query.text());
-            SpringUtil.getBean(RagQueryLogService.class).saveAsync(row);
+            RagQueryLogService ragQueryLogService = staticRagQueryLogService;
+            if (null != ragQueryLogService) {
+                ragQueryLogService.saveAsync(row);
+            }
             // T7-01：把 query_id 绑到本次命中的 embeddingId，供「回答→反馈」链路取用
             for (EmbeddingMatch<TextSegment> match : matches) {
                 embeddingToQueryId.put(match.embeddingId(), queryId);
@@ -415,11 +428,8 @@ public class AdiEmbeddingStoreContentRetriever implements ContentRetriever {
      * embedding 模型配置串（仅用于日志展示；拿不到时留空，不影响检索）
      */
     private static String embeddingModelName() {
-        try {
-            return StringUtils.defaultString(SpringUtil.getBean(AdiProperties.class).getEmbeddingModel());
-        } catch (Exception e) {
-            return "";
-        }
+        AdiProperties props = staticAdiProperties;
+        return null != props ? StringUtils.defaultString(props.getEmbeddingModel()) : "";
     }
 
     /**

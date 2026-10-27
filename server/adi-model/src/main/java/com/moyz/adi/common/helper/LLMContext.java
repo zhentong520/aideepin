@@ -6,7 +6,6 @@ import com.moyz.adi.common.enums.ErrorEnum;
 import com.moyz.adi.common.exception.BaseException;
 import com.moyz.adi.common.languagemodel.AbstractLLMService;
 import com.moyz.adi.common.service.ModelHealthService;
-import com.moyz.adi.common.util.SpringUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
@@ -24,20 +23,19 @@ public class LLMContext {
 
     /**
      * Cached ModelHealthService reference to avoid repeated getBean calls.
+     * S1-02：启动期由 ModelStaticConfigInitializer 推送，替代懒加载 getBean。
      */
     private static volatile ModelHealthService healthService;
 
     private LLMContext() {
     }
 
+    /** ModelStaticConfigInitializer 启动期调用 */
+    public static void initHealthService(ModelHealthService service) {
+        healthService = service;
+    }
+
     private static ModelHealthService getHealthService() {
-        if (healthService == null) {
-            synchronized (LLMContext.class) {
-                if (healthService == null) {
-                    healthService = SpringUtil.getBean(ModelHealthService.class);
-                }
-            }
-        }
         return healthService;
     }
 

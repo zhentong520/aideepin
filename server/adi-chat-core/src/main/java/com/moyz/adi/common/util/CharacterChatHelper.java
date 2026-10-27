@@ -18,7 +18,6 @@ import com.moyz.adi.common.rag.KbAclInfo;
 import com.moyz.adi.common.service.SkillService;
 import com.moyz.adi.common.service.UserMcpService;
 import com.moyz.adi.common.interfaces.SkillToolSpi;
-import com.moyz.adi.common.util.SpringUtil;
 import com.moyz.adi.common.util.AdiStringUtil;
 import com.moyz.adi.common.vo.ChatModelBuilderProperties;
 import com.moyz.adi.common.vo.ChatModelRequest;
@@ -68,6 +67,24 @@ import static com.moyz.adi.common.constant.KbRagConstant.RAG_RETRIEVE_MIN_SCORE_
  */
 @Slf4j
 public class CharacterChatHelper {
+
+    /** 启动期推送（ChatCoreStaticConfigInitializer）；null 时用户维度关闭（与旧行为一致的安全缺省） */
+    private static volatile AdiProperties adiProperties;
+
+    private static volatile UserMcpService userMcpService;
+
+    private static volatile SkillToolSpi skillToolService;
+
+    private static volatile SkillService skillService;
+
+    /** ChatCoreStaticConfigInitializer 启动期调用 */
+    public static void initConfig(AdiProperties props, UserMcpService userMcpSvc,
+                                  SkillToolSpi skillToolSvc, SkillService skillSvc) {
+        adiProperties = props;
+        userMcpService = userMcpSvc;
+        skillToolService = skillToolSvc;
+        skillService = skillSvc;
+    }
 
     private CharacterChatHelper() {
     }
@@ -143,7 +160,8 @@ public class CharacterChatHelper {
         // mainExecutor 线程，ThreadContext 不可用）；开关关闭或匿名时保持历史行为
         // （仅 character_id 单条件）。隔离条件组装见 memorySemanticFilter/memoryCharacterFilter。
         User memoryUser = ThreadContext.getCurrentUser();
-        boolean userDim = memoryUser != null && SpringUtil.getBean(AdiProperties.class).getMemory().isUserDimensionEnabled();
+        boolean userDim = memoryUser != null && adiProperties != null
+                && adiProperties.getMemory().isUserDimensionEnabled();
         Long memoryUserId = userDim ? memoryUser.getId() : null;
 
         //Create memory retriever for SEMANTIC channel.
@@ -352,7 +370,6 @@ public class CharacterChatHelper {
 
         //MCP tools
         if (enableMcp && StringUtils.isNotBlank(character.getMcpIds())) {
-            UserMcpService userMcpService = SpringUtil.getBean(UserMcpService.class);
             List<Long> mcpIds = AdiStringUtil.stringToList(character.getMcpIds(), ",", Long::parseLong);
             List<McpClient> mcpClients = userMcpService.createMcpClients(character.getUserId(), mcpIds);
             builder.mcpClients(mcpClients);
@@ -364,8 +381,6 @@ public class CharacterChatHelper {
         builder.characterUuid(character.getUuid());
         builder.chatUserId(character.getUserId());
         if (StringUtils.isNotBlank(character.getSkillIds())) {
-            SkillToolSpi skillToolService = SpringUtil.getBean(SkillToolSpi.class);
-            SkillService skillService = SpringUtil.getBean(SkillService.class);
             List<Long> skillIds = AdiStringUtil.stringToList(character.getSkillIds(), ",", Long::parseLong);
             List<Skill> skills = skillService.listEnabledByIds(skillIds);
             // T6-07：技能描述按当前任务（userPrompt）相关性按需注入，不再全量进 prompt

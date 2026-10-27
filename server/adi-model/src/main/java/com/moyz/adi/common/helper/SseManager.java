@@ -83,6 +83,18 @@ public class SseManager {
     @Resource
     private RateLimitHelper rateLimitHelper;
 
+    /**
+     * 自持有单例（S1-02）：静态工具方法（sendPartial/errorAndShutdown/calculateToken 等）
+     * 需要访问实例状态（entries/stringRedisTemplate），启动期把容器单例推给静态字段，
+     * 替代静态方法里 SpringUtil.getBean(SseManager.class) 的自查找。
+     */
+    private static volatile SseManager selfInstance;
+
+    @jakarta.annotation.PostConstruct
+    void holdSelfInstance() {
+        selfInstance = this;
+    }
+
     // ==================== 注册/查找/注销 ====================
 
     /**
@@ -431,7 +443,7 @@ public class SseManager {
             entry.emitter().send(SseEmitter.event().name(AdiConstant.SSEEventName.TOOL_CALL).data(data));
         } catch (Exception e) {
             log.error("sendToolCall error", e);
-            SpringUtil.getBean(SseManager.class).unregister(uuid);
+            selfInstance.unregister(uuid);
         }
     }
 
@@ -466,7 +478,7 @@ public class SseManager {
             entry.emitter().send(multiLineEvent(name, content));
         } catch (IOException ioException) {
             log.error("stream onNext error", ioException);
-            SpringUtil.getBean(SseManager.class).unregister(uuid);
+            selfInstance.unregister(uuid);
             throw new RuntimeException(ioException);
         }
     }
@@ -487,7 +499,7 @@ public class SseManager {
             }
         } catch (IOException ioException) {
             log.error("stream onNext error", ioException);
-            SpringUtil.getBean(SseManager.class).unregister(uuid);
+            selfInstance.unregister(uuid);
             throw new RuntimeException(ioException);
         }
     }
@@ -501,7 +513,7 @@ public class SseManager {
         } catch (IOException e) {
             log.error("sse error", e);
         } finally {
-            SpringUtil.getBean(SseManager.class).unregister(uuid);
+            selfInstance.unregister(uuid);
         }
     }
 
@@ -526,7 +538,7 @@ public class SseManager {
         log.info("StreamingChatModel token cost,uuid:{},inputTokenCount:{},outputTokenCount:{}", uuid, inputTokenCount, outputTokenCount);
         //只在 tokenUsage 不为 null 时才缓存，避免 NPE | Only cache when tokenUsage is non-null to avoid NPE
         if (response.metadata() != null && response.metadata().tokenUsage() != null) {
-            LLMTokenUtil.cacheTokenUsage(SpringUtil.getBean(StringRedisTemplate.class), uuid, response.metadata().tokenUsage());
+            LLMTokenUtil.cacheTokenUsage(selfInstance.stringRedisTemplate, uuid, response.metadata().tokenUsage());
         }
 
         PromptMeta questionMeta = new PromptMeta(inputTokenCount, uuid);
@@ -551,7 +563,7 @@ public class SseManager {
      * </p>
      */
     private static SseEntry getEntry(String uuid) {
-        return SpringUtil.getBean(SseManager.class).entries.get(uuid);
+        return selfInstance.entries.get(uuid);
     }
 
     /**

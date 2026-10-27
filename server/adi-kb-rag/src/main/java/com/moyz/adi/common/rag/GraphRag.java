@@ -8,9 +8,9 @@ import com.moyz.adi.common.enums.ErrorEnum;
 import com.moyz.adi.common.enums.LLMCallRecordSourceType;
 import com.moyz.adi.common.exception.IndexTaskCancelledException;
 import com.moyz.adi.common.helper.QuotaHelper;
+import com.moyz.adi.common.util.SpringUtil;
 import com.moyz.adi.common.service.LLMCallRecordService;
 import com.moyz.adi.common.service.UserDayCostService;
-import com.moyz.adi.common.util.SpringUtil;
 import com.moyz.adi.common.util.UuidUtil;
 import com.moyz.adi.common.vo.GraphIngestParam;
 import com.moyz.adi.common.vo.RetrieverCreateParam;
@@ -35,6 +35,21 @@ import java.util.List;
  */
 @Slf4j
 public class GraphRag {
+
+    /** 启动期推送（RagStaticConfigInitializer）：配额/日成本/调用记录（Initializer 手动 new 的非 bean 实例无法注入） */
+    private static volatile QuotaHelper staticQuotaHelper;
+
+    private static volatile UserDayCostService staticUserDayCostService;
+
+    private static volatile LLMCallRecordService staticLlmCallRecordService;
+
+    /** RagStaticConfigInitializer 启动期调用 */
+    public static void initStatics(QuotaHelper quotaHelper, UserDayCostService userDayCostService,
+                                   LLMCallRecordService llmCallRecordService) {
+        staticQuotaHelper = quotaHelper;
+        staticUserDayCostService = userDayCostService;
+        staticLlmCallRecordService = llmCallRecordService;
+    }
 
     /**
      * RAG名称，用于区分不同的实例
@@ -75,7 +90,7 @@ public class GraphRag {
 
             String response = "";
             if (!graphIngestParam.isFreeToken()) {
-                ErrorEnum errorMsg = SpringUtil.getBean(QuotaHelper.class).checkTextQuota(user);
+                ErrorEnum errorMsg = staticQuotaHelper.checkTextQuota(user);
                 if (null != errorMsg) {
                     log.warn("Quota exceeded during knowledge graph extraction, user:{}, errorInfo:{}", user.getName(), SpringUtil.getMessage(errorMsg.getInfo()));
                     continue;
@@ -85,7 +100,7 @@ public class GraphRag {
             ChatResponse aiMessageResponse = graphIngestParam.getChatModel().chat(UserMessage.from(GraphExtractPrompt.GRAPH_EXTRACTION_PROMPT.replace("{input_text}", segment.getContent())));
             response = aiMessageResponse.aiMessage().text();
 
-            SpringUtil.getBean(UserDayCostService.class).appendCostToUser(user, aiMessageResponse.tokenUsage().totalTokenCount(), graphIngestParam.isFreeToken());
+            staticUserDayCostService.appendCostToUser(user, aiMessageResponse.tokenUsage().totalTokenCount(), graphIngestParam.isFreeToken());
             if (aiMessageResponse.tokenUsage() != null) {
                 totalInputTokens += aiMessageResponse.tokenUsage().inputTokenCount() == null ? 0 : aiMessageResponse.tokenUsage().inputTokenCount();
                 totalOutputTokens += aiMessageResponse.tokenUsage().outputTokenCount() == null ? 0 : aiMessageResponse.tokenUsage().outputTokenCount();
@@ -123,7 +138,7 @@ public class GraphRag {
         callRecord.setInputTokens(inputTokens);
         callRecord.setOutputTokens(outputTokens);
         callRecord.setDuration((int) durationMs);
-        SpringUtil.getBean(LLMCallRecordService.class).saveAsync(callRecord);
+        staticLlmCallRecordService.saveAsync(callRecord);
     }
 
     /**

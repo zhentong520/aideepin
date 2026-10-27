@@ -7,7 +7,6 @@ import com.moyz.adi.common.entity.KnowledgeBase;
 import com.moyz.adi.common.entity.User;
 import com.moyz.adi.common.service.KnowledgeBaseService;
 import com.moyz.adi.common.util.KbAclMetadata;
-import com.moyz.adi.common.util.SpringUtil;
 import com.moyz.adi.common.vo.RetrieverContext;
 import dev.langchain4j.data.document.Metadata;
 import dev.langchain4j.store.embedding.filter.Filter;
@@ -49,11 +48,23 @@ public final class KbAclFilterBuilder {
     /** 单测直控开关（Spring 上下文不可用时 enabled() 的逃生门），生产恒为 null */
     private static volatile Boolean enabledForTest;
 
+    /** 启动期推送（RagStaticConfigInitializer）；null 时 enabled() 恒 false（关闭态） */
+    private static volatile AdiProperties configProps;
+
+    /** 启动期推送（同上）；enrichAclContext 反查库快照用 */
+    private static volatile KnowledgeBaseService knowledgeBaseService;
+
     private KbAclFilterBuilder() {
     }
 
     public static void setEnabledForTest(Boolean value) {
         enabledForTest = value;
+    }
+
+    /** RagStaticConfigInitializer 启动期调用 */
+    public static void initConfig(AdiProperties props, KnowledgeBaseService kbService) {
+        configProps = props;
+        knowledgeBaseService = kbService;
     }
 
     /**
@@ -64,14 +75,11 @@ public final class KbAclFilterBuilder {
         if (null != override) {
             return override;
         }
-        try {
-            AdiProperties properties = SpringUtil.getBean(AdiProperties.class);
-            return null != properties.getKb()
-                    && null != properties.getKb().getAcl()
-                    && properties.getKb().getAcl().isEnabled();
-        } catch (Exception e) {
-            return false;
-        }
+        AdiProperties properties = configProps;
+        return null != properties
+                && null != properties.getKb()
+                && null != properties.getKb().getAcl()
+                && properties.getKb().getAcl().isEnabled();
     }
 
     /**
@@ -166,7 +174,7 @@ public final class KbAclFilterBuilder {
                 }
             }
             if (MapUtils.isEmpty(ctx.getAclInfos()) && StringUtils.isNotBlank(kbUuid)) {
-                KnowledgeBase kb = SpringUtil.getBean(KnowledgeBaseService.class).getOrThrow(kbUuid);
+                KnowledgeBase kb = knowledgeBaseService.getOrThrow(kbUuid);
                 ctx.setAclInfos(Map.of(kb.getUuid(), toAclInfo(kb)));
                 if (null == ctx.getKbUuids() || ctx.getKbUuids().isEmpty()) {
                     ctx.setKbUuids(List.of(kb.getUuid()));

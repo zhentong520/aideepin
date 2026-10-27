@@ -2,7 +2,6 @@ package com.moyz.adi.common.languagemodel;
 
 import com.moyz.adi.common.config.AdiProperties;
 import com.moyz.adi.common.helper.LLMContext;
-import com.moyz.adi.common.util.SpringUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
@@ -26,16 +25,23 @@ import java.util.Set;
 @Slf4j
 public final class LLMFallbackRouter {
 
+    /** 启动期推送（ModelStaticConfigInitializer）；null 时按默认值兜底，与旧 catch 行为一致 */
+    private static volatile AdiProperties configProps;
+
     private LLMFallbackRouter() {
     }
 
+    public static void initConfig(AdiProperties props) {
+        configProps = props;
+    }
+
     public static boolean fallbackEnabled() {
-        try {
-            return SpringUtil.getBean(AdiProperties.class).getLlm().isFallbackEnabled();
-        } catch (Exception e) {
+        AdiProperties props = configProps;
+        if (null == props) {
             // 无 Spring 上下文（单测/启动早期）：与默认值 true 一致，但链为空则无备用可选
             return true;
         }
+        return props.getLlm().isFallbackEnabled();
     }
 
     /**
@@ -68,12 +74,11 @@ public final class LLMFallbackRouter {
      */
     public static List<String> effectiveChain(AbstractLLMService primary) {
         List<String> result = new ArrayList<>();
-        List<String> chain;
-        try {
-            chain = SpringUtil.getBean(AdiProperties.class).getLlm().getFallbackModels();
-        } catch (Exception e) {
+        AdiProperties props = configProps;
+        if (null == props) {
             return result;
         }
+        List<String> chain = props.getLlm().getFallbackModels();
         if (null == chain) {
             return result;
         }

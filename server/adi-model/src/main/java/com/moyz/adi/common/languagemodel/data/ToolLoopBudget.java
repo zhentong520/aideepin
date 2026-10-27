@@ -1,7 +1,6 @@
 package com.moyz.adi.common.languagemodel.data;
 
 import com.moyz.adi.common.config.AdiProperties;
-import com.moyz.adi.common.util.SpringUtil;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -26,6 +25,13 @@ public class ToolLoopBudget {
     public static final String REASON_DEPTH = "DEPTH";
     public static final String REASON_WALL_CLOCK = "WALL_CLOCK";
     public static final String REASON_TOKENS = "TOKENS";
+
+    /** 启动期推送（ModelStaticConfigInitializer）；null 时 fromConfig() 走默认值 */
+    private static volatile AdiProperties configProps;
+
+    public static void initConfig(AdiProperties props) {
+        configProps = props;
+    }
 
     @Getter
     private final int maxDepth;
@@ -58,13 +64,11 @@ public class ToolLoopBudget {
         int depth = 5;
         long seconds = 300;
         long tokens = 200000;
-        try {
-            AdiProperties props = SpringUtil.getBean(AdiProperties.class);
+        AdiProperties props = configProps;
+        if (null != props) {
             depth = props.getAgent().getToolLoopMaxDepth();
             seconds = props.getAgent().getToolLoopMaxSeconds();
             tokens = props.getAgent().getToolLoopMaxTokens();
-        } catch (Exception ignored) {
-            // 单测/启动早期无 Spring 上下文，走默认值
         }
         return new ToolLoopBudget(depth, seconds * 1000L, tokens);
     }

@@ -6,7 +6,6 @@ import com.moyz.adi.common.interfaces.IRAGService;
 import com.moyz.adi.common.service.KnowledgeBaseService;
 import com.moyz.adi.common.util.InputAdaptor;
 import org.apache.commons.lang3.StringUtils;
-import com.moyz.adi.common.util.SpringUtil;
 import com.moyz.adi.common.vo.EmbeddingIngestParam;
 import com.moyz.adi.common.vo.InputAdaptorMsg;
 import com.moyz.adi.common.vo.RetrieverContext;
@@ -27,6 +26,18 @@ import static com.moyz.adi.common.vo.InputAdaptorMsg.TOKEN_TOO_MUCH_QUESTION;
 
 @Slf4j
 public class EmbeddingRag implements IRAGService {
+
+    /** 启动期推送（RagStaticConfigInitializer）：库级配置读取（Initializer 手动 new 的非 bean 实例无法注入） */
+    private static volatile KnowledgeBaseService staticKbService;
+
+    /** 启动期推送（同上）：召回后置处理器（原懒加载 getBean 的替代） */
+    private static volatile RetrievedContentProcessor staticSegmentExpandProcessor;
+
+    /** RagStaticConfigInitializer 启动期调用 */
+    public static void initStatics(KnowledgeBaseService kbService, RetrievedContentProcessor segmentExpandProcessor) {
+        staticKbService = kbService;
+        staticSegmentExpandProcessor = segmentExpandProcessor;
+    }
 
     /**
      * RAG名称，用于区分不同的实例
@@ -50,11 +61,6 @@ public class EmbeddingRag implements IRAGService {
     public EmbeddingStore<TextSegment> getEmbeddingStore() {
         return embeddingStore;
     }
-
-    /**
-     * 知识库实例的召回后置处理器（懒加载，避免构造期依赖 Spring 容器）
-     */
-    private volatile RetrievedContentProcessor segmentExpandProcessor;
 
     public EmbeddingRag(String name, EmbeddingModel embeddingModel, EmbeddingStore<TextSegment> embeddingStore) {
         this.name = name;
@@ -138,7 +144,10 @@ public class EmbeddingRag implements IRAGService {
             return RetrieverContext.none();
         }
         try {
-            KnowledgeBaseService kbService = SpringUtil.getBean(KnowledgeBaseService.class);
+            KnowledgeBaseService kbService = staticKbService;
+            if (null == kbService) {
+                return RetrieverContext.none();
+            }
             KnowledgeBase kb = kbService.getOrThrow(param.getKbUuid());
             return kbService.buildRetrieverContext(kb, param.getExcludedItemUuids());
         } catch (Exception e) {
@@ -149,10 +158,7 @@ public class EmbeddingRag implements IRAGService {
     }
 
     private RetrievedContentProcessor getSegmentExpandProcessor() {
-        if (null == segmentExpandProcessor) {
-            segmentExpandProcessor = SpringUtil.getBean(SegmentExpandProcessor.class);
-        }
-        return segmentExpandProcessor;
+        return staticSegmentExpandProcessor;
     }
 
     /**

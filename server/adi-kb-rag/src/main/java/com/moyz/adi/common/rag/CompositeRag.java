@@ -9,7 +9,6 @@ import com.moyz.adi.common.interfaces.ITempStreamingChatAssistant;
 import com.moyz.adi.common.interfaces.TriConsumer;
 import com.moyz.adi.common.memory.shortterm.MapDBChatMemoryStore;
 import com.moyz.adi.common.languagemodel.AbstractLLMService;
-import com.moyz.adi.common.util.SpringUtil;
 import com.moyz.adi.common.vo.*;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
@@ -37,6 +36,14 @@ import static com.moyz.adi.common.enums.ErrorEnum.B_LLM_SERVICE_DISABLED;
  */
 @Slf4j
 public class CompositeRag {
+
+    /** 启动期推送（RagStaticConfigInitializer）：ragChat 需要注册 SSE 监听（非 bean 实例无法注入） */
+    private static volatile SseManager staticSseManager;
+
+    /** RagStaticConfigInitializer 启动期调用 */
+    public static void initStatics(SseManager sseManager) {
+        staticSseManager = sseManager;
+    }
 
     private final EmbeddingRag embeddingRag;
     private final GraphRag graphRag;
@@ -93,7 +100,7 @@ public class CompositeRag {
      * @param consumer     回调
      */
     public void ragChat(List<ContentRetriever> retrievers, SseAskParam sseAskParam, TriConsumer<String, PromptMeta, AnswerMeta> consumer) {
-        SseManager sseManager = SpringUtil.getBean(SseManager.class);
+        SseManager sseManager = staticSseManager;
         User user = sseAskParam.getUser();
         sseManager.registerEventStreamListener(sseAskParam);
         try {

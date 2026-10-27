@@ -31,6 +31,14 @@ import java.util.stream.Collectors;
 @Slf4j
 public class ImageUtil {
 
+    /** 启动期推送（ModelStaticConfigInitializer）：静态工具类无法注入 */
+    private static volatile FileService staticFileService;
+
+    /** ModelStaticConfigInitializer 启动期调用 */
+    public static void initStatics(FileService fileService) {
+        staticFileService = fileService;
+    }
+
     public static boolean isNotArgb(String imagePath) {
         try {
             // 读取图片
@@ -138,7 +146,7 @@ public class ImageUtil {
      * 按 uuid 读取本地图片文件并转为 base64 ImageContent（二开抽取，2026-09-30）
      */
     private static Content toBase64ImageContent(String uuid) {
-        String absolutePath = SpringUtil.getBean(FileService.class).getImagePath(uuid);
+        String absolutePath = staticFileService.getImagePath(uuid);
         File file = new File(absolutePath);
         MimetypesFileTypeMap mimetypesFileTypeMap = new MimetypesFileTypeMap();
         String mimeType = mimetypesFileTypeMap.getContentType(file);

@@ -19,6 +19,9 @@ import static org.mockito.Mockito.when;
  * <ul>
  *   <li>MessageSource 桩：BaseException 取文案不 NPE（返回带 {0} 的模板，参数可还原）；</li>
  *   <li>beanValidator：真实 {@link LocalValidatorFactoryBean}（jakarta 校验在单测可用）；</li>
+ *   <li>SseManager.selfInstance 桩：S1-02 后静态方法（parseAndSendPartialMsg 等）经
+ *       selfInstance 访问实例状态，无容器环境下 @PostConstruct 不会触发，这里显式
+ *       推入一个空实例（未注册 uuid → getEntry 返回 null → 静态方法安全早退）；</li>
  *   <li>不提供 AdiProperties bean → WfFeatureGate 兜底为「开启」（与生产缺省一致）。</li>
  * </ul>
  */
@@ -57,6 +60,9 @@ public final class WfNodeTestSupport {
                 System.getProperty("java.io.tmpdir") + "/adi-wf-test-sandbox");
         when(context.getEnvironment()).thenReturn(env);
         ReflectionTestUtils.setField(com.moyz.adi.common.util.SpringUtil.class, "applicationContext", context);
+        //S1-02：SseManager 静态方法改走 selfInstance（@PostConstruct 注入），无容器测试需手动推桩
+        ReflectionTestUtils.setField(com.moyz.adi.common.helper.SseManager.class, "selfInstance",
+                new com.moyz.adi.common.helper.SseManager());
         //beanValidator 按名获取：checkAndGetConfig 用它做 jakarta 校验
         org.mockito.Mockito.doReturn(validator).when(context).getBean("beanValidator", LocalValidatorFactoryBean.class);
         return context;
@@ -65,6 +71,7 @@ public final class WfNodeTestSupport {
     /** 卸载桩（AfterEach 调用，防止跨测试类泄漏静态上下文） */
     public static void uninstall() {
         ReflectionTestUtils.setField(com.moyz.adi.common.util.SpringUtil.class, "applicationContext", null);
+        ReflectionTestUtils.setField(com.moyz.adi.common.helper.SseManager.class, "selfInstance", null);
     }
 
     public static User user(Long id) {
