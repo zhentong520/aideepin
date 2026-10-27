@@ -415,7 +415,7 @@ public class KbDocumentService extends ServiceImpl<KbDocumentMapper, KbDocument>
     public boolean softDelete(String uuid) {
         checkWritePrivilege(uuid);
         // DB writes in one transaction; remote store cleanup stays OUTSIDE it — the vector and
-        // graph stores can be remote (neo4j profile) and holding a pooled DB connection across
+        // graph stores can be remote and holding a pooled DB connection across
         // those calls for a doc with many contributions pins the pool
         if (!self.softDeleteDb(uuid)) {
             return false;

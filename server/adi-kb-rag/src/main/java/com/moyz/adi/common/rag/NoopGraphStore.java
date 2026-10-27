@@ -11,7 +11,7 @@ import java.util.List;
  * 图库降级实现：未配置图数据库（adi.graph-database 未指向任何可用实现）时兜底。
  *
  * <p>设计意图（2026-10-16）：图检索是可选能力（仅勾选"图谱化"的知识库用到），
- * 不应因为环境里没有 Apache AGE/Neo4j 就让整个应用起不来。此实现下：
+ * 不应因为环境里没有 Apache AGE 就让整个应用起不来。此实现下：
  * <ul>
  *   <li>{@link #isEmpty(Filter)} 恒返回 true——检索器据此直接跳过图谱路，
  *       不再花一次 LLM 调用从问题抽实体（这正是接口 default 注释设计的用途）；</li>

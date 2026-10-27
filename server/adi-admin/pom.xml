@@ -36,6 +36,13 @@
             <artifactId>adi-draw</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
+        <!-- S1-06（2026-10-27）：AdminWorkflowController/AdminAgentController/AdminWfComponentController
+             引用 adi-workflow 的 WorkflowService/AiAgentService/WorkflowComponentService（原靠 biz 传递） -->
+        <dependency>
+            <groupId>com.moyz</groupId>
+            <artifactId>adi-workflow</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>

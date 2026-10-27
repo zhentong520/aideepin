@@ -139,13 +139,12 @@ public class CharacterMessageRefMemoryEmbeddingService extends ServiceImpl<Chara
     }
 
     /**
-     * Read an int-valued metadata field defensively. The Neo4j backend serializes
-     * all metadata values as strings (see {@code Neo4jEmbeddingUtils.toEmbeddingMatch}),
-     * so {@code IntNode} cannot be assumed even though pgvector stores integers
-     * natively. Returns {@code null} on missing / unparseable values so the UI
+     * Read an int-valued metadata field defensively: {@code IntNode} cannot be
+     * assumed because some embedding-store backends serialize metadata values
+     * as strings. Returns {@code null} on missing / unparseable values so the UI
      * field stays empty instead of defaulting to 0.
      * <p>
-     * 防御性读取整数 metadata 字段：Neo4j 后端把所有 metadata 值序列化为字符串，
+     * 防御性读取整数 metadata 字段：部分 embedding store 后端把 metadata 值序列化为字符串，
      * 因此即使 pgvector 原生存整数也不能假设是 IntNode。缺失或无法解析时返回 null，
      * 让 UI 字段为空而非默认 0。
      */

@@ -38,6 +38,9 @@ import java.util.Locale;
 @DependsOn("flywayInitializer")
 public class Initializer {
 
+    /** S1-06（2026-10-27）：与 application.yml 的 adi.encrypt.aes-key 环境变量默认值保持一致，仅用于启动拦截判断。 */
+    public static final String DEFAULT_AES_KEY = "Ap9da0CopbjiKGc1";
+
     @Value("${local.images}")
     private String imagePath;
     @Value("${local.tmp-images}")
@@ -80,7 +83,7 @@ public class Initializer {
      */
     @PostConstruct
     public void init() {
-        if (adiProperties.getEncrypt().getAesKey().equals("Ap9da0CopbjiKGc1")) {
+        if (adiProperties.getEncrypt().getAesKey().equals(DEFAULT_AES_KEY)) {
             throw new RuntimeException("Cannot use the default AES key. Please set your own key in application.yml => adi.encrypt.aes-key");
         }
         // 二开新增（T2-07，2026-10-19）：凭据库启动校验（fail-fast 写在配置校验处）。

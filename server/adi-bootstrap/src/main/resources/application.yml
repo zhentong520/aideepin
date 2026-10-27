@@ -26,10 +26,6 @@ management:
   health:
     defaults:
       enabled: true
-    # 图存储走 PG 的 AGE 扩展（无需独立 Neo4j 连接），classpath 里残留的 Neo4j 驱动
-    # 会让 actuator 自动装配 Neo4j 健康检查 → 整体 health 恒为 DOWN，关闭之
-    neo4j:
-      enabled: false
     # dev/mock 模式 SMTP 未配置是预期状态，邮件健康检查失败不该把整体拉 DOWN
     mail:
       enabled: false
@@ -97,6 +93,13 @@ adi:
   host: ${ADI_HOST:aideepin.com}
   frontend-url: http://www.${adi.host}
   backend-url: http://www.${adi.host}/api
+  # S1-06：TokenFilter 匿名放行白名单（前缀匹配，默认值见 Auth.DEFAULT_EXCLUDE_URLS，
+  # 与原硬编码逐条一致）。需要增删公开端点时按下面格式覆盖（覆盖即整列表替换）：
+  # auth:
+  #   exclude-urls:
+  #     - /auth/
+  #     - /workflow/public
+  #     - /actuator/health
   mail:
     # mock 模式：不连 SMTP，邮件内容打日志并落盘 {local.base-data-path}/mail-outbox/
     # 生产请配置真实 spring.mail 并保持 false（或设 ADI_MAIL_MOCK=false）

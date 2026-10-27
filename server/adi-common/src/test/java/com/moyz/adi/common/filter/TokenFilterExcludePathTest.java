@@ -1,5 +1,7 @@
 package com.moyz.adi.common.filter;
 
+import com.moyz.adi.common.config.AdiProperties;
+import com.moyz.adi.common.config.props.Auth;
 import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.entity.User;
 import org.junit.jupiter.api.BeforeEach;
@@ -10,6 +12,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.lang.reflect.Method;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -32,10 +35,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class TokenFilterExcludePathTest {
 
     private TokenFilter tokenFilter;
+    private AdiProperties adiProperties;
 
     @BeforeEach
     void setUp() {
         tokenFilter = new TokenFilter();
+        // S1-06：白名单改为 adi.auth.exclude-urls 注入，无容器环境手动装填
+        adiProperties = new AdiProperties();
+        ReflectionTestUtils.setField(tokenFilter, "adiProperties", adiProperties);
+        ReflectionTestUtils.invokeMethod(tokenFilter, "initExcludeUrls");
     }
 
     /** 构造指定 context-path 的过滤器并执行归一化初始化 */
@@ -186,6 +194,46 @@ class TokenFilterExcludePathTest {
         assertTrue(isAdmin(user(Boolean.TRUE)));
         assertFalse(isAdmin(user(Boolean.FALSE)));
         assertFalse(isAdmin(user(null)), "is_admin 可为 null，必须按非管理员处理而非抛 NPE");
+    }
+
+    // ------------------------------------------------------------------
+    // S1-06：白名单可配置（adi.auth.exclude-urls）
+    // ------------------------------------------------------------------
+
+    @DisplayName("S1-06：默认白名单包含关键匿名端点（与原 EXCLUDE_API 常量一致）")
+    @Test
+    void defaultExcludeUrlsContainKeyEntries() {
+        List<String> defaults = Auth.DEFAULT_EXCLUDE_URLS;
+        for (String key : new String[]{"/auth/", "/model/", "/actuator/health", "/ext/v1/", "/mcp/kb/"}) {
+            assertTrue(defaults.contains(key), "默认白名单缺失关键端点：" + key);
+        }
+    }
+
+    @DisplayName("S1-06：配置覆盖后以配置为准（整列表替换语义）")
+    @Test
+    void configuredExcludeUrlsOverrideDefaults() {
+        adiProperties.getAuth().setExcludeUrls(List.of("/custom/public/"));
+        ReflectionTestUtils.invokeMethod(tokenFilter, "initExcludeUrls");
+        withContextPathUnchecked();
+        assertTrue(excludePath("/custom/public/item"), "配置的公开前缀应放行");
+        assertFalse(excludePath("/auth/login"), "覆盖即整列表替换，未列入配置的默认端点不再放行");
+    }
+
+    @DisplayName("S1-06：adi.auth 缺失时回退默认白名单（不 NPE）")
+    @Test
+    void fallbackToDefaultsWhenAuthMissing() {
+        adiProperties.setAuth(null);
+        ReflectionTestUtils.invokeMethod(tokenFilter, "initExcludeUrls");
+        withContextPathUnchecked();
+        assertTrue(excludePath("/auth/login"), "auth 配置缺失应回退默认白名单");
+    }
+
+    private void withContextPathUnchecked() {
+        try {
+            withContextPath("/");
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     private static User user(Boolean isAdmin) {

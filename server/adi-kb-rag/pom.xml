@@ -102,7 +102,7 @@
             <groupId>cn.hutool</groupId>
             <artifactId>hutool-core</artifactId>
         </dependency>
-        <!-- ===== langchain4j RAG 主力依赖（pgvector/neo4j 存储与解析器） ===== -->
+        <!-- ===== langchain4j RAG 主力依赖（pgvector 存储与解析器） ===== -->
         <dependency>
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j-spring-boot-starter</artifactId>
@@ -110,14 +110,6 @@
         <dependency>
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j-pgvector</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j-community-neo4j</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j-community-neo4j-retriever</artifactId>
         </dependency>
         <dependency>
             <groupId>dev.langchain4j</groupId>

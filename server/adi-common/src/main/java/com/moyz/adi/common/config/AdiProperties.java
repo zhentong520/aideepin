@@ -2,10 +2,10 @@ package com.moyz.adi.common.config;
 
 import com.moyz.adi.common.config.props.Agent;
 import com.moyz.adi.common.config.props.Acl;
+import com.moyz.adi.common.config.props.Auth;
 import com.moyz.adi.common.config.props.Chat;
 import com.moyz.adi.common.config.props.Clean;
 import com.moyz.adi.common.config.props.Credential;
-import com.moyz.adi.common.config.props.Datasource;
 import com.moyz.adi.common.config.props.EmailCode;
 import com.moyz.adi.common.config.props.Encrypt;
 import com.moyz.adi.common.config.props.Ext;
@@ -14,7 +14,6 @@ import com.moyz.adi.common.config.props.Kb;
 import com.moyz.adi.common.config.props.Llm;
 import com.moyz.adi.common.config.props.Mail;
 import com.moyz.adi.common.config.props.Memory;
-import com.moyz.adi.common.config.props.Neo4j;
 import com.moyz.adi.common.config.props.Ocr;
 import com.moyz.adi.common.config.props.Proxy;
 import com.moyz.adi.common.config.props.Rag;
@@ -37,7 +36,7 @@ import org.springframework.validation.annotation.Validated;
  * <p>
  * OPT-17 拆分（2026-10-26）：原 870 行巨类中的 21 个嵌套 @Data 配置类全部提为
  * {@code com.moyz.adi.common.config.props} 包下的顶层类（Wf/Chat/Skill/Llm/Agent/
- * Credential/Ext/Kb/Acl/Register/EmailCode/Proxy/Datasource/Neo4j/Encrypt/Ocr/
+ * Credential/Ext/Kb/Acl/Register/EmailCode/Proxy/Encrypt/Ocr/
  * Ingest/Clean/Memory/Mail/Rag）。Spring @ConfigurationProperties 按属性名绑定
  * {@code adi.*}，嵌套类提为顶层类不影响任何绑定键；Lombok getter/setter 亦不变。
  * 各配置类的字段与双语注释见 props 包对应文件。
@@ -73,9 +72,13 @@ public class AdiProperties {
 
     private String graphDatabase;
 
-    private Datasource datasource;
-
     private Encrypt encrypt;
+
+    /**
+     * S1-06（2026-10-27）：鉴权配置（TokenFilter 匿名白名单等）。
+     */
+    @Valid
+    private Auth auth = new Auth();
 
     /**
      * 长期记忆相关配置 | Long-term memory settings.

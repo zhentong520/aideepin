@@ -56,6 +56,9 @@ class TokenFilterHttpBehaviourTest {
         valueOperations = mock(ValueOperations.class);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         ReflectionTestUtils.setField(filter, "stringRedisTemplate", redisTemplate);
+        // S1-06：白名单改为 adi.auth.exclude-urls 注入，无容器环境手动装填（默认值=原常量）
+        ReflectionTestUtils.setField(filter, "adiProperties", new com.moyz.adi.common.config.AdiProperties());
+        ReflectionTestUtils.invokeMethod(filter, "initExcludeUrls");
         setContextPath("/");
     }
 

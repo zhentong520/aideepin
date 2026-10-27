@@ -46,14 +46,7 @@ adi:
   # dashscope:text-embedding-v1, dashscope:text-embedding-v3（多语言，中文效果较好）
   # 注意：由于不同向量模型不同维度参数生成的向量特征空间不一致，无法兼容存储于一张表并进行混合搜索，建议项目初期确定好向量模型及其维度，后期如有修改，需重新生成向量数据
   embedding-model: local:bge-small-zh-v1.5
-  # vector-database: pgvector, neo4j
+  # vector-database: pgvector
   vector-database: pgvector
-  # graph-database: apache-age, neo4j
+  # graph-database: apache-age
   graph-database: apache-age
-  datasource:
-    neo4j:
-      host: ${ADI_NEO4J_HOST:localhost}
-      port: ${ADI_NEO4J_PORT:7687}
-      username: ${ADI_NEO4J_USERNAME:your-db-account}
-      password: ${ADI_NEO4J_PASSWORD:your-db-password}
-      database: ${ADI_NEO4J_DATABASE:your-db-name}
