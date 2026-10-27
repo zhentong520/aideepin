@@ -80,6 +80,15 @@ public class BeanConfig {
         return objectMapper;
     }
 
+    /**
+     * 通用异步线程池（@Async 默认落在 @Primary 的这里），承载聊天等 LLM 长调用。
+     * <p>
+     * S1-14：禁止 CallerRunsPolicy——LLM 单次调用可达分钟级，池饱和时回落到调用线程
+     * 会把 Tomcat 请求线程一并拖住，web 容器整体雪崩。改为 AbortPolicy 快速失败
+     * （上层捕获 TaskRejectedException 走各自的错误路径），同时把队列扩到 2000 缓冲突发，
+     * 并补线程名前缀与优雅停机，线程 dump 可读。
+     * </p>
+     */
     @Bean(name = "mainExecutor")
     @Primary
     public AsyncTaskExecutor mainExecutor() {
@@ -88,10 +97,15 @@ public class BeanConfig {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(processorsNum * 2);
         executor.setMaxPoolSize(100);
-        executor.setQueueCapacity(500);
+        executor.setQueueCapacity(2000);
         executor.setKeepAliveSeconds(60);
         executor.setAllowCoreThreadTimeOut(true);
-        executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
+        executor.setThreadNamePrefix("adi-main-");
+        //Reject rather than run on the caller thread: a chat/LLM call can run for minutes
+        executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.AbortPolicy());
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(60);
+        executor.initialize();
         return executor;
     }
 
@@ -131,8 +145,7 @@ public class BeanConfig {
      * Dedicated bounded pool for the index task consume loop ({@code IndexTaskService#dispatch}).
      * The loop holds its thread until the queue drains and a single embedding task can run for
      * minutes, so it must not share {@code mainExecutor} with chat: a bulk upload would otherwise
-     * starve interactive requests. {@code mainExecutor} also uses CallerRunsPolicy, which would
-     * push the whole consume loop onto a Tomcat thread once the pool saturates.
+     * starve interactive requests.
      * </p>
      * Abort on overload: the pending rows stay queued and the 60s poller re-dispatches, so an
      * overload degrades into a delay instead of a blocked request thread.
@@ -169,7 +182,10 @@ public class BeanConfig {
         executor.setQueueCapacity(200);
         executor.setKeepAliveSeconds(60);
         executor.setAllowCoreThreadTimeOut(true);
+        //S1-14: named threads so a thread dump shows which pool a stuck image task belongs to
+        executor.setThreadNamePrefix("adi-image-");
         executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
+        executor.initialize();
         return executor;
     }
 

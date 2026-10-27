@@ -262,7 +262,9 @@ public class SseManager {
                 builder.data(data);
             }
             sseEmitter.send(builder);
-        } catch (IOException e) {
+        } catch (IOException | IllegalStateException e) {
+            //S1-14: 客户端中途断开时 START 事件发送失败，不应让请求入口直接抛异常
+            //A failed START send (client disconnected) must not blow up the request entry
             log.error("startSse error", e);
             sseEmitter.completeWithError(e);
             unregister(sseUuid);
@@ -415,9 +417,13 @@ public class SseManager {
         if (entry == null) return;
         try {
             entry.emitter().send(SseEmitter.event().name(AdiConstant.SSEEventName.AUDIO).data(content));
-        } catch (IOException e) {
-            log.error("stream onNext error", e);
-            throw new RuntimeException(e);
+        } catch (IOException | IllegalStateException e) {
+            //S1-14: 客户端断开后的发送失败只记录并注销，向上抛 RuntimeException 会中断
+            //TTS 回调/LLM 流消费，导致消息落库与 token 统计的收尾被跳过
+            //A send failure after client disconnect must not break the TTS callback / LLM
+            //stream finalization (message persistence + token stats)
+            log.warn("sendAudio failed, client may be disconnected,uuid:{}", uuid, e);
+            selfInstance.unregister(uuid);
         }
     }
 
@@ -426,9 +432,11 @@ public class SseManager {
         if (entry == null) return;
         try {
             entry.emitter().send(multiLineEvent(AdiConstant.SSEEventName.THINKING, content));
-        } catch (IOException e) {
-            log.error("stream onNext error", e);
-            throw new RuntimeException(e);
+        } catch (IOException | IllegalStateException e) {
+            //S1-14: 发送失败不上抛，理由同 sendAudio——中断流消费会丢落库与 token 统计
+            //Do not rethrow: rethrowing from onPartialThinking aborts the stream and skips finalization
+            log.warn("sendThinking failed, client may be disconnected,uuid:{}", uuid, e);
+            selfInstance.unregister(uuid);
         }
     }
 
@@ -476,10 +484,13 @@ public class SseManager {
         if (entry == null) return;
         try {
             entry.emitter().send(multiLineEvent(name, content));
-        } catch (IOException ioException) {
-            log.error("stream onNext error", ioException);
+        } catch (IOException | IllegalStateException ioException) {
+            //S1-14: 客户端断开后发送失败不再向上抛（原实现 rethrow 会中断 onPartialResponse
+            //的 LLM 流消费，导致 onCompleteResponse 不触发、消息不落库、token 统计丢失）。
+            //Send failures after client disconnect are swallowed: rethrowing aborts stream
+            //consumption so onCompleteResponse never fires and persistence/token stats are lost.
+            log.warn("parseAndSendPartialMsg failed, client may be disconnected,uuid:{}", uuid, ioException);
             selfInstance.unregister(uuid);
-            throw new RuntimeException(ioException);
         }
     }
 
@@ -497,10 +508,11 @@ public class SseManager {
             } else {
                 entry.emitter().send(msg);
             }
-        } catch (IOException ioException) {
-            log.error("stream onNext error", ioException);
+        } catch (IOException | IllegalStateException ioException) {
+            //S1-14: 发送失败不上抛，理由同 parseAndSendPartialMsg（保住落库与 token 统计收尾）
+            //Do not rethrow: the LLM callback finalization must survive a client disconnect
+            log.warn("sendPartial failed, client may be disconnected,uuid:{}", uuid, ioException);
             selfInstance.unregister(uuid);
-            throw new RuntimeException(ioException);
         }
     }
 

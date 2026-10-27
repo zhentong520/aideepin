@@ -21,7 +21,16 @@ public class ControllerParamsLogAspect {
 
     private static final Logger logger = LoggerFactory.getLogger(ControllerParamsLogAspect.class);
 
-    @Pointcut("execution(public * com.adi.*.controller..*.*(..))")
+    /**
+     * G-14：切点包名修复——原值 {@code com.adi.*.controller..} 与实际包
+     * {@code com.moyz.adi.{chat,admin}.controller} 不匹配，导致整个 Controller
+     * 参数日志切面自引入起从未生效过。
+     * <p>
+     * G-14 fix: the original pointcut package {@code com.adi.*} never matched the
+     * real {@code com.moyz.adi.*} controller packages, so this aspect was dead code.
+     * </p>
+     */
+    @Pointcut("execution(public * com.moyz.adi..controller..*.*(..))")
     public void controllerMethods() {
     }
 
