@@ -16,6 +16,8 @@ import com.moyz.adi.common.mapper.KbDocumentMapper;
 import com.moyz.adi.common.mapper.KnowledgeBaseMapper;
 import com.moyz.adi.common.mapper.UserMapper;
 import com.moyz.adi.common.rag.DocumentTextCleaner;
+import com.moyz.adi.common.exception.UnsafeUrlException;
+import com.moyz.adi.common.util.SafeUrlChecker;
 import com.moyz.adi.common.util.UuidUtil;
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.document.transformer.jsoup.HtmlToTextDocumentTransformer;
@@ -25,9 +27,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.net.InetAddress;
 import java.net.URI;
-import java.net.UnknownHostException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -459,36 +459,19 @@ public class KbDocSourceService {
 
     /**
      * SSRF 防护：协议必须是 http/https，且主机名解析出来的每一个地址都必须是公网地址。
+     * <p>
+     * 校验逻辑统一收敛到 {@link SafeUrlChecker}（工作流 HTTP 节点、远程图片保存共用同一套），
+     * 这里只负责把拒绝原因翻译成本模块的业务错误码。
      */
     private void assertPublicUrl(String url) {
-        if (StringUtils.isBlank(url)) {
-            throw new BaseException(A_DOC_SOURCE_URL_INVALID);
-        }
-        URI uri;
         try {
-            uri = new URI(url.trim());
-        } catch (Exception e) {
-            throw new BaseException(A_DOC_SOURCE_URL_INVALID);
-        }
-        String scheme = uri.getScheme();
-        if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
-            throw new BaseException(A_DOC_SOURCE_URL_INVALID);
-        }
-        String host = uri.getHost();
-        if (StringUtils.isBlank(host)) {
-            throw new BaseException(A_DOC_SOURCE_URL_INVALID);
-        }
-        InetAddress[] addresses;
-        try {
-            addresses = InetAddress.getAllByName(host);
-        } catch (UnknownHostException e) {
-            throw new BaseException(A_DOC_SOURCE_FETCH_FAIL, "域名解析失败：" + host);
-        }
-        for (InetAddress address : addresses) {
-            if (address.isAnyLocalAddress() || address.isLoopbackAddress() || address.isLinkLocalAddress()
-                    || address.isSiteLocalAddress() || address.isMulticastAddress()
-                    || "169.254.169.254".equals(address.getHostAddress())) {
-                throw new BaseException(A_DOC_SOURCE_FORBIDDEN, host);
+            SafeUrlChecker.check(url);
+        } catch (UnsafeUrlException e) {
+            switch (e.getReason()) {
+                case BLANK, MALFORMED, SCHEME_NOT_ALLOWED, HOST_MISSING ->
+                        throw new BaseException(A_DOC_SOURCE_URL_INVALID);
+                case UNRESOLVABLE -> throw new BaseException(A_DOC_SOURCE_FETCH_FAIL, "域名解析失败：" + e.getHost());
+                case PRIVATE_ADDRESS -> throw new BaseException(A_DOC_SOURCE_FORBIDDEN, e.getHost());
             }
         }
     }

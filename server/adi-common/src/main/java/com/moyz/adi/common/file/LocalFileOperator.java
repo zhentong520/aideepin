@@ -9,6 +9,7 @@ import dev.langchain4j.data.document.parser.TextDocumentParser;
 import dev.langchain4j.data.document.parser.apache.pdfbox.ApachePdfBoxDocumentParser;
 import dev.langchain4j.data.document.parser.apache.poi.ApachePoiDocumentParser;
 import lombok.extern.slf4j.Slf4j;
+import com.moyz.adi.common.util.SafeUrlChecker;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -57,6 +58,8 @@ public class LocalFileOperator implements IFileOperator {
 
     @Override
     public SaveRemoteImageResult saveImageFromUrl(String imageUrl, String uuid) {
+        //SSRF 防护：内网/本机/云元数据地址一律拒绝 | SSRF guard: reject private/loopback/metadata addresses
+        SafeUrlChecker.check(imageUrl);
         String ext = LocalFileUtil.getFileExtension(imageUrl);
         if (StringUtils.isBlank(ext)) {
             ext = "png";
@@ -65,7 +68,8 @@ public class LocalFileOperator implements IFileOperator {
         File target = new File(filePath);
         try {
             FileUtils.createParentDirectories(target);
-            FileUtils.copyURLToFile(new URL(imageUrl), target);
+            //带超时下载，避免远端无响应拖死线程 | bounded-time download instead of indefinite blocking
+            FileUtils.copyURLToFile(new URL(imageUrl), target, 10_000, 60_000);
         } catch (IOException e) {
             log.error("saveToLocal", e);
             throw new BaseException(B_SAVE_IMAGE_ERROR);

@@ -3,6 +3,7 @@ package com.moyz.adi.common.file;
 import cn.hutool.core.img.ImgUtil;
 import com.moyz.adi.common.entity.AdiFile;
 import com.moyz.adi.common.exception.BaseException;
+import com.moyz.adi.common.util.SafeUrlChecker;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -188,9 +189,12 @@ public class LocalFileUtil {
             filePath = LocalFileOperator.imagePath + newFileName + "." + ext;
         }
         File target = new File(filePath);
+        //SSRF 防护：内网/本机/云元数据地址一律拒绝 | SSRF guard: reject private/loopback/metadata addresses
+        SafeUrlChecker.check(fileUrl);
         try {
             FileUtils.createParentDirectories(target);
-            FileUtils.copyURLToFile(new URL(fileUrl), target);
+            //带超时下载，避免远端无响应拖死线程 | bounded-time download instead of indefinite blocking
+            FileUtils.copyURLToFile(new URL(fileUrl), target, 10_000, 60_000);
         } catch (IOException e) {
             log.error("saveToLocal", e);
             throw new BaseException(B_SAVE_IMAGE_ERROR);
