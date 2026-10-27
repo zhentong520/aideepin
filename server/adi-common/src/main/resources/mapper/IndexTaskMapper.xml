@@ -14,8 +14,11 @@
       * same key same version running -> untouched (that version is already executing)
       Cleanup of older-version rows is supersede's job; this statement does no version
       comparison (the key includes the version, no GREATEST needed).
+      S2-02: RETURNING id for the task_queue submit (Outbox) — a merge/revive yields the
+      existing row's id; a swallowed enqueue (same version already running) yields no row,
+      the mapper returns null and the caller skips the submit.
     -->
-    <insert id="enqueue">
+    <select id="enqueue" resultType="long">
         INSERT INTO adi_index_task (kb_uuid, doc_uuid, user_id, segment_uuid, target_type, task_type, index_version, status)
         VALUES (#{task.kbUuid}, #{task.docUuid}, #{task.userId}, #{task.segmentUuid}, #{task.targetType},
                 #{task.taskType}, #{task.indexVersion}, 'pending')
@@ -26,7 +29,8 @@
                       stop_flag = false,
                       update_time = now()
         WHERE adi_index_task.status &lt;&gt; 'running'
-    </insert>
+        RETURNING id
+    </select>
 
     <!--
       Clear-and-stop-old when a newer version is enqueued (same key, unfinished rows with a
@@ -71,6 +75,30 @@
               AND pg_try_advisory_xact_lock(hashtext('idx:' || p.doc_uuid))
             ORDER BY p.id
             LIMIT 1
+            FOR UPDATE SKIP LOCKED
+        )
+        RETURNING t.id, t.kb_uuid, t.doc_uuid, t.user_id, t.segment_uuid,
+                  t.target_type, t.task_type, t.index_version, t.status, t.fail_reason, t.stop_flag,
+                  t.executor_epoch, t.start_time, t.heartbeat_time, t.create_time, t.update_time
+    </select>
+
+    <!-- S2-02: claim a specific row by id (task_queue handler entry). Guards mirror claimOne:
+         only 'pending' (a superseded/cancelled/finished row must never re-execute), the
+         per-doc serial gate (NOT EXISTS running on the same doc + advisory lock — an
+         unclaimable-because-busy row makes the handler defer with TaskResult.defer),
+         FOR UPDATE SKIP LOCKED against concurrent claims of the same task_queue retry. -->
+    <select id="claimById" resultType="com.moyz.adi.common.entity.IndexTask">
+        UPDATE adi_index_task t
+        SET status = 'running', update_time = now(), start_time = now(), heartbeat_time = now(), stop_flag = false,
+            executor_epoch = md5(random()::text || clock_timestamp()::text)
+        WHERE t.id = (
+            SELECT p.id
+            FROM adi_index_task p
+            WHERE p.id = #{id}
+              AND p.status = 'pending'
+              AND NOT EXISTS (SELECT 1 FROM adi_index_task r
+                              WHERE r.doc_uuid = p.doc_uuid AND r.status = 'running')
+              AND pg_try_advisory_xact_lock(hashtext('idx:' || p.doc_uuid))
             FOR UPDATE SKIP LOCKED
         )
         RETURNING t.id, t.kb_uuid, t.doc_uuid, t.user_id, t.segment_uuid,

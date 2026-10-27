@@ -114,6 +114,9 @@ public class TaskQueueConsumer {
             TaskResult result = handler.handle(task.getPayload());
             if (result.success()) {
                 taskQueueService.markSuccess(task.getId());
+            } else if (result.isDeferred()) {
+                // 资源忙：延后重跑，retry_count 不前进（S2-02）
+                taskQueueService.defer(task, result.deferSeconds(), result.error());
             } else {
                 taskQueueService.fail(task, result.error());
             }

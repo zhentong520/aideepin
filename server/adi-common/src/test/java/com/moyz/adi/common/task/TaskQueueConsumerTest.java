@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
@@ -123,6 +124,34 @@ class TaskQueueConsumerTest {
         ArgumentCaptor<String> error = ArgumentCaptor.forClass(String.class);
         verify(taskQueueService).fail(any(TaskQueue.class), error.capture());
         assertEquals(true, error.getValue().contains("embedding endpoint down"));
+    }
+
+    @Test
+    void deferredResultRoutesToDeferWithoutConsumingRetry() {
+        TaskQueue t = task("ECHO");
+        TaskQueueConsumer deferring = new TaskQueueConsumer(taskQueueService, executor, "localhost",
+                List.of(new TaskHandler() {
+                    @Override
+                    public String type() {
+                        return "ECHO";
+                    }
+
+                    @Override
+                    public TaskResult handle(JsonNode payload) {
+                        // S2-02：同文档索引任务串行排队——资源忙，延后重跑
+                        return TaskResult.defer(60, "same-doc busy");
+                    }
+                }));
+        doAnswer(inv -> {
+            ((Runnable) inv.getArgument(0)).run();
+            return null;
+        }).when(executor).execute(any(Runnable.class));
+
+        deferring.dispatch(t);
+
+        verify(taskQueueService).defer(eq(t), eq(60L), contains("same-doc busy"));
+        verify(taskQueueService, never()).fail(any(TaskQueue.class), anyString());
+        verify(taskQueueService, never()).markSuccess(anyLong());
     }
 
     private TaskQueue task(String type) {

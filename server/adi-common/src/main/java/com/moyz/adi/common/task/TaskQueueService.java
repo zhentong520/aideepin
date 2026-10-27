@@ -73,6 +73,19 @@ public class TaskQueueService {
         return ok;
     }
 
+    /**
+     * S2-02：资源忙延后（defer）。回 PENDING 但 retry_count<b>不前进</b>——
+     * 任务没有失败，只是暂时不能执行；永不因 defer 进 DEAD。
+     */
+    public boolean defer(TaskQueue claimed, long deferSeconds, String reason) {
+        boolean ok = taskQueueMapper.markRetry(claimed.getId(), claimed.getRetryCount(),
+                LocalDateTime.now().plusSeconds(deferSeconds), reason) > 0;
+        log.info("Task deferred (busy), id:{}, type:{}, retry stays {}/{}, defer:{}s, reason:{}",
+                claimed.getId(), claimed.getTaskType(), claimed.getRetryCount(), claimed.getMaxRetry(),
+                deferSeconds, reason);
+        return ok;
+    }
+
     public int heartbeat(String ownerInstance) {
         return taskQueueMapper.heartbeatByOwner(ownerInstance);
     }

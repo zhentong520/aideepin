@@ -224,7 +224,9 @@ public class KbDocSourceService {
         if (StringUtils.isBlank(text) || null == user) {
             return false;
         }
-        indexTaskService.enqueueDocument(doc.getKbUuid(), doc.getUuid(), DOC_INDEX_TYPE_EMBEDDING, user);
+        // S2-02：定时批量同步走低优先级（8），防挤占用户手动重建（3）与在线任务
+        indexTaskService.enqueueDocument(doc.getKbUuid(), doc.getUuid(), DOC_INDEX_TYPE_EMBEDDING, user,
+                IndexTaskService.PRIORITY_SYNC);
         return true;
     }
 

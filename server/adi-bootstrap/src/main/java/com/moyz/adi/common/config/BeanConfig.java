@@ -139,39 +139,6 @@ public class BeanConfig {
         return executor;
     }
 
-    /**
-     * 知识库索引专用线程池。
-     * <p>
-     * Dedicated bounded pool for the index task consume loop ({@code IndexTaskService#dispatch}).
-     * The loop holds its thread until the queue drains and a single embedding task can run for
-     * minutes, so it must not share {@code mainExecutor} with chat: a bulk upload would otherwise
-     * starve interactive requests.
-     * </p>
-     * Abort on overload: the pending rows stay queued and the 60s poller re-dispatches, so an
-     * overload degrades into a delay instead of a blocked request thread.
-     */
-    @Bean(name = "indexExecutor")
-    public AsyncTaskExecutor indexExecutor() {
-        int processorsNum = Math.max(1, Runtime.getRuntime().availableProcessors());
-        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(Math.min(4, processorsNum));
-        //Bounded: indexing is I/O bound against the vector store and the LLM provider, more
-        //concurrency only multiplies contention and rate-limit errors
-        executor.setMaxPoolSize(8);
-        executor.setQueueCapacity(100);
-        executor.setKeepAliveSeconds(120);
-        executor.setAllowCoreThreadTimeOut(true);
-        executor.setThreadNamePrefix("adi-index-");
-        //Index executors read the current user for the QA/vectorize paths
-        executor.setTaskDecorator(new ThreadContextTaskDecorator());
-        executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.AbortPolicy());
-        executor.setWaitForTasksToCompleteOnShutdown(true);
-        executor.setAwaitTerminationSeconds(60);
-        log.info("indexExecutor corePoolSize:{},maxPoolSize:{},queueCapacity:{}", executor.getCorePoolSize(), 8, 100);
-        executor.initialize();
-        return executor;
-    }
-
     @Bean(name = "imagesExecutor")
     public AsyncTaskExecutor imagesExecutor() {
         int processorsNum = Runtime.getRuntime().availableProcessors();

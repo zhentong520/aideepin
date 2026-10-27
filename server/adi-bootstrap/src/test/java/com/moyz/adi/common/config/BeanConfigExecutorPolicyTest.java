@@ -53,14 +53,17 @@ class BeanConfigExecutorPolicyTest {
     }
 
     @Test
-    void workflowAndIndexExecutorsKeepAbortPolicyAndNames() {
-        //参照系：这两个池此前已是 AbortPolicy + 前缀，改造不得回退它们
+    void workflowAndTaskQueueExecutorsKeepAbortPolicyAndNames() {
+        //参照系：AbortPolicy + 前缀的池，改造不得回退。
+        //S2-02：indexExecutor 已删除（KB 索引执行迁入 task_queue 统一消费），
+        //其断言位置由 S2-01 的 taskQueueExecutor 接管。
         ThreadPoolTaskExecutor wf = (ThreadPoolTaskExecutor) new BeanConfig().workflowExecutor();
         assertInstanceOf(ThreadPoolExecutor.AbortPolicy.class, wf.getThreadPoolExecutor().getRejectedExecutionHandler());
         assertEquals("adi-wf-", wf.getThreadNamePrefix());
 
-        ThreadPoolTaskExecutor idx = (ThreadPoolTaskExecutor) new BeanConfig().indexExecutor();
-        assertInstanceOf(ThreadPoolExecutor.AbortPolicy.class, idx.getThreadPoolExecutor().getRejectedExecutionHandler());
-        assertEquals("adi-index-", idx.getThreadNamePrefix());
+        ThreadPoolTaskExecutor tq = (ThreadPoolTaskExecutor) new BeanConfig().taskQueueExecutor();
+        assertInstanceOf(ThreadPoolExecutor.AbortPolicy.class, tq.getThreadPoolExecutor().getRejectedExecutionHandler());
+        assertEquals("adi-task-", tq.getThreadNamePrefix());
+        assertTrue(waitsOnShutdown(tq));
     }
 }

@@ -111,6 +111,32 @@ class TaskQueueServiceTest {
         assertTrue(nextRun.getValue().isBefore(before.plusMinutes(31)));
     }
 
+    @Test
+    void deferSchedulesRerunWithoutAdvancingRetryCount() {
+        TaskQueue claimed = claimed(1, 3);
+        LocalDateTime before = LocalDateTime.now();
+
+        assertTrue(taskQueueService.defer(claimed, 60, "same-doc busy"));
+
+        ArgumentCaptor<LocalDateTime> nextRun = ArgumentCaptor.forClass(LocalDateTime.class);
+        // retry_count 原样保留（1 不变）——defer 是资源忙，不是失败
+        verify(taskQueueMapper).markRetry(eq(claimed.getId()), eq(1), nextRun.capture(), eq("same-doc busy"));
+        assertTrue(nextRun.getValue().isAfter(before.plusSeconds(55)));
+        assertTrue(nextRun.getValue().isBefore(before.plusSeconds(65)));
+        verify(taskQueueMapper, never()).markDead(anyLong(), anyInt(), anyString());
+    }
+
+    @Test
+    void deferNeverTurnsDeadEvenAtRetryBudgetEdge() {
+        // 已到 max_retry-1：defer 也绝不推进计数进 DEAD，否则串行排队中的任务会被误杀
+        TaskQueue claimed = claimed(2, 3);
+
+        assertTrue(taskQueueService.defer(claimed, 60, "busy"));
+
+        verify(taskQueueMapper).markRetry(eq(claimed.getId()), eq(2), any(LocalDateTime.class), anyString());
+        verify(taskQueueMapper, never()).markDead(anyLong(), anyInt(), anyString());
+    }
+
     private TaskQueue claimed(int retryCount, int maxRetry) {
         TaskQueue task = new TaskQueue();
         task.setId(7L);

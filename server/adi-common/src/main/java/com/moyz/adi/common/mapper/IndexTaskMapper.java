@@ -18,8 +18,21 @@ public interface IndexTaskMapper extends BaseMapper<IndexTask> {
      * running is untouched (that version is already executing); everything else inserts a new
      * row — a newer version is always a new key, a running row can never swallow it.
      * Older-version rows are cleaned up by {@link #supersede}.
+     * <p>
+     * S2-02: RETURNING id — the caller submits a task_queue task pointing at this row
+     * (Outbox); a merge/revive returns the existing row's id, a swallowed enqueue (same
+     * version already running) returns null and the caller skips the submit.
      */
-    void enqueue(@Param("task") IndexTask task);
+    Long enqueue(@Param("task") IndexTask task);
+
+    /**
+     * S2-02: claim one specific pending row by id (task_queue handler execution entry).
+     * Guards mirror {@link #claimOne}: only 'pending' rows (superseded/cancelled/finished
+     * rows are never re-executed), at most one running per doc (NOT EXISTS + advisory lock —
+     * an unclaimable-because-busy row makes the handler defer, see TaskResult.defer),
+     * FOR UPDATE SKIP LOCKED against concurrent claims of the same task_queue retry.
+     */
+    IndexTask claimById(@Param("id") Long id);
 
     /**
      * Clear-and-stop-old when a newer version is enqueued (same key, unfinished rows with a

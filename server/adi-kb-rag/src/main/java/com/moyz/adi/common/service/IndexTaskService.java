@@ -33,18 +33,18 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.moyz.adi.common.task.TaskQueueService;
+import com.moyz.adi.common.task.TaskResult;
 
 import java.text.MessageFormat;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Executors;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -61,18 +61,22 @@ import static com.moyz.adi.common.constant.RedisKeyConstant.USER_INDEXING;
 /**
  * Index task queue: the single channel for all index writes (segmentation / embedding / graph extraction).
  * <p>
- * Tasks on the same doc run serially (claimOne mutual exclusion via advisory lock), across docs
- * in parallel. The uniqueness key is (doc, segment, target, type, index_version): a newer version
- * enqueues a new row and supersedes same-key rows of older versions (pending → failed; running →
- * stop_flag, aborted cooperatively at the next checkpoint); the same version merges into the
- * existing pending row; failed rows revive in place on manual retry.
+ * S2-02: execution is driven by the unified task_queue (ADR-002) — every enqueued row also
+ * inserts a KB_INDEX task (Outbox, same transaction); {@code IndexTaskHandler} claims the row
+ * by id ({@link #executeById}) and runs it. Tasks on the same doc stay serial (the claim's
+ * NOT EXISTS + advisory lock guard; a busy claim defers without consuming retry budget),
+ * across docs in parallel. The uniqueness key is (doc, segment, target, type, index_version):
+ * a newer version enqueues a new row and supersedes same-key rows of older versions (pending →
+ * failed; running → stop_flag, aborted cooperatively at the next checkpoint); the same version
+ * merges into the existing pending row; failed rows revive in place on manual retry.
  * Executors check staleness at three checkpoints (start check / per-batch checkpoint / conditional
  * finalize): on version advance they discard their own output, clean up stale segment rows and
  * vectors, and idempotently re-enqueue the latest version.
  * Embedding tasks are enqueued automatically (on save and on segment enable); graph tasks and
  * retries of failed tasks are enqueued manually.
  * Executors refresh heartbeat_time periodically; the poller resets timed-out running rows to
- * pending and force-fails tasks exceeding the max runtime.
+ * pending (so a task_queue rerun can claim them) and force-fails tasks exceeding the max runtime;
+ * crash recovery of the whole task is task_queue's orphan requeue (10 min).
  */
 @Slf4j
 @Service
@@ -82,6 +86,13 @@ public class IndexTaskService {
     public static final String TARGET_SEGMENT = "segment";
     public static final String STATUS_DONE = "done";
     public static final String STATUS_FAILED = "failed";
+
+    /** S2-02：task_queue 任务类型（IndexTaskHandler 注册同一常量） */
+    public static final String TASK_TYPE_KB_INDEX = "KB_INDEX";
+    /** S2-02 优先级策略：用户触发（保存/编辑/手动重建）走高优先级 */
+    public static final int PRIORITY_USER = 3;
+    /** S2-02 优先级策略：文档源定时批量同步走低优先级，防挤占绘图/在线任务 */
+    public static final int PRIORITY_SYNC = 8;
 
     /** Heartbeat interval: how often an executor refreshes heartbeat_time */
     private static final int HEARTBEAT_INTERVAL_SECONDS = 30;
@@ -101,11 +112,15 @@ public class IndexTaskService {
     });
 
     @Resource
-    @Lazy
-    private IndexTaskService self;
+    private IndexTaskMapper indexTaskMapper;
+
+    // S2-02：执行触发迁到 task_queue——enqueue 与 task_queue INSERT 同事务（Outbox），
+    // 业务回滚两者一起回滚；消费/重试/孤儿恢复由 TaskQueueConsumer 统一承担
+    @Resource
+    private TaskQueueService taskQueueService;
 
     @Resource
-    private IndexTaskMapper indexTaskMapper;
+    private ObjectMapper objectMapper;
 
     @Resource
     private KbDocumentMapper kbDocumentMapper;
@@ -142,9 +157,15 @@ public class IndexTaskService {
 
     /**
      * Enqueue a document-level task (version in key: a newer version inserts a new row and
-     * supersedes older ones; the same version merges or revives)
+     * supersedes older ones; the same version merges or revives). S2-02: execution is
+     * triggered via task_queue (Outbox, same transaction); user-triggered callers use
+     * {@link #enqueueDocument(String, String, String, User)} (high priority).
      */
     public void enqueueDocument(String kbUuid, String docUuid, String taskType, User user) {
+        enqueueDocument(kbUuid, docUuid, taskType, user, PRIORITY_USER);
+    }
+
+    public void enqueueDocument(String kbUuid, String docUuid, String taskType, User user, int priority) {
         KbDocument doc = kbDocumentMapper.getByUuid(docUuid);
         if (doc == null) {
             log.warn("enqueueDocument skipped, doc not found:{}", docUuid);
@@ -164,7 +185,8 @@ public class IndexTaskService {
         task.setTaskType(taskType);
         task.setIndexVersion(doc.getIndexVersion() == null ? 0 : doc.getIndexVersion());
         indexTaskMapper.supersede(task);
-        indexTaskMapper.enqueue(task);
+        Long id = indexTaskMapper.enqueue(task);
+        submitForEnqueuedRow(id, user.getId(), priority);
         // an empty qa doc has nothing to index and keeps its current status
         boolean emptyQaDoc = SegmentModeEnum.QA == doc.getSegmentMode()
                 && documentSegmentService.listByDocUuid(doc.getUuid()).isEmpty();
@@ -178,7 +200,6 @@ public class IndexTaskService {
                     .set(!embedding, KbDocument::getGraphicalStatusChangeTime, java.time.LocalDateTime.now())
                     .update();
         }
-        dispatchAfterCommit();
     }
 
     /**
@@ -186,6 +207,10 @@ public class IndexTaskService {
      * semantics identical to the document level)
      */
     public void enqueueSegment(KnowledgeBase kb, KbDocument doc, DocumentSegment segment, String taskType, User user) {
+        enqueueSegment(kb, doc, segment, taskType, user, PRIORITY_USER);
+    }
+
+    public void enqueueSegment(KnowledgeBase kb, KbDocument doc, DocumentSegment segment, String taskType, User user, int priority) {
         IndexTask task = new IndexTask();
         task.setKbUuid(kb.getUuid());
         task.setDocUuid(doc.getUuid());
@@ -195,36 +220,22 @@ public class IndexTaskService {
         task.setTaskType(taskType);
         task.setIndexVersion(segment.getIndexVersion() == null ? 0 : segment.getIndexVersion());
         indexTaskMapper.supersede(task);
-        indexTaskMapper.enqueue(task);
-        dispatchAfterCommit();
+        Long id = indexTaskMapper.enqueue(task);
+        submitForEnqueuedRow(id, user.getId(), priority);
     }
 
     /**
-     * Trigger the consume loop only after the caller's transaction (if any) has committed:
-     * an async dispatch racing an uncommitted enqueue INSERT finds nothing claimable and
-     * exits, leaving the pending row stuck until the next unrelated trigger.
-     * <p>
-     * A rejection (index pool saturated) is swallowed: the rows stay pending and the 60s
-     * poller re-dispatches, so an overload delays indexing instead of failing the request.
+     * S2-02：为 enqueue 落库的行提交 task_queue 任务（Outbox——纯 INSERT 进调用方事务，
+     * 提交后 2s 轮询自然看到，无需 afterCommit 触发）。enqueue 是 upsert：同版本已
+     * running 时被吞掉返回 null——该版本自有执行中任务负责收尾，跳过提交。
      */
-    private void dispatchAfterCommit() {
-        Runnable trigger = () -> {
-            try {
-                self.dispatch();
-            } catch (RejectedExecutionException e) {
-                log.warn("Index dispatch rejected: pool saturated, rows stay pending until the poller retries");
-            }
-        };
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    trigger.run();
-                }
-            });
-        } else {
-            trigger.run();
+    private void submitForEnqueuedRow(Long indexTaskId, long userId, int priority) {
+        if (indexTaskId == null) {
+            return;
         }
+        ObjectNode payload = objectMapper.createObjectNode();
+        payload.put("indexTaskId", indexTaskId);
+        taskQueueService.submit(TASK_TYPE_KB_INDEX, payload, priority, userId);
     }
 
     /**
@@ -288,23 +299,29 @@ public class IndexTaskService {
     }
 
     /**
-     * Consume loop: claim and execute until nothing is claimable. Triggered on enqueue;
-     * re-triggered by the poller as a fallback.
+     * S2-02：task_queue handler 执行入口（IndexTaskHandler 委托）。
+     * <ul>
+     *   <li>claimById 成功 → 走既有执行体（心跳/路由/收尾，epoch 僵尸保护不变）；</li>
+     *   <li>行不存在或已终态（done/failed：被取消、被新版本取代、上次执行已失败）
+     *       → ok，无事可做也不重试——旧队列的「失败等手工重试」语义由此保持；</li>
+     *   <li>行仍 pending 但抢不到（同文档已有 running 任务，串行门未开）→
+     *       defer：延后重跑且 retry_count 不前进，永不因此进 DEAD；</li>
+     *   <li>行 running 但非本执行（孤儿重跑撞上 2min 内尚未被 pollStale 复位的行）
+     *       → defer 等复位。</li>
+     * </ul>
      */
-    /**
-     * Runs on a dedicated bounded pool: the loop holds its thread for the whole queue and a
-     * single task can take minutes, so it must never share the pool that serves chat, and a
-     * saturated pool must reject (rows stay pending) rather than run on the caller thread.
-     */
-    @Async("indexExecutor")
-    public void dispatch() {
-        while (true) {
-            IndexTask task = self.claimOne();
-            if (task == null) {
-                return;
-            }
+    public TaskResult executeById(long indexTaskId) {
+        IndexTask task = indexTaskMapper.claimById(indexTaskId);
+        if (task != null) {
             execute(task);
+            return TaskResult.ok();
         }
+        IndexTask row = indexTaskMapper.selectById(indexTaskId);
+        if (row == null || STATUS_DONE.equals(row.getStatus()) || STATUS_FAILED.equals(row.getStatus())) {
+            return TaskResult.ok();
+        }
+        return TaskResult.defer(60, "index row not claimable yet, status=" + row.getStatus()
+                + ", docUuid=" + row.getDocUuid());
     }
 
     @PreDestroy
@@ -312,16 +329,13 @@ public class IndexTaskService {
         heartbeatExecutor.shutdownNow();
     }
 
-    @Transactional
-    public IndexTask claimOne() {
-        return indexTaskMapper.claimOne();
-    }
-
     /**
      * Polling fallback: recover timed-out running rows by heartbeat_time (left over by a
-     * crashed process; reset to pending for rerun) and force-fail hung tasks by start_time
-     * (process alive but stuck). Recover first, force-fail second — when both hit, treat as
-     * crash (auto rerun over manual retry). Re-trigger consumption if anything was done.
+     * crashed process; reset to pending so a task_queue rerun can claim them) and force-fail
+     * hung tasks by start_time (process alive but stuck). Recover first, force-fail second —
+     * when both hit, treat as crash (auto rerun over manual retry).
+     * S2-02: no re-dispatch here any more — execution is driven exclusively by task_queue
+     * (2s poll + orphan recovery); this sweep only keeps index_task row states claimable.
      */
     @Scheduled(fixedDelay = 60_000)
     @SchedulerLock(name = "IndexTaskService_pollStale", lockAtMostFor = "30m")
@@ -335,14 +349,6 @@ public class IndexTaskService {
             if (reset + broken.size() > 0) {
                 log.warn("Poller recovered index tasks: {} stale-running reset to pending (> {} min), {} hung force-failed (> {} min)",
                         reset, STALE_RUNNING_MINUTES, broken.size(), MAX_RUNNING_MINUTES);
-            }
-            //Always re-dispatch, not only after a recovery: it self-heals rows left pending by a
-            //rejected dispatch (pool saturated) or a dispatch that exited before its enqueue
-            //committed. Idle cost is a single claim query per minute.
-            try {
-                self.dispatch();
-            } catch (RejectedExecutionException e) {
-                log.warn("Poller dispatch rejected: index pool still saturated");
             }
         } catch (Exception e) {
             log.error("pollStale error", e);
@@ -707,14 +713,16 @@ public class IndexTaskService {
         if (doc == null || Boolean.TRUE.equals(doc.getIsDeleted())) {
             return;
         }
-        indexTaskMapper.enqueue(buildLatestDocumentTask(task, doc));
+        Long id = indexTaskMapper.enqueue(buildLatestDocumentTask(task, doc));
+        submitForEnqueuedRow(id, task.getUserId(), PRIORITY_USER);
     }
 
     private void enqueueLatestSegment(IndexTask task, DocumentSegment segment) {
         if (segment == null) {
             return;
         }
-        indexTaskMapper.enqueue(buildLatestSegmentTask(task, segment));
+        Long id = indexTaskMapper.enqueue(buildLatestSegmentTask(task, segment));
+        submitForEnqueuedRow(id, task.getUserId(), PRIORITY_USER);
     }
 
     /**
