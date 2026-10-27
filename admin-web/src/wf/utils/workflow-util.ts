@@ -1,7 +1,37 @@
-import { v4 as uuidv4 } from 'uuid'
-import { emptyWorkflowNode } from './functions'
+/**
+ * OPT-16：admin 端 workflow-util 出口。核心逻辑已迁入共享包 aideepin-wf-shared
+ * （workflow-util-core，注入式：store 取模型/标题/埋点由本薄壳提供）。
+ * 函数签名与迁移前保持一致，消费方（wf-designer 各 .vue）零改动。
+ *
+ * admin 语义（与迁移前一致）：
+ * - 标题走 i18n t('workflow.componentTitle.x')（user 端走 descriptor，语义分叉不收）
+ * - 连线无校验、全局 animated:true（user 的 T3-06 校验/T3-03 着色为增强语义）
+ * - 无 T3-05 历史栈埋点
+ */
 import { useAppStore } from '@/wf/stores'
 import { t } from '@/locales'
+import {
+  createNewNode as coreCreateNewNode,
+  createWorkflowEdge,
+  updateEdgeBySourceHandle as coreUpdateEdgeBySourceHandle,
+  deleteEdgesBySource as coreDeleteEdgesBySource,
+  deleteEdgesBySourceHandle as coreDeleteEdgesBySourceHandle,
+  getInputLabelFromParamName as coreGetInputLabelFromParamName,
+  getNameByInputType as coreGetNameByInputType,
+  type WfUtilHooks,
+} from 'aideepin-wf-shared'
+
+export * from 'aideepin-wf-shared'
+
+function getHooks(): WfUtilHooks {
+  const appStore = useAppStore()
+  return {
+    getFirstLLM: (type?: string) => appStore.getFirstLLM(type),
+    listImageModels: () => appStore.imageModels,
+    getComponentTitle: name => t(`workflow.componentTitle.${name}`),
+    onNodeOrEdgeChanged: () => {},
+  }
+}
 
 export function createNewNode(
   workflow: Workflow.WorkflowInfo,
@@ -9,53 +39,7 @@ export function createNewNode(
   component: Workflow.WorkflowComponent,
   position: { x: number; y: number },
 ) {
-  const newWfNode = emptyWorkflowNode()
-  newWfNode.uuid = uuidv4().replace(/-/g, '')
-  newWfNode.title = t(`workflow.componentTitle.${component.name}`)
-  newWfNode.workflowId = workflow.id
-  newWfNode.workflowUuid = workflow.uuid
-  newWfNode.wfComponent = component
-  newWfNode.workflowComponentId = component.id
-  newWfNode.inputConfig = { user_inputs: [], ref_inputs: [] }
-  newWfNode.nodeConfig = {}
-  newWfNode.outputConfig = {}
-  newWfNode.positionX = position.x
-  newWfNode.positionY = position.y
-  if (component.name === 'Classifier')
-    createClassifierNode(newWfNode)
-  else if (component.name === 'Answer')
-    createAnswer(newWfNode)
-  else if (component.name === 'Switcher')
-    createSwitcherNode(workflow, newWfNode)
-  else if (component.name === 'KeywordExtractor')
-    createKeywordExtractor(newWfNode)
-  else if (component.name === 'FaqExtractor')
-    createFaqExtractor(newWfNode)
-  else if (component.name === 'KnowledgeRetrieval')
-    createKnowledgeRetrieval(newWfNode)
-  else if (component.name === 'OpenAiImage')
-    createOpenAiImage(newWfNode)
-  else if (component.name === 'Tongyiwanx')
-    createTongyiwanx(newWfNode)
-  else if (component.name === 'Google')
-    createGoogle(newWfNode)
-  else if (component.name === 'HumanFeedback')
-    createHumanFeedback(newWfNode)
-  else if (component.name === 'MailSend')
-    createMailSend(newWfNode)
-  else if (component.name === 'HttpRequest')
-    createHttpRequest(newWfNode)
-  else if (component.name === 'Agent')
-    createAgent(newWfNode)
-  else if (component.name === 'Database')
-    createDatabase(newWfNode)
-  else if (component.name === 'Mcp')
-    createMcp(newWfNode)
-  else if (component.name === 'Skill')
-    createSkill(newWfNode)
-
-  workflow.nodes.push(newWfNode)
-  uiWorkflow.nodes.push(wfNodeToUiNode(newWfNode))
+  coreCreateNewNode(getHooks(), workflow, uiWorkflow, component, position)
 }
 
 export function createNewEdge(params: {
@@ -66,48 +50,7 @@ export function createNewEdge(params: {
   target: string
 },
 ) {
-  const wfEdge = {
-    id: '',
-    uuid: uuidv4().replace(/-/g, ''),
-    workflowId: params.workflow.id,
-    sourceNodeUuid: params.source,
-    sourceHandle: params.sourceHandle,
-    targetNodeUuid: params.target,
-    workflowUuid: params.workflow.uuid,
-  }
-  params.workflow.edges.push(wfEdge)
-  if (params.target) {
-    const uiEdge = {
-      id: wfEdge.uuid,
-      source: wfEdge.sourceNodeUuid,
-      target: wfEdge.targetNodeUuid,
-      type: 'special',
-      animated: true,
-      sourceHandle: params.sourceHandle ? params.sourceHandle : undefined,
-      data: wfEdge,
-    }
-    params.uiWorkflow.edges.push(uiEdge)
-  }
-  // 判断源节点是否【条件分支】或【内容分类】
-  params.workflow.nodes.forEach((node) => {
-    if (node.uuid === params.source) {
-      if (node.wfComponent.name === 'Switcher') {
-        if (wfEdge.sourceHandle === 'default_handle') {
-          (node.nodeConfig as Workflow.NodeConfigSwitcher).default_target_node_uuid = wfEdge.targetNodeUuid
-        } else {
-          (node.nodeConfig as Workflow.NodeConfigSwitcher).cases.forEach((item) => {
-            if (item.uuid === wfEdge.sourceHandle)
-              item.target_node_uuid = wfEdge.targetNodeUuid
-          })
-        }
-      } else if (node.wfComponent.name === 'Classifier') {
-        (node.nodeConfig as Workflow.NodeConfigClassifier).categories.forEach((item) => {
-          if (item.category_uuid === wfEdge.sourceHandle)
-            item.target_node_uuid = wfEdge.targetNodeUuid
-        })
-      }
-    }
-  })
+  createWorkflowEdge(getHooks(), params)
 }
 
 export function updateEdgeBySourceHandle(params:
@@ -119,24 +62,7 @@ export function updateEdgeBySourceHandle(params:
   target: string
 },
 ) {
-  const wfEdge = params.workflow.edges.find(item => item.sourceHandle === params.sourceHandle)
-  if (!wfEdge) {
-    console.warn('no edge found for sourceHandle')
-    return
-  }
-  wfEdge.targetNodeUuid = params.target
-  const idx = params.uiWorkflow.edges.findIndex(item => item.source === params.source && item.sourceHandle === params.sourceHandle)
-  if (idx > -1)
-    params.uiWorkflow.edges.splice(idx, 1)
-
-  const uiEdge = {
-    id: wfEdge.uuid,
-    source: wfEdge.sourceNodeUuid,
-    target: wfEdge.targetNodeUuid,
-    animated: true,
-    sourceHandle: params.sourceHandle,
-  }
-  params.uiWorkflow.edges.push(uiEdge)
+  coreUpdateEdgeBySourceHandle(getHooks(), params)
 }
 
 export function deleteEdgesBySource(
@@ -144,22 +70,7 @@ export function deleteEdgesBySource(
   uiWorkflow: Workflow.UIWorkflow,
   source: string,
 ) {
-  const edges = workflow.edges.filter(edge => edge.sourceNodeUuid === source)
-  edges.forEach((element) => {
-    const edgeIndex = workflow.edges.findIndex((edge) => {
-      const hit = edge.uuid === element.uuid
-      if (hit)
-        workflow.deleteEdges.push(edge.uuid)
-
-      return hit
-    })
-    if (edgeIndex !== -1)
-      workflow.edges.splice(edgeIndex, 1)
-
-    const uiEdgeIndex = uiWorkflow.edges.findIndex(edge => edge.uuid === element.uuid)
-    if (uiEdgeIndex !== -1)
-      uiWorkflow.edges.splice(edgeIndex, 1)
-  })
+  coreDeleteEdgesBySource(getHooks(), workflow, uiWorkflow, source)
 }
 
 export function deleteEdgesBySourceHandle(
@@ -168,274 +79,18 @@ export function deleteEdgesBySourceHandle(
   source: string,
   sourceHandle: string,
 ) {
-  const edgeIndex = workflow.edges.findIndex((edge) => {
-    const hit = edge.sourceNodeUuid === source && edge.sourceHandle === sourceHandle
-    if (hit)
-      workflow.deleteEdges.push(edge.uuid)
-
-    return hit
-  })
-  if (edgeIndex !== -1)
-    workflow.edges.splice(edgeIndex, 1)
-
-  const uiEdgeIndex = uiWorkflow.edges.findIndex(edge => edge.sourceNodeUuid === source && edge.sourceHandle === sourceHandle)
-  if (uiEdgeIndex !== -1)
-    uiWorkflow.edges.splice(edgeIndex, 1)
-}
-
-function wfNodeToUiNode(node: Workflow.WorkflowNode) {
-  const newNode = {
-    id: node.uuid,
-    type: node.wfComponent.name.toLowerCase(),
-    data: node,
-    position: {
-      x: node.positionX,
-      y: node.positionY,
-    },
-  }
-  return newNode
-}
-
-function createSwitcherNode(workflow: Workflow.WorkflowInfo, node: Workflow.WorkflowNode) {
-  const startNode = workflow.nodes.find(item => item.wfComponent.name === 'Start')
-  if (!startNode)
-    throw new Error('Start node not found')
-
-  const firstInput = startNode.inputConfig.user_inputs[0]
-  node.nodeConfig = {
-    default_target_node_uuid: '',
-    cases: [
-      {
-        uuid: uuidv4().replace(/-/g, ''),
-        operator: 'and',
-        target_node_uuid: '',
-        conditions:
-          [
-            { node_uuid: startNode.uuid, node_param_name: firstInput.name, operator: 'contains', value: '' },
-          ],
-      },
-      {
-        uuid: uuidv4().replace(/-/g, ''),
-        operator: 'and',
-        target_node_uuid: '',
-        conditions:
-          [
-            { node_uuid: startNode.uuid, node_param_name: firstInput.name, operator: 'contains', value: '' },
-          ],
-      },
-    ],
-  }
-}
-
-function createClassifierNode(node: Workflow.WorkflowNode) {
-  const appStore = useAppStore()
-  const first = appStore.getFirstLLM('text')
-  node.nodeConfig = {
-    model_platform: first?.modelPlatform || '',
-    model_name: first?.modelName || '',
-    categories: [
-      {
-        category_uuid: uuidv4().replace(/-/g, ''),
-        category_name: '',
-        target_node_uuid: '',
-      },
-      {
-        category_uuid: uuidv4().replace(/-/g, ''),
-        category_name: '',
-        target_node_uuid: '',
-      },
-    ],
-  }
-}
-
-function createAnswer(node: Workflow.WorkflowNode) {
-  const appStore = useAppStore()
-  const first = appStore.getFirstLLM('text')
-  node.nodeConfig = {
-    prompt: '',
-    model_platform: first?.modelPlatform || '',
-    model_name: first?.modelName || '',
-  }
-}
-
-function createKeywordExtractor(node: Workflow.WorkflowNode) {
-  const appStore = useAppStore()
-  const first = appStore.getFirstLLM('text')
-  node.nodeConfig = {
-    top_n: 5,
-    model_platform: first?.modelPlatform || '',
-    model_name: first?.modelName || '',
-  }
-}
-
-function createFaqExtractor(node: Workflow.WorkflowNode) {
-  const appStore = useAppStore()
-  const first = appStore.getFirstLLM('text')
-  node.nodeConfig = {
-    top_n: 5,
-    model_platform: first?.modelPlatform || '',
-    model_name: first?.modelName || '',
-  }
-}
-
-function createKnowledgeRetrieval(node: Workflow.WorkflowNode) {
-  node.nodeConfig = {
-    knowledge_base_uuid: '',
-    knowledge_base_name: '',
-    score: 0.6,
-    top_n: 3,
-    is_strict: true,
-    default_response: '',
-  }
-}
-
-function createOpenAiImage(node: Workflow.WorkflowNode) {
-  node.nodeConfig = {
-    prompt: '',
-    size: '1024x1024',
-    quality: 'standard',
-  }
-}
-
-function createTongyiwanx(node: Workflow.WorkflowNode) {
-  const appStore = useAppStore()
-  const opts = appStore.imageModels.filter((item) => {
-    if (item.modelName.includes('wanx-background'))
-      return false
-
-    return item.modelPlatform === 'dashscope'
-  })
-  node.nodeConfig = {
-    model_name: opts.length > 0 ? opts[0].modelName : '',
-    prompt: '',
-    size: '1024*1024',
-    seed: -1,
-  }
-}
-
-function createGoogle(node: Workflow.WorkflowNode) {
-  node.nodeConfig = {
-    query: '',
-    country: 'cn',
-    language: 'zh-cn',
-    top_n: 5,
-  }
-}
-
-function createHumanFeedback(node: Workflow.WorkflowNode) {
-  node.nodeConfig = {
-    tip: '',
-  }
-}
-
-function createMailSend(node: Workflow.WorkflowNode) {
-  node.nodeConfig = {
-    sender_type: 1,
-    cc_mails: '',
-    to_mails: '',
-    subject: '',
-    content: '',
-    smtp: {
-      host: '',
-      port: 465,
-    },
-    sender: {
-      name: '',
-      mail: '',
-      password: '',
-    },
-  }
-}
-
-function createHttpRequest(node: Workflow.WorkflowNode) {
-  node.nodeConfig = {
-    method: 'GET',
-    url: '',
-    content_type: 'text/plain', // text/plain, application/json, application/x-www-form-urlencoded, multipart/form-data
-    headers: [{ name: 'Accept', value: '*/*' }, { name: 'Cache-Control', value: 'no-cache' }, { name: 'Connection', value: 'keep-alive' }],
-    params: [],
-    text_body: '',
-    json_body: {},
-    form_data_body: [],
-    form_urlencoded_body: [],
-    body: {},
-    timeout: 10,
-    retry_times: 0,
-    clear_html: false,
-  }
-}
-
-function createAgent(node: Workflow.WorkflowNode) {
-  node.nodeConfig = {
-    character_uuid: '',
-    enable_rag: true,
-    enable_mcp: true,
-    enable_web_search: false,
-  }
-}
-
-// 数据库节点：默认输出文本、最多 100 行、不替换占位符
-function createDatabase(node: Workflow.WorkflowNode) {
-  node.nodeConfig = {
-    datasource_uuid: '',
-    sql: '',
-    output_format: 'text',
-    limit: 100,
-    replace_input: false,
-  }
-}
-
-// MCP 工具节点：默认不限定服务（= 当前用户全部已启用服务），入参为空 JSON
-function createMcp(node: Workflow.WorkflowNode) {
-  node.nodeConfig = {
-    mcp_ids: [],
-    tool_name: '',
-    arguments: '{}',
-    output_format: 'text',
-  }
-}
-
-// 技能节点：默认读取技能指令正文（不需要脚本）
-function createSkill(node: Workflow.WorkflowNode) {
-  node.nodeConfig = {
-    skill_uuid: '',
-    skill_name: '',
-    mode: 'instruction',
-    script: '',
-    args: '',
-  }
+  coreDeleteEdgesBySourceHandle(workflow, uiWorkflow, source, sourceHandle)
 }
 
 export function getInputLabelFromParamName(workflow: Workflow.WorkflowInfo, nodeUuid: string, nodeParamName: string) {
-  const node = workflow.nodes.find(node => node.uuid === nodeUuid)
-  if (!node)
-    return ''
-
-  if (node.wfComponent.name === 'Start') {
-    const inputConfig = node.inputConfig
-    const input = inputConfig.user_inputs.find(input => input.name === nodeParamName)
-    if (input)
-      return input.title
-  } else {
-    return node.title
-  }
+  return coreGetInputLabelFromParamName(workflow, nodeUuid, nodeParamName)
 }
 
 export function getNameByInputType(type: number) {
-  switch (type) {
-    case 1:
-      return '文本'
-    case 2:
-      return '数字'
-    case 3:
-      return '下拉选项'
-    case 4:
-      return '文件列表'
-    default:
-      return 'Unknown'
-  }
+  return coreGetNameByInputType(type)
 }
 
+// 图标/图标色：admin 走 switch 硬编码（user 端走 descriptor.ts 单一来源，语义分叉不收共享包）
 export function getIconByComponentName(name: string) {
   switch (name.toLowerCase()) {
     case 'answer':

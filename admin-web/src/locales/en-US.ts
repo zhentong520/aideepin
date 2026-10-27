@@ -74,7 +74,7 @@ export default {
   },
   user: {
     title: 'User Management',
-    password: 'Password',
+    password: 'Password', // mimosa-ignore
     namePlaceholder: 'Enter name',
     passwordPlaceholder: 'Enter password',
     email: 'Email',
@@ -138,7 +138,7 @@ export default {
     platformBaseUrl: 'Base URL',
     platformBaseUrlPlaceholder: 'Enter base URL',
     apiKey: 'Api Key',
-    secretKey: 'Secret Key',
+    secretKey: 'Secret Key', // mimosa-ignore
     enableProxy: 'Enable Proxy',
     proxyFeedback: 'Detailed proxy configuration is stored in the project configuration files',
     openaiCompatible: 'OpenAI API Compatible',
@@ -152,7 +152,7 @@ export default {
     // Table columns
     colBaseUrl: 'Base URL',
     colApiKey: 'API Key',
-    colSecretKey: 'Secret Key',
+    colSecretKey: 'Secret Key', // mimosa-ignore
     colProxy: 'Proxy Enabled',
     colOpenaiCompatible: 'OpenAI API Compatible',
   },
@@ -421,7 +421,7 @@ export default {
   },
   lockscreen: {
     unlockScreen: 'Unlock Screen',
-    enterPassword: 'Enter login password',
+    enterPassword: 'Enter login password', // mimosa-ignore
     goBack: 'Go Back',
     reLogin: 'Re-login',
     enterSystem: 'Enter System',
@@ -521,6 +521,8 @@ export default {
     createTime: 'Create Time',
     updateTime: 'Update Time',
     action: 'Action',
+    // KnowledgeBase columns
+    uncategorized: 'Uncategorized',
     // User columns
     email: 'Email',
     avatar: 'Avatar',
@@ -541,7 +543,7 @@ export default {
     // Platform columns
     baseUrl: 'Base URL',
     apiKey: 'API Key',
-    secretKey: 'Secret Key',
+    secretKey: 'Secret Key', // mimosa-ignore
     isProxyEnable: 'Proxy Enabled',
     isOpenaiApiCompatible: 'OpenAI API Compatible',
     // Character columns

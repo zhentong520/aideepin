@@ -37,11 +37,11 @@ export default {
     login: 'Login',
     logout: 'Logout',
     register: 'Register',
-    password: 'Password',
-    confirmPassword: 'Confirm password',
-    resetPassword: 'Reset password',
-    forgotPassword: 'Forgot password',
-    findMyPassword: 'Find my password',
+    password: 'Password', // mimosa-ignore
+    confirmPassword: 'Confirm password', // mimosa-ignore
+    resetPassword: 'Reset password', // mimosa-ignore
+    forgotPassword: 'Forgot password', // mimosa-ignore
+    findMyPassword: 'Find my password', // mimosa-ignore
     captcha: 'Captcha',
     email: 'Email',
     emailCode: 'Email code',
@@ -52,7 +52,7 @@ export default {
     secondsShort: 's',
     resendEmailCode: 'Resend code',
     emailInvalid: 'Invalid email format',
-    newPassword: 'New Password',
+    newPassword: 'New Password', // mimosa-ignore
     newPasswordRepeat: 'New Password (Repeat)',
     clickToLogin: 'Click to Login',
     emailOrPasswordEmpty: 'Email or password cannot be empty',
@@ -383,7 +383,7 @@ export default {
     socks: 'Socks',
     httpsProxy: 'HTTPS Proxy',
     balance: 'API Balance',
-    modifyPassword: 'Change Password',
+    modifyPassword: 'Change Password', // mimosa-ignore
     paidModel: 'Paid Models',
     freeModel: 'Free Models',
     textChat: 'Text Chat',
@@ -723,7 +723,7 @@ export default {
     smtpPort: 'SMTP Port',
     senderName: 'Sender Name',
     senderEmail: 'Sender Email',
-    senderPassword: 'Sender Password',
+    senderPassword: 'Sender Password', // mimosa-ignore
     recipientEmail: 'Recipient Email',
     recipientEmailPlaceholder: 'Multiple emails separated by commas',
     ccEmail: 'CC Email',

@@ -1,18 +1,4 @@
-type CallbackFunc<T extends unknown[]> = (...args: T) => void
-
-export function debounce<T extends unknown[]>(
-  func: CallbackFunc<T>,
-  wait: number,
-): (...args: T) => void {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined
-
-  return (...args: T) => {
-    const later = () => {
-      clearTimeout(timeoutId)
-      func(...args)
-    }
-
-    clearTimeout(timeoutId)
-    timeoutId = setTimeout(later, wait)
-  }
-}
+/**
+ * OPT-16 步骤②：实现已迁入共享包，此处保留转发出口，消费方零改动。
+ */
+export * from 'aideepin-wf-shared'

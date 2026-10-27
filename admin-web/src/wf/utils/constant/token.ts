@@ -21,11 +21,9 @@ export const RESPONSE_SHOW_TYPE_OPTIONS = [
   { label: '音频(不自动播放)', value: 4 },
 ]
 
-export const CHAT_MESSAGE_CONTENT_TYPE = {
-  auto: 1, // 自动
-  text: 2, // 文本
-  audio: 3, // 音频
-}
+// OPT-16：两端同源常量已迁入共享包（转发出口，消费方零改动）
+export { CHAT_MESSAGE_CONTENT_TYPE } from 'aideepin-wf-shared'
+
 /**
  * 音频合成位置：客户端(web)或服务端
  */

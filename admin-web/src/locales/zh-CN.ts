@@ -136,7 +136,7 @@ export default {  common: {
     platformBaseUrl: '接口地址',
     platformBaseUrlPlaceholder: '请输入接口地址',
     apiKey: 'Api Key',
-    secretKey: 'Secret Key',
+    secretKey: 'Secret Key', // mimosa-ignore
     enableProxy: '启用代理',
     proxyFeedback: '详细的代理配置存放于项目代码的配置文件中',
     openaiCompatible: '是否兼容OpenAI API',
@@ -148,7 +148,7 @@ export default {  common: {
     // Table columns
     colBaseUrl: '接口地址(base_url)',
     colApiKey: 'API Key',
-    colSecretKey: 'Secret Key',
+    colSecretKey: 'Secret Key', // mimosa-ignore
     colProxy: '启用代理',
     colOpenaiCompatible: '兼容OpenAI Api格式',
   },
@@ -511,6 +511,8 @@ export default {  common: {
     createTime: '创建时间',
     updateTime: '更新时间',
     action: '操作',
+    // KnowledgeBase columns
+    uncategorized: '未分类',
     // User columns
     email: '邮箱',
     avatar: '头像',
@@ -531,7 +533,7 @@ export default {  common: {
     // Platform columns
     baseUrl: '接口地址(base_url)',
     apiKey: 'API Key',
-    secretKey: 'Secret Key',
+    secretKey: 'Secret Key', // mimosa-ignore
     isProxyEnable: '启用代理',
     isOpenaiApiCompatible: '兼容OpenAI Api格式',
     // Character columns

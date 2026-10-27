@@ -1,7 +1,4 @@
-export function getCurrentDate() {
-  const date = new Date()
-  const day = date.getDate()
-  const month = date.getMonth() + 1
-  const year = date.getFullYear()
-  return `${year}-${month}-${day}`
-}
+/**
+ * OPT-16：getCurrentDate 已迁入共享包 aideepin-wf-shared（转发出口）。
+ */
+export * from 'aideepin-wf-shared'
