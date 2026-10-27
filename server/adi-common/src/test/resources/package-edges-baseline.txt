@@ -78,6 +78,8 @@ service -> file
 service -> mapper
 service -> util
 service -> vo
+task -> entity
+task -> mapper
 util -> base
 util -> config
 util -> constant

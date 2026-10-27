@@ -199,6 +199,11 @@
             <groupId>org.bsc.langgraph4j</groupId>
             <artifactId>langgraph4j-langchain4j</artifactId>
         </dependency>
+        <!-- S2-01：TaskQueueConsumer @Scheduled 防重（@EnableSchedulerLock 在 adi-bootstrap，惯例同 adi-kb-rag/adi-workflow） -->
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-spring</artifactId>
+        </dependency>
         <!-- ===== 测试 ===== -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

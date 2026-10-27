@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.moyz.adi.common.mapper.TaskQueueMapper">
+
+    <!-- S2-01：SKIP LOCKED 原子抢占。子查询锁定一条到期候选（跳过已被其他实例锁住的行），
+         外层 UPDATE..RETURNING 一步完成状态翻转与行返回——Postgres JDBC 支持
+         UPDATE..RETURNING 以 ResultSet 形式返回，MyBatis 直接映射。 -->
+    <select id="claimNext" resultType="com.moyz.adi.common.entity.TaskQueue">
+        UPDATE task_queue
+        SET status         = 'RUNNING',
+            owner_instance = #{ownerInstance},
+            next_run_at    = now()
+        WHERE id = (
+            SELECT id
+            FROM task_queue
+            WHERE status = 'PENDING'
+              AND next_run_at &lt;= now()
+              AND is_deleted = false
+            ORDER BY priority, next_run_at, id
+            LIMIT 1
+            FOR UPDATE SKIP LOCKED
+        )
+        RETURNING id, task_type, payload, status, priority, retry_count, max_retry,
+                  next_run_at, owner_instance, last_error, created_by,
+                  create_time, update_time, is_deleted
+    </select>
+
+    <!-- 心跳只刷 update_time（触发器自动覆写为 now()），不碰业务列 -->
+    <update id="heartbeatByOwner">
+        UPDATE task_queue SET update_time = now()
+        WHERE owner_instance = #{ownerInstance} AND status = 'RUNNING' AND is_deleted = false
+    </update>
+
+    <!-- 孤儿回收：RUNNING 但超过 timeoutSeconds 无心跳（进程被 kill -9 等）重回 PENDING。
+         make_interval 避免 SQL 注入面（timeoutSeconds 为 int 参数）。 -->
+    <update id="requeueOrphans">
+        UPDATE task_queue
+        SET status = 'PENDING',
+            owner_instance = NULL,
+            last_error = 'orphan requeue: no heartbeat within timeout'
+        WHERE status = 'RUNNING'
+          AND is_deleted = false
+          AND update_time &lt; now() - make_interval(secs =&gt; #{timeoutSeconds})
+    </update>
+
+    <update id="markSuccess">
+        UPDATE task_queue SET status = 'SUCCESS', last_error = NULL
+        WHERE id = #{id} AND status = 'RUNNING' AND is_deleted = false
+    </update>
+
+    <update id="markRetry">
+        UPDATE task_queue
+        SET status = 'PENDING',
+            retry_count = #{retryCount},
+            next_run_at = #{nextRunAt},
+            last_error = #{lastError},
+            owner_instance = NULL
+        WHERE id = #{id} AND status = 'RUNNING' AND is_deleted = false
+    </update>
+
+    <update id="markDead">
+        UPDATE task_queue
+        SET status = 'DEAD',
+            retry_count = #{retryCount},
+            last_error = #{lastError},
+            owner_instance = NULL
+        WHERE id = #{id} AND status = 'RUNNING' AND is_deleted = false
+    </update>
+
+    <update id="requeueForRetry">
+        UPDATE task_queue
+        SET status = 'PENDING',
+            retry_count = 0,
+            next_run_at = now(),
+            owner_instance = NULL
+        WHERE id = #{id} AND status IN ('DEAD', 'FAILED') AND is_deleted = false
+    </update>
+
+    <update id="terminate">
+        UPDATE task_queue
+        SET status = 'DEAD', owner_instance = NULL, last_error = 'terminated by admin'
+        WHERE id = #{id} AND status IN ('PENDING', 'RUNNING') AND is_deleted = false
+    </update>
+</mapper>

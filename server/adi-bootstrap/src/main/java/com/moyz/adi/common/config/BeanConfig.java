@@ -189,6 +189,31 @@ public class BeanConfig {
         return executor;
     }
 
+    /**
+     * S2-01：task_queue 消费专用线程池。
+     * <p>
+     * Dedicated bounded pool for {@code TaskQueueConsumer} handlers. Task payloads are
+     * self-contained (submitted with created_by, not ThreadContext), so no
+     * ThreadContextTaskDecorator here — the poll thread has no user context to propagate.
+     * Abort on overload: the claimed row stays RUNNING briefly and either finishes via
+     * another poll or is requeued by the orphan sweep.
+     */
+    @Bean(name = "taskQueueExecutor")
+    public AsyncTaskExecutor taskQueueExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(2);
+        executor.setMaxPoolSize(4);
+        executor.setQueueCapacity(500);
+        executor.setKeepAliveSeconds(120);
+        executor.setAllowCoreThreadTimeOut(true);
+        executor.setThreadNamePrefix("adi-task-");
+        executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.AbortPolicy());
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(60);
+        executor.initialize();
+        return executor;
+    }
+
     @Bean
     @Primary
     public SqlSessionFactory sqlSessionFactory(DataSource dataSource)
