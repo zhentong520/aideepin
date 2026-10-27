@@ -23,7 +23,8 @@ spring:
           max-active: 20
           # Max blocking wait time in pool
           # 连接池最大阻塞等待时间
-          max-wait: -1
+          # S1-09: -1(无限等待) 会在 Redis 故障时把线程逐个拖死放大成线程池耗尽，必须有界
+          max-wait: 3000ms
           # Max idle connections in pool
           # 连接池中的最大空闲连接
           max-idle: 5
