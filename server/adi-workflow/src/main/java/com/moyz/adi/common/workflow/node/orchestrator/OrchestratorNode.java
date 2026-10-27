@@ -8,9 +8,7 @@ import com.moyz.adi.common.enums.ErrorEnum;
 import com.moyz.adi.common.exception.BaseException;
 import com.moyz.adi.common.multiagent.Blackboard;
 import com.moyz.adi.common.multiagent.BlackboardEntry;
-import com.moyz.adi.common.service.AgentService;
 import com.moyz.adi.common.service.SysConfigService;
-import com.moyz.adi.common.util.SpringUtil;
 import com.moyz.adi.common.vo.AgentRequest;
 import com.moyz.adi.common.vo.AgentResult;
 import com.moyz.adi.common.workflow.NodeProcessResult;
@@ -20,7 +18,6 @@ import com.moyz.adi.common.workflow.WorkflowUtil;
 import com.moyz.adi.common.workflow.data.NodeIOData;
 import com.moyz.adi.common.workflow.metrics.OrchestratorMetrics;
 import com.moyz.adi.common.workflow.node.AbstractWfNode;
-import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
@@ -57,17 +54,10 @@ import static com.moyz.adi.common.workflow.WfConstant.DEFAULT_OUTPUT_PARAM_NAME;
 @Slf4j
 public class OrchestratorNode extends AbstractWfNode {
 
-    @Resource
-    private AgentService agentService;
-
-    @Resource
-    private AdiProperties adiProperties;
-
     public OrchestratorNode(WorkflowComponent wfComponent,
                             WorkflowNode nodeDef,
                             WfState wfState, WfNodeState nodeState) {
         super(wfComponent, nodeDef, wfState, nodeState);
-        this.agentService = SpringUtil.getBean(AgentService.class);
         state.setMetrics(new OrchestratorMetrics());
     }
 
@@ -123,7 +113,7 @@ public class OrchestratorNode extends AbstractWfNode {
                                 .enableMcp(!Boolean.FALSE.equals(config.getEnableMcp()))
                                 .enableWebSearch(false)
                                 .build();
-                        AgentResult result = agentService.invoke(request, wfState.getUser(), wfState.getUuid());
+                        AgentResult result = deps.agentService().invoke(request, wfState.getUser(), wfState.getUuid());
                         blackboard.writeResult(taskId, null == result ? "" : StringUtils.defaultString(result.getAnswer()));
                     } catch (Exception e) {
                         // 失败记录上板：汇总方看得到谁失败、为什么；兄弟任务不受影响
@@ -185,7 +175,12 @@ public class OrchestratorNode extends AbstractWfNode {
             return Boolean.parseBoolean(sysValue.trim());
         }
         try {
-            return adiProperties.getAgent().isOrchestratorEnabled();
+            AdiProperties props = deps.adiProperties();
+            if (null == props) {
+                //依赖未注入（纯单测）时按缺省开处理，与生产缺省一致
+                return true;
+            }
+            return props.getAgent().isOrchestratorEnabled();
         } catch (Exception ignored) {
             return true;
         }

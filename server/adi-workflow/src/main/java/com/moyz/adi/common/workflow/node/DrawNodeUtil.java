@@ -6,7 +6,6 @@ import com.moyz.adi.common.entity.User;
 import com.moyz.adi.common.file.FileOperatorContext;
 import com.moyz.adi.common.languagemodel.AbstractImageModelService;
 import com.moyz.adi.common.service.FileService;
-import com.moyz.adi.common.util.SpringUtil;
 import com.moyz.adi.common.workflow.NodeProcessResult;
 import com.moyz.adi.common.workflow.data.NodeIOData;
 import com.moyz.adi.common.workflow.data.NodeIODataFilesContent;
@@ -26,9 +25,8 @@ public class DrawNodeUtil {
      * @param imageModelService 绘图service
      * @return 节点处理结果
      */
-    public static NodeProcessResult createResultContent(User user, Draw draw, AbstractImageModelService imageModelService) {
+    public static NodeProcessResult createResultContent(User user, Draw draw, AbstractImageModelService imageModelService, FileService fileService) {
         List<String> images = imageModelService.generateImage(user, draw);
-        FileService fileService = SpringUtil.getBean(FileService.class);
         String imageUrl = "";
         if (CollectionUtils.isNotEmpty(images)) {
             AdiFile adiFile = fileService.saveImageFromUrl(user, images.get(0));

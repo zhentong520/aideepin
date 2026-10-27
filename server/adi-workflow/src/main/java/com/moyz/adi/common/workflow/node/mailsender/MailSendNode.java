@@ -63,20 +63,20 @@ public class MailSendNode extends AbstractWfNode {
             // 二开新增（T2-07）：密码解析走凭据库门面（开关两态）——
             // vault-enabled 且节点带 credential_uuid → 从 adi_credential 解密；
             // 否则走旧机制（node_config 内 AesUtil 密文解密）。明文只在内存流转，禁止落日志。
-            CredentialVaultService credentialVaultService = SpringUtil.getBean(CredentialVaultService.class);
+            CredentialVaultService credentialVaultService = deps.credentialVaultService();
             String password = credentialVaultService.resolveMailPassword(node, senderInfo.getPassword());
             if (StringUtils.isAnyBlank(senderInfo.getName(), senderInfo.getMail(), password)) {
                 log.warn("Mail send node configuration error 4, {}", state.getUuid());
                 throw new BaseException(A_MAIL_SENDER_CONFIG_ERROR);
             }
-            AdiMailSender adiMailSender = SpringUtil.getBean(AdiMailSender.class);
+            AdiMailSender adiMailSender = deps.adiMailSender();
             CustomMailInfo customMailInfo = new CustomMailInfo();
             setSmtpInfo(customMailInfo, nodeConfig.getSmtp());
             setSenderInfo(customMailInfo, senderInfo, password);
             setCustomMailInfo(customMailInfo, subject, content, toMails, ccMails);
             adiMailSender.customSend(customMailInfo);
         } else {
-            AdiMailSender adiMailSender = SpringUtil.getBean(AdiMailSender.class);
+            AdiMailSender adiMailSender = deps.adiMailSender();
             adiMailSender.send(subject, content, toMails, ccMails);
         }
         //记录邮件发送指标 | Record mail send metrics

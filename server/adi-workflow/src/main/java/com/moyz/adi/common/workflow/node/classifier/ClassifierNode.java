@@ -61,7 +61,7 @@ public class ClassifierNode extends AbstractWfNode {
             throw new BaseException(A_WF_INPUT_INVALID);
         }
         String prompt = ClassifierPrompt.createPrompt(defaultInputOpt.get().valueToString(), nodeConfig.getCategories());
-        NodeIOData nodeIODataText = WorkflowUtil.invokeLLM(wfState, state, nodeConfig.getModelPlatform(), nodeConfig.getModelName(), prompt);
+        NodeIOData nodeIODataText = WorkflowUtil.invokeLLM(wfState, state, nodeConfig.getModelPlatform(), nodeConfig.getModelName(), prompt, deps.llmCallRecordService());
 
         ClassifierDecision.Decision decision = ClassifierDecision.decide(nodeIODataText.valueToString(), nodeConfig);
         boolean usable = decision.matched() && !decision.lowConfidence();

@@ -61,7 +61,7 @@ public class SkillNode extends AbstractWfNode {
         }
 
         Skill skill = resolveSkill(config, user.getId());
-        SkillToolService skillToolService = SpringUtil.getBean(SkillToolService.class);
+        SkillToolService skillToolService = deps.skillToolService();
 
         String mode = StringUtils.defaultIfBlank(config.getMode(), MODE_INSTRUCTION);
         String content;
@@ -104,7 +104,7 @@ public class SkillNode extends AbstractWfNode {
      * the running user).
      */
     private Skill resolveSkill(SkillNodeConfig config, Long runUserId) {
-        SkillService skillService = SpringUtil.getBean(SkillService.class);
+        SkillService skillService = deps.skillService();
         Skill skill = StringUtils.isNotBlank(config.getSkillUuid())
                 ? skillService.getByUuid(config.getSkillUuid())
                 : skillService.getByName(config.getSkillName());

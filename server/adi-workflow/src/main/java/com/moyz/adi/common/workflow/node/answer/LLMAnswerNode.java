@@ -45,7 +45,7 @@ public class LLMAnswerNode extends AbstractWfNode {
         log.info("LLM prompt:{}", prompt);
         String modelName = nodeConfigObj.getModelName();
         //调用LLM
-        WorkflowUtil.streamingInvokeLLM(wfState, state, node, nodeConfigObj.getModelPlatform(), modelName, List.of(UserMessage.from(prompt)));
+        WorkflowUtil.streamingInvokeLLM(wfState, state, node, nodeConfigObj.getModelPlatform(), modelName, List.of(UserMessage.from(prompt)), deps.llmCallRecordService());
         return new NodeProcessResult();
     }
 }

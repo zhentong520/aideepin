@@ -4,7 +4,6 @@ import com.moyz.adi.common.config.AdiProperties;
 import com.moyz.adi.common.config.props.Wf;
 import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.service.SysConfigService;
-import com.moyz.adi.common.util.SpringUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
@@ -58,11 +57,21 @@ public final class WfFeatureGate {
             return Boolean.parseBoolean(sysValue.trim());
         }
         try {
-            AdiProperties props = SpringUtil.getBean(AdiProperties.class);
+            AdiProperties props = adiProperties;
+            if (null == props) {
+                //启动期未推送（纯单测/启动早期）时按缺省开处理，与 OrchestratorNode 兜底一致
+                return true;
+            }
             return (boolean) wfClass.getMethod(getter).invoke(props.getWf());
         } catch (Exception e) {
-            //无 Spring 上下文（单测/启动早期）时按缺省开处理，与 OrchestratorNode 兜底一致
             return true;
         }
+    }
+
+    /** 由 WfStaticConfigInitializer 在启动期推送，替代服务定位器（S1-02） */
+    private static volatile AdiProperties adiProperties;
+
+    public static void initConfig(AdiProperties props) {
+        adiProperties = props;
     }
 }

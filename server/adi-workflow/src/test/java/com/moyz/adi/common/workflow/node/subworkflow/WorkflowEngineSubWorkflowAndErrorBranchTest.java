@@ -11,7 +11,9 @@ import com.moyz.adi.common.helper.SseManager;
 import com.moyz.adi.common.service.WorkflowRuntimeNodeService;
 import com.moyz.adi.common.service.WorkflowRuntimeService;
 import com.moyz.adi.common.util.JsonUtil;
+import com.moyz.adi.common.workflow.WfNodeDeps;
 import com.moyz.adi.common.workflow.WfNodeInputConfig;
+import com.moyz.adi.common.workflow.WfNodeProvider;
 import com.moyz.adi.common.workflow.WfNodeState;
 import com.moyz.adi.common.workflow.WorkflowEngine;
 import com.moyz.adi.common.workflow.data.NodeIOData;
@@ -160,7 +162,8 @@ class WorkflowEngineSubWorkflowAndErrorBranchTest {
                 List.of(component(1L, "Start"), component(2L, "Template"), component(3L, "End")),
                 List.of(start, template, end),
                 List.of(edge("start", "tpl"), edge("tpl", "end")),
-                runtimeService, runtimeNodeService);
+                runtimeService, runtimeNodeService,
+                new WfNodeProvider(WfNodeDeps.empty()));
 
         Map<String, Object> result = engine.blockingRun(user(), userInput());
 
@@ -186,7 +189,8 @@ class WorkflowEngineSubWorkflowAndErrorBranchTest {
                         edge("failing", "skipped"),
                         edge("failing", "error-tpl", WorkflowEngine.ON_ERROR_HANDLE),
                         edge("error-tpl", "end")),
-                runtimeService, runtimeNodeService);
+                runtimeService, runtimeNodeService,
+                new WfNodeProvider(WfNodeDeps.empty()));
 
         Map<String, Object> result = engine.blockingRun(user(), userInput());
 
@@ -216,7 +220,8 @@ class WorkflowEngineSubWorkflowAndErrorBranchTest {
                         edge("failing-node", "error-tpl"),
                         edge("failing-node", "error-tpl", WorkflowEngine.ON_ERROR_HANDLE),
                         edge("error-tpl", "end")),
-                runtimeService, runtimeNodeService);
+                runtimeService, runtimeNodeService,
+                new WfNodeProvider(WfNodeDeps.empty()));
 
         engine.blockingRun(user(), userInput());
 
@@ -255,7 +260,8 @@ class WorkflowEngineSubWorkflowAndErrorBranchTest {
                         edge("failing", "error-tpl"),
                         edge("failing", "error-tpl", WorkflowEngine.ON_ERROR_HANDLE),
                         edge("error-tpl", "end")),
-                runtimeService, runtimeNodeService);
+                runtimeService, runtimeNodeService,
+                new WfNodeProvider(WfNodeDeps.empty()));
 
         Map<String, Object> result = engine.blockingRun(user(), userInput());
 

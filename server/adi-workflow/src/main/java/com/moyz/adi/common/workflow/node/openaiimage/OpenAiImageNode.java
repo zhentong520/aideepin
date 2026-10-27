@@ -67,6 +67,6 @@ public class OpenAiImageNode extends AbstractWfNode {
         draw.setGenerateSize(nodeConfigObj.getSize());
         draw.setGenerateQuality(nodeConfigObj.getQuality());
         draw.setAiModelName(modelName);
-        return DrawNodeUtil.createResultContent(wfState.getUser(), draw, imageModelService);
+        return DrawNodeUtil.createResultContent(wfState.getUser(), draw, imageModelService, deps.fileService());
     }
 }

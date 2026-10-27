@@ -76,7 +76,7 @@ public class KnowledgeRetrievalNode extends AbstractWfNode {
                 .maxResults(nodeConfigObj.getTopN())
                 .minScore(nodeConfigObj.getScore())
                 .breakIfSearchMissed(nodeConfigObj.getIsStrict())
-                .excludedItemUuids(new HashSet<>(SpringUtil.getBean(KbDocumentService.class).listDisabledItemUuids(kbUuid)))
+                .excludedItemUuids(new HashSet<>(deps.kbDocumentService().listDisabledItemUuids(kbUuid)))
                 // T3-12：kbUuid 供 EmbeddingRag 在未携带 context 时回读库级检索配置（继承语义）
                 .kbUuid(kbUuid)
                 // T3-12：节点级三态覆盖——rerank/expand_window 为 null（''）时不传，保持库级

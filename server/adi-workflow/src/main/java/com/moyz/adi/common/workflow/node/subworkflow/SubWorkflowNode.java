@@ -64,8 +64,9 @@ public class SubWorkflowNode extends AbstractWfNode {
         //防递归：入链（重复/超深即抛 A_WF_SUB_WORKFLOW_RECURSIVE / DEPTH_EXCEEDED），finally 出链
         SubWorkflowInvoker.checkAndEnter(config.getWorkflowUuid());
         try {
-            WorkflowStarterBridge starter = new WorkflowStarterBridge();
-            Map<String, Object> result = starter.blocking(user, config.getWorkflowUuid(), toUserInputs(state.getInputs()));
+            //S1-02：WorkflowStarter 由 WfNodeProvider 注入（deps），不再走服务定位器
+            Map<String, Object> result = deps.workflowStarter()
+                    .blocking(user, config.getWorkflowUuid(), toUserInputs(state.getInputs()), "sub_workflow");
 
             //子流程失败时 blocking 返回 {message: ...} 而非抛异常——显式转成节点失败，防静默
             if (null != result && result.containsKey("message") && !result.containsKey("outputs")) {
@@ -102,16 +103,5 @@ public class SubWorkflowNode extends AbstractWfNode {
             result.add(wrapper);
         }
         return result;
-    }
-
-    /**
-     * 对 {@code WorkflowStarter.blocking} 的轻量桥接（包内可覆盖，单测注入桩实现），
-     * 避免节点直接持有 Spring bean。
-     */
-    static class WorkflowStarterBridge {
-        Map<String, Object> blocking(User user, String workflowUuid, List<ObjectNode> userInputs) {
-            return com.moyz.adi.common.util.SpringUtil.getBean(com.moyz.adi.common.workflow.WorkflowStarter.class)
-                    .blocking(user, workflowUuid, userInputs, "sub_workflow");
-        }
     }
 }

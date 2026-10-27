@@ -7,7 +7,7 @@ import com.moyz.adi.common.enums.WfIODataTypeEnum;
 import com.moyz.adi.common.exception.BaseException;
 import com.moyz.adi.common.util.CollectionUtil;
 import com.moyz.adi.common.util.JsonUtil;
-import com.moyz.adi.common.util.SpringUtil;
+import com.moyz.adi.common.workflow.WfNodeDeps;
 import com.moyz.adi.common.workflow.NodeExecutionMetrics;
 import com.moyz.adi.common.workflow.NodeProcessResult;
 import com.moyz.adi.common.workflow.WfNodeInputConfig;
@@ -19,13 +19,11 @@ import com.moyz.adi.common.workflow.def.WfNodeParamRef;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
-import jakarta.validation.ValidatorFactory;
 import lombok.Data;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,6 +48,22 @@ public abstract class AbstractWfNode {
     @Getter
     protected WfNodeState state;
     protected WorkflowNode node;
+
+    /**
+     * 容器依赖（S1-02）：由 WfNodeProvider 在节点创建后注入。
+     * 纯单测直连静态工厂时可能为 null，依赖型节点在 process 路径取值前须判空或走默认逻辑。
+     */
+    @SuppressWarnings("java:S1450")
+    protected WfNodeDeps deps;
+
+    /** jakarta 默认校验器，仅在 deps 未注入（纯单测）时兜底，避免每请求重建工厂 */
+    private static final class LazyValidator {
+        private static final Validator INSTANCE = Validation.buildDefaultValidatorFactory().getValidator();
+    }
+
+    protected Validator validator() {
+        return null != deps && null != deps.validator() ? deps.validator() : LazyValidator.INSTANCE;
+    }
 
     public AbstractWfNode(WorkflowComponent wfComponent, WorkflowNode node, WfState wfState, WfNodeState nodeState) {
         this.wfState = wfState;
@@ -220,7 +234,7 @@ public abstract class AbstractWfNode {
         }
         boolean configValid = true;
         try {
-            Set<ConstraintViolation<T>> violations = SpringUtil.getBean("beanValidator", LocalValidatorFactoryBean.class).validate(nodeConfig);
+            Set<ConstraintViolation<T>> violations = validator().validate(nodeConfig);
             for (ConstraintViolation<T> violation : violations) {
                 log.error(violation.getMessage());
                 configValid = false;

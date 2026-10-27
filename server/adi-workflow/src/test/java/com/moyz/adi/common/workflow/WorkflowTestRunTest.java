@@ -116,7 +116,8 @@ class WorkflowTestRunTest {
         seedNode.setWorkflowComponentId(1L);
 
         WorkflowEngine engine = new WorkflowEngine(new Workflow(), null,
-                List.of(templateComponent), List.of(seedNode), List.of(), null, null);
+                List.of(templateComponent), List.of(seedNode), List.of(), null, null,
+                new WfNodeProvider(WfNodeDeps.empty()));
         WfState wfState = new WfState(user(1L), List.of(), "rt-uuid");
         ReflectionTestUtils.setField(engine, "wfState", wfState);
 
@@ -144,7 +145,8 @@ class WorkflowTestRunTest {
         seedNode.setWorkflowComponentId(1L);
 
         WorkflowEngine engine = new WorkflowEngine(new Workflow(), null,
-                List.of(templateComponent), List.of(seedNode), List.of(), null, null);
+                List.of(templateComponent), List.of(seedNode), List.of(), null, null,
+                new WfNodeProvider(WfNodeDeps.empty()));
         WfState wfState = new WfState(user(1L), List.of(), "rt-uuid");
         ReflectionTestUtils.setField(engine, "wfState", wfState);
 

@@ -70,6 +70,6 @@ public class TongyiwanxNode extends AbstractWfNode {
         draw.setGenerateSize(nodeConfigObj.getSize());
         draw.setGenerateSeed(nodeConfigObj.getSeed());
         draw.setAiModelName(nodeConfigObj.getModelName());
-        return DrawNodeUtil.createResultContent(wfState.getUser(), draw, imageModelService);
+        return DrawNodeUtil.createResultContent(wfState.getUser(), draw, imageModelService, deps.fileService());
     }
 }

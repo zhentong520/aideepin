@@ -77,7 +77,7 @@ public class FaqExtractorNode extends AbstractWfNode {
         log.info("FaqExtractorNode prompt:{}", prompt);
 
         //调用LLM
-        WorkflowUtil.streamingInvokeLLM(wfState, state, node, nodeConfigObj.getModelPlatform(), nodeConfigObj.getModelName(), llmMessages);
+        WorkflowUtil.streamingInvokeLLM(wfState, state, node, nodeConfigObj.getModelPlatform(), nodeConfigObj.getModelName(), llmMessages, deps.llmCallRecordService());
         return new NodeProcessResult();
     }
 }

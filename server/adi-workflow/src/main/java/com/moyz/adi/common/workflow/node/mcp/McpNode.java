@@ -62,7 +62,7 @@ public class McpNode extends AbstractWfNode {
         String arguments = WorkflowUtil.renderJsonTemplate(config.getArguments(), state.getInputs());
         log.info("MCP node invoking tool:{}, mcpIds:{}, arguments:{}", config.getToolName(), config.getMcpIds(), arguments);
 
-        UserMcpService userMcpService = SpringUtil.getBean(UserMcpService.class);
+        UserMcpService userMcpService = deps.userMcpService();
         UserMcpService.McpToolCallResult callResult = userMcpService.callTool(
                 user.getId(), config.getMcpIds(), config.getToolName(), arguments);
 

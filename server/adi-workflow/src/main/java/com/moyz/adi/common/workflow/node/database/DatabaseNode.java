@@ -40,7 +40,7 @@ public class DatabaseNode extends AbstractWfNode {
     protected NodeProcessResult onProcess() {
         List<NodeIOData> outputData = new ArrayList<>();
         DatabaseNodeConfig nodeConfig = checkAndGetConfig(DatabaseNodeConfig.class);
-        DbDatasourceService dbDatasourceService = SpringUtil.getBean(DbDatasourceService.class);
+        DbDatasourceService dbDatasourceService = deps.dbDatasourceService();
 
         String sql = nodeConfig.getSql();
         if (StringUtils.isBlank(sql)) {

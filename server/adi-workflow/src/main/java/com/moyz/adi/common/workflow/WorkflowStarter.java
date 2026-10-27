@@ -52,6 +52,9 @@ public class WorkflowStarter {
     private WorkflowRuntimeNodeService workflowRuntimeNodeService;
 
     @Resource
+    private WfNodeProvider nodeProvider;
+
+    @Resource
     private SseManager sseManager;
 
     @Resource
@@ -109,7 +112,8 @@ public class WorkflowStarter {
                     nodes,
                     edges,
                     workflowRuntimeService,
-                    workflowRuntimeNodeService);
+                    workflowRuntimeNodeService,
+                    nodeProvider);
             workflowEngine.run(user, userInputs, sseUuid);
         } catch (Throwable e) {
             log.error("asyncRun execution exception, workflowUuid:{}", workflow.getUuid(), e);
@@ -152,7 +156,8 @@ public class WorkflowStarter {
                 nodes,
                 edges,
                 workflowRuntimeService,
-                workflowRuntimeNodeService);
+                workflowRuntimeNodeService,
+                nodeProvider);
         workflowEngine.setTriggerSource(triggerSource);
         return workflowEngine.blockingRun(user, userInputs);
     }
@@ -266,7 +271,8 @@ public class WorkflowStarter {
                     nodes,
                     edges,
                     workflowRuntimeService,
-                    workflowRuntimeNodeService);
+                    workflowRuntimeNodeService,
+                    nodeProvider);
             workflowEngine.run(user, userInputs, sseUuid, startNodeUuid, upstreamContext, true);
         } catch (Throwable e) {
             log.error("asyncTestRun execution exception, workflowUuid:{}", workflow.getUuid(), e);

@@ -12,7 +12,6 @@ import com.moyz.adi.common.languagemodel.AbstractLLMService;
 import com.moyz.adi.common.service.LLMCallRecordService;
 import com.moyz.adi.common.util.JsonUtil;
 import com.moyz.adi.common.util.LLMTokenUtil;
-import com.moyz.adi.common.util.SpringUtil;
 import com.moyz.adi.common.util.UuidUtil;
 import com.moyz.adi.common.vo.ChatModelBuilderProperties;
 import com.moyz.adi.common.vo.ChatModelRequest;
@@ -180,11 +179,12 @@ public class WorkflowUtil {
      * 由调用方决定是否走带布尔参数的重载显式控制。
      */
     private static boolean resolveFieldRefEnabled() {
-        try {
-            return SpringUtil.getBean(AdiProperties.class).getWf().isFieldRefEnabled();
-        } catch (Exception e) {
+        AdiProperties props = adiProperties;
+        if (null == props) {
+            //启动期未推送（纯单测/启动早期）时按开启处理，由调用方决定是否显式控制
             return true;
         }
+        return props.getWf().isFieldRefEnabled();
     }
 
     /**
@@ -262,7 +262,7 @@ public class WorkflowUtil {
         return node.toString();
     }
 
-    public static void streamingInvokeLLM(WfState wfState, WfNodeState state, WorkflowNode node, String modelPlatform, String modelName, List<ChatMessage> msgs) {
+    public static void streamingInvokeLLM(WfState wfState, WfNodeState state, WorkflowNode node, String modelPlatform, String modelName, List<ChatMessage> msgs, LLMCallRecordService llmCallRecordService) {
         log.info("stream invoke");
         AbstractLLMService llmService = LLMContext.getServiceOrDefault(modelPlatform, modelName);
         StreamingChatGenerator<AgentState> streamingGenerator = StreamingChatGenerator.builder()
@@ -283,7 +283,7 @@ public class WorkflowUtil {
                         log.warn("streamingInvokeLLM: metrics is not LLMMetrics, skipping token recording for node {}", node.getUuid());
                     }
                     //Save LLM call record
-                    saveLLMCallRecord(wfState, node, modelPlatform, modelName, tokenUsage);
+                    saveLLMCallRecord(wfState, node, modelPlatform, modelName, tokenUsage, llmCallRecordService);
                     NodeIOData output = NodeIOData.createByText(DEFAULT_OUTPUT_PARAM_NAME, "", responseTxt);
                     wfState.getNodeStateByNodeUuid(node.getUuid()).ifPresent(item -> item.getOutputs().add(output));
                     return Map.of("completeResult", response.aiMessage().text());
@@ -314,7 +314,7 @@ public class WorkflowUtil {
 //            }
     }
 
-    public static NodeIOData invokeLLM(WfState wfState, WfNodeState nodeState, String modelPlatform, String modelName, String prompt) {
+    public static NodeIOData invokeLLM(WfState wfState, WfNodeState nodeState, String modelPlatform, String modelName, String prompt, LLMCallRecordService llmCallRecordService) {
         log.info("common invoke");
         AbstractLLMService llmService = LLMContext.getServiceOrDefault(modelPlatform, modelName);
         SseAskParam sseAskParam = new SseAskParam();
@@ -334,7 +334,7 @@ public class WorkflowUtil {
             nodeMetrics.setModelName(modelName);
             nodeMetrics.setModelPlatform(modelPlatform);
             //Save LLM call record
-            saveLLMCallRecord(wfState, null, modelPlatform, modelName, tokenUsage);
+            saveLLMCallRecord(wfState, null, modelPlatform, modelName, tokenUsage, llmCallRecordService);
         }
         return NodeIOData.createByText(DEFAULT_OUTPUT_PARAM_NAME, "", response.aiMessage().text());
     }
@@ -350,7 +350,7 @@ public class WorkflowUtil {
     /**
      * 异步保存 LLM 调用记录 | Save LLM call record asynchronously
      */
-    private static void saveLLMCallRecord(WfState wfState, WorkflowNode node, String modelPlatform, String modelName, TokenUsage tokenUsage) {
+    private static void saveLLMCallRecord(WfState wfState, WorkflowNode node, String modelPlatform, String modelName, TokenUsage tokenUsage, LLMCallRecordService llmCallRecordService) {
         try {
             Long sourceId = node != null ? node.getId() : 0L;
             LLMCallRecord record = new LLMCallRecord();
@@ -364,9 +364,16 @@ public class WorkflowUtil {
                 record.setInputTokens(tokenUsage.inputTokenCount());
                 record.setOutputTokens(tokenUsage.outputTokenCount());
             }
-            SpringUtil.getBean(LLMCallRecordService.class).saveAsync(record);
+            llmCallRecordService.saveAsync(record);
         } catch (Exception e) {
             log.error("Failed to save LLM call record for workflow node", e);
         }
+    }
+
+    /** 由 WfStaticConfigInitializer 在启动期推送，替代服务定位器（S1-02） */
+    private static volatile AdiProperties adiProperties;
+
+    public static void initConfig(AdiProperties props) {
+        adiProperties = props;
     }
 }

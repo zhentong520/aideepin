@@ -2,9 +2,6 @@ package com.moyz.adi.common.workflow.node.agent;
 
 import com.moyz.adi.common.entity.WorkflowComponent;
 import com.moyz.adi.common.entity.WorkflowNode;
-import com.moyz.adi.common.service.AgentService;
-import com.moyz.adi.common.service.LocalAgentService;
-import com.moyz.adi.common.util.SpringUtil;
 import com.moyz.adi.common.vo.AgentRequest;
 import com.moyz.adi.common.vo.AgentResult;
 import com.moyz.adi.common.workflow.NodeProcessResult;
@@ -32,12 +29,9 @@ import static com.moyz.adi.common.workflow.WfConstant.DEFAULT_OUTPUT_PARAM_NAME;
 @Slf4j
 public class AgentNode extends AbstractWfNode {
 
-    private final AgentService agentService;
-
     public AgentNode(WorkflowComponent wfComponent, WorkflowNode nodeDef,
                      WfState wfState, WfNodeState nodeState) {
         super(wfComponent, nodeDef, wfState, nodeState);
-        this.agentService = SpringUtil.getBean(AgentService.class);
         state.setMetrics(new AgentMetrics());
     }
 
@@ -80,7 +74,7 @@ public class AgentNode extends AbstractWfNode {
                 .build();
 
         //调用 Agent
-        AgentResult result = agentService.invoke(request, wfState.getUser(), wfState.getUuid());
+        AgentResult result = deps.agentService().invoke(request, wfState.getUser(), wfState.getUuid());
 
         //记录指标
         AgentMetrics metrics = (AgentMetrics) state.getMetrics();

@@ -54,6 +54,8 @@ public class WorkflowEngine {
     private final SseManager sseManager;
     private final WorkflowRuntimeService workflowRuntimeService;
     private final WorkflowRuntimeNodeService workflowRuntimeNodeService;
+    /** 节点创建入口（S1-02）：负责实例化并注入容器依赖，替代直接的静态工厂调用 */
+    private final WfNodeProvider nodeProvider;
 
     private final ObjectStreamStateSerializer<WfNodeState> stateSerializer = new ObjectStreamStateSerializer<>(WfNodeState::new);
     private final Map<String, List<StateGraph<WfNodeState>>> stateGraphNodes = new HashMap<>();
@@ -88,7 +90,8 @@ public class WorkflowEngine {
             List<WorkflowNode> nodes,
             List<WorkflowEdge> wfEdges,
             WorkflowRuntimeService workflowRuntimeService,
-            WorkflowRuntimeNodeService workflowRuntimeNodeService) {
+            WorkflowRuntimeNodeService workflowRuntimeNodeService,
+            WfNodeProvider nodeProvider) {
         this.workflow = workflow;
         this.sseManager = sseManager;
         this.components = components;
@@ -96,6 +99,7 @@ public class WorkflowEngine {
         this.wfEdges = wfEdges;
         this.workflowRuntimeService = workflowRuntimeService;
         this.workflowRuntimeNodeService = workflowRuntimeNodeService;
+        this.nodeProvider = nodeProvider;
     }
 
     /**
@@ -220,7 +224,7 @@ public class WorkflowEngine {
             }
             WfNodeState seedState = new WfNodeState();
             seedState.getOutputs().addAll(entry.getValue());
-            wfState.getCompletedNodes().add(WfNodeFactory.create(seedComponent, seedNodeDef, wfState, seedState));
+            wfState.getCompletedNodes().add(nodeProvider.create(seedComponent, seedNodeDef, wfState, seedState));
         }
         log.info("seedUpstreamContext: seeded {} upstream nodes", upstreamContext.size());
     }
@@ -285,7 +289,7 @@ public class WorkflowEngine {
         // so all SSE send operations in runNode silently skip (COMPLETED_SSE cache check)
         this.sseUuid = "blocking-" + com.moyz.adi.common.util.UuidUtil.createShort();
         SseEmitter dummyEmitter = new SseEmitter(0L);
-        SpringUtil.getBean(com.moyz.adi.common.helper.SseManager.class).register(this.sseUuid, dummyEmitter);
+        sseManager.register(this.sseUuid, dummyEmitter);
         sseManager.sendComplete(user.getId(), this.sseUuid);
         log.info("WorkflowEngine blockingRun,userId:{},workflowUuid:{},userInputs:{}", user.getId(), workflow.getUuid(), userInputs);
         if (!this.workflow.getIsEnable()) {
@@ -433,7 +437,7 @@ public class WorkflowEngine {
         WfRuntimeNodeDto runtimeNodeDto = null;
         try {
             WorkflowComponent wfComponent = components.stream().filter(item -> item.getId().equals(wfNode.getWorkflowComponentId())).findFirst().orElseThrow();
-            abstractWfNode = WfNodeFactory.create(wfComponent, wfNode, wfState, nodeState);
+            abstractWfNode = nodeProvider.create(wfComponent, wfNode, wfState, nodeState);
             //节点实例
             runtimeNodeDto = workflowRuntimeNodeService.createByState(user, wfNode.getId(), wfRuntimeResp.getId(), nodeState);
             //lambda 捕获要求实际最终变量：catch 路径复用的可变引用在 try 内定稿后以 final 别名交给回调

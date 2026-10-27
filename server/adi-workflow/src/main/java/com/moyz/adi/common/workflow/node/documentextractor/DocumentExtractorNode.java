@@ -46,7 +46,7 @@ public class DocumentExtractorNode extends AbstractWfNode {
                 fileUuids.addAll(filesContent.getValue());
             }
         }
-        FileService fileService = SpringUtil.getBean(FileService.class);
+        FileService fileService = deps.fileService();
         //解析文档
         try {
             for (String uuid : fileUuids) {
