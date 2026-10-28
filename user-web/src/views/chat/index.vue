@@ -379,6 +379,15 @@ onActivated(async () => {
 
 onDeactivated(() => {
   console.log('onDeactivated')
+  // T8-04：Layout 用 KeepAlive 按 fullPath 缓存会话实例，切走只触发 deactivated 不卸载——
+  // 不主动停流的话旧 SSE 会在后台继续接收，切回来时旧流仍在写消息。
+  handleStop()
+  resetStream()
+  // 被中止的流中消息复位 loading 态，避免返回该会话时一直转圈
+  messages.value.forEach((item: { loading?: boolean; uuid: string }) => {
+    if (item.loading)
+      updateMessageSomeFields(curCharacterUuid, item.uuid, { loading: false })
+  })
 })
 </script>
 
