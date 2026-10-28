@@ -21,13 +21,20 @@ COPY docker-mvn-settings.xml ./
 # 容器内构建走阿里云镜像仓 + aether insecure 传输：
 # 本机 Docker 出网经代理 MITM，所有 HTTPS 站点 PKIX 校验失败；insecure 模式跳过证书校验，
 # 但 Maven 仍校验 artifact checksum，完整性有保障（详见 docker-mvn-settings.xml 注释）
+# ⚠️ aliyun 镜像仓偶发 502 Bad Gateway（CI 实测），mvn 层包一层重试（.m2 缓存 mount 保证重试只补缺失包，代价小）
 RUN --mount=type=cache,target=/root/.m2/repository \
-    mvn -s docker-mvn-settings.xml -Daether.connector.https.securityMode=insecure package -DskipTests -B
+    ok=0; for i in 1 2 3; do \
+      if mvn -s docker-mvn-settings.xml -Daether.connector.https.securityMode=insecure package -DskipTests -B; then ok=1; break; fi; \
+      echo "[dockerfile] mvn attempt $i failed (likely aliyun 502), retrying..."; sleep 15; \
+    done; [ "$ok" = "1" ] || { echo "[dockerfile] mvn failed after 3 attempts"; exit 1; }
 
 COPY . .
 
 RUN --mount=type=cache,target=/root/.m2/repository \
-    mvn -s docker-mvn-settings.xml -Daether.connector.https.securityMode=insecure package -DskipTests -B
+    ok=0; for i in 1 2 3; do \
+      if mvn -s docker-mvn-settings.xml -Daether.connector.https.securityMode=insecure package -DskipTests -B; then ok=1; break; fi; \
+      echo "[dockerfile] mvn attempt $i failed (likely aliyun 502), retrying..."; sleep 15; \
+    done; [ "$ok" = "1" ] || { echo "[dockerfile] mvn failed after 3 attempts"; exit 1; }
 
 FROM eclipse-temurin:17-jre
 
