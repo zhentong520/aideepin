@@ -111,7 +111,8 @@ jobs:
       - name: Assert contract types up to date (OPT-12 gate)
         run: |
           cd packages/aideepin-api-types
-          npm exec --yes openapi-typescript@7 openapi.json -o /tmp/schema-contract.d.ts
+          # npm 10+ 要求 exec 参数用 -- 分隔，否则 -o/<path> 被 npm 自己吞掉（工具只输出到 stdout，文件不落盘）
+          npm exec --yes openapi-typescript@7 -- openapi.json -o /tmp/schema-contract.d.ts
           if ! diff -q /tmp/schema-contract.d.ts src/schema.d.ts > /dev/null; then
             echo "::error::openapi.json and src/schema.d.ts are out of sync — run: pnpm --filter aideepin-api-types generate"
             diff /tmp/schema-contract.d.ts src/schema.d.ts | head -20
