@@ -4,6 +4,10 @@ import com.moyz.adi.common.entity.TaskQueue;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Condition;
+import org.springframework.context.annotation.ConditionContext;
+import org.springframework.context.annotation.Conditional;
+import org.springframework.core.type.AnnotatedTypeMetadata;
 import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -11,6 +15,7 @@ import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 
 import java.net.InetAddress;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Function;
@@ -23,9 +28,14 @@ import java.util.stream.Collectors;
  * ShedLock 按 S1-07a 治理规则统一加锁防重，锁在方法完成即释放，不损失跨实例吞吐）
  * → 提交 {@code taskQueueExecutor} 执行 → 成功/退避重试。
  * 心跳与孤儿回收独立调度。handler 由 Spring 自动发现注册（{@link TaskHandler}）。
+ * <p>
+ * S2-05：装配受 {@link RoleCondition} 门控——{@code adi.role=api} 的实例不装配本类
+ * 与 {@code taskQueueExecutor}（HTTP 实例不碰任务队列，聊天延迟与重负载解耦）；
+ * 缺省=all 保持单实例历史行为。
  */
 @Slf4j
 @Component
+@Conditional(TaskQueueConsumer.RoleCondition.class)
 public class TaskQueueConsumer {
 
     /** 每轮最多认领数：调度线程只做抢占与分发，不执行 handler */
@@ -134,5 +144,21 @@ public class TaskQueueConsumer {
             hostname = host;
         }
         return hostname + ":" + ProcessHandle.current().pid();
+    }
+
+    /**
+     * S2-05：任务消费角色门。{@code adi.role=api} 时不装配消费循环（api 实例只服务 HTTP）；
+     * 缺失（视为 all）/worker/all/未识别值均装配——未识别值 fail-open，避免拼写错误
+     * 导致任务静默无人消费。与 {@code taskQueueExecutor} Bean 共用本门。
+     */
+    public static class RoleCondition implements Condition {
+        @Override
+        public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
+            String role = context.getEnvironment()
+                    .getProperty("adi.role", "all")
+                    .trim()
+                    .toLowerCase(Locale.ROOT);
+            return !"api".equals(role);
+        }
     }
 }

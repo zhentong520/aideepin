@@ -19,6 +19,8 @@ services:
       TZ: ${TZ}
       APP_PROFILE: ${APP_PROFILE}
       JAVA_OPTS: ${JAVA_OPTS}
+      # S2-05：部署角色 api|worker|all，api 实例不消费 task_queue
+      ADI_ROLE: ${ADI_ROLE:-all}
       ADI_DB_HOST: ${ADI_DB_HOST}
       ADI_DB_PORT: ${ADI_DB_PORT}
       ADI_DB_NAME: ${ADI_DB_NAME}
@@ -33,6 +35,36 @@ services:
       ADI_ENCRYPT_AES_KEY: ${ADI_ENCRYPT_AES_KEY}
     ports:
       - 9999:9999
+    volumes:
+      - /data/aideepin-logs:/data/aideepin-logs
+    depends_on:
+      - redis
+  # S2-05：worker 角色示例——同一镜像，仅 ADI_ROLE 不同，与 api 实例独立伸缩。
+  # 只消费 task_queue（绘图/KB 索引等重负载），业务 HTTP 一律 404，仅 /actuator/health
+  # 供探活；故不映射业务端口。需要扩容时复制本服务并改 container_name 即可（消费侧
+  # SKIP LOCKED 多实例安全，幂等无需额外协调）。
+  aideepin-worker:
+    image: adi-bootstrap:${IMAGE_VERSION}
+    container_name: aideepin-worker
+    build: ..
+    environment:
+      APP_VERSION: ${APP_VERSION}
+      TZ: ${TZ}
+      APP_PROFILE: ${APP_PROFILE}
+      JAVA_OPTS: ${JAVA_OPTS}
+      ADI_ROLE: worker
+      ADI_DB_HOST: ${ADI_DB_HOST}
+      ADI_DB_PORT: ${ADI_DB_PORT}
+      ADI_DB_NAME: ${ADI_DB_NAME}
+      ADI_DB_USERNAME: ${ADI_DB_USERNAME}
+      ADI_DB_PASSWORD: ${ADI_DB_PASSWORD}
+      ADI_REDIS_HOST: ${ADI_REDIS_HOST}
+      ADI_REDIS_PORT: ${ADI_REDIS_PORT}
+      ADI_REDIS_PASSWORD: ${ADI_REDIS_PASSWORD}
+      ADI_MAIL_HOST: ${ADI_MAIL_HOST}
+      ADI_MAIL_USERNAME: ${ADI_MAIL_USERNAME}
+      ADI_MAIL_PASSWORD: ${ADI_MAIL_PASSWORD}
+      ADI_ENCRYPT_AES_KEY: ${ADI_ENCRYPT_AES_KEY}
     volumes:
       - /data/aideepin-logs:/data/aideepin-logs
     depends_on:

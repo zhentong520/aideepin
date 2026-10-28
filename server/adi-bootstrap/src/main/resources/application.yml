@@ -93,6 +93,11 @@ adi:
   host: ${ADI_HOST:aideepin.com}
   frontend-url: http://www.${adi.host}
   backend-url: http://www.${adi.host}/api
+  # S2-05：部署角色（api | worker | all，默认 all=单实例全功能，即历史行为）。
+  # api：只服务 HTTP，不装配 task_queue 消费循环（聊天延迟与重任务负载解耦）；
+  # worker：只消费 task_queue，业务 HTTP 全部 404，仅 /actuator/health 供探活；
+  # all：api + worker 都做。api 与 worker 用同一镜像、仅 ADI_ROLE 不同，可独立伸缩。
+  role: ${ADI_ROLE:all}
   # S1-06：TokenFilter 匿名放行白名单（前缀匹配，默认值见 Auth.DEFAULT_EXCLUDE_URLS，
   # 与原硬编码逐条一致）。需要增删公开端点时按下面格式覆盖（覆盖即整列表替换）：
   # auth:

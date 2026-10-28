@@ -53,6 +53,14 @@ public class AdiProperties {
 
     private String backendUrl;
 
+    /**
+     * S2-05：部署角色 api | worker | all（默认 all=单实例全功能）。
+     * 条件装配读取走 Environment（bean 装配期 AdiProperties 尚未就绪），
+     * 见 {@code TaskQueueConsumer.RoleCondition} / {@code WorkerRoleHttpGuardFilter}；
+     * 此字段仅供文档化与运行期读取。
+     */
+    private String role = "all";
+
     private Proxy proxy;
 
     private String embeddingModel;

@@ -21,6 +21,7 @@ import com.moyz.adi.common.entity.ModelPlatform;
 import com.moyz.adi.common.service.ModelPlatformService;
 import com.moyz.adi.common.languagemodel.DashScopeEmbeddingModelService;
 import com.moyz.adi.common.languagemodel.OpenAiEmbeddingModelService;
+import com.moyz.adi.common.task.TaskQueueConsumer;
 import com.moyz.adi.common.util.AdiPropertiesUtil;
 import com.moyz.adi.common.util.LocalDateTimeUtil;
 import com.pgvector.PGvector;
@@ -31,6 +32,7 @@ import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.context.annotation.Primary;
@@ -147,8 +149,12 @@ public class BeanConfig {
      * ThreadContextTaskDecorator here — the poll thread has no user context to propagate.
      * Abort on overload: the claimed row stays RUNNING briefly and either finishes via
      * another poll or is requeued by the orphan sweep.
+     * <p>
+     * S2-05：与 {@link TaskQueueConsumer} 共用 RoleCondition——{@code adi.role=api} 的
+     * 实例不装配该池（无消费者自然无执行线程），仅 worker/all 装配。
      */
     @Bean(name = "taskQueueExecutor")
+    @Conditional(TaskQueueConsumer.RoleCondition.class)
     public AsyncTaskExecutor taskQueueExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(2);
