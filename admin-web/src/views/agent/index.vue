@@ -71,6 +71,17 @@
           <n-input v-model:value="form.kbIds" :placeholder="t('agent.kbIdsPlaceholder')" />
         </n-form-item>
 
+        <!-- 业务插件（BizToolProvider）：勾选即给该智能体接入业务工具。
+             选项来自 /admin/biztool/list——后端容器里有哪些 Provider 这里就显示哪些，
+             新增业务插件不需要改本页任何代码。 -->
+        <n-form-item v-if="bizTools.length" :label="t('agent.pluginIds')">
+          <n-checkbox-group v-model:value="form.pluginCodes">
+            <n-space>
+              <n-checkbox v-for="p in bizTools" :key="p.code" :value="p.code" :label="p.title" />
+            </n-space>
+          </n-checkbox-group>
+        </n-form-item>
+
         <n-form-item :label="t('agent.sort')">
           <n-input-number v-model:value="form.sort" style="width: 160px" />
         </n-form-item>
@@ -97,6 +108,7 @@
   import { NButton, NSpace, NSwitch, NTag, useDialog, useMessage } from 'naive-ui'
   import { TableAction } from '@/components/Table'
   import agentApi from '@/api/agent'
+  import biztoolApi from '@/api/biztool'
   import sceneApi from '@/api/scene'
   import { t } from '@/locales'
 
@@ -113,11 +125,18 @@
     llmTemperature?: number
     systemMessage?: string
     kbIds?: string
+    pluginIds?: string
     sort?: number
     enableRag?: boolean
     enableMcp?: boolean
     enableWebSearch?: boolean
     isEnable?: boolean
+  }
+
+  /** 业务插件目录项（/admin/biztool/list 返回） */
+  interface BizToolItem {
+    code: string
+    title: string
   }
 
   /** 模型下拉项：modelPlatform/modelName/modelTitle 为 sceneApi.fetchLlmList 返回的宽泛结构 */
@@ -129,6 +148,7 @@
 
   const list = ref<AgentRow[]>([])
   const llms = ref<LlmOption[]>([])
+  const bizTools = ref<BizToolItem[]>([])
   const loading = ref(false)
   const saving = ref(false)
   const keyword = ref('')
@@ -144,6 +164,7 @@
     llmTemperature: 0.7,
     systemMessage: '',
     kbIds: '',
+    pluginCodes: [] as string[],
     sort: 0,
     enableRag: true,
     enableMcp: false,
@@ -178,6 +199,7 @@
       llmTemperature: 0.7,
       systemMessage: '',
       kbIds: '',
+      pluginCodes: [],
       sort: 0,
       enableRag: true,
       enableMcp: false,
@@ -189,9 +211,14 @@
   async function load() {
     loading.value = true
     try {
-      const [agentRes, llmRes] = await Promise.all([agentApi.fetchAgents(), sceneApi.fetchLlmList()])
+      const [agentRes, llmRes, bizToolRes] = await Promise.all([
+        agentApi.fetchAgents(),
+        sceneApi.fetchLlmList(),
+        biztoolApi.fetchBizTools().catch(() => ({ data: [] })),
+      ])
       list.value = (agentRes.data || []) as AgentRow[]
       llms.value = (llmRes.data || []) as LlmOption[]
+      bizTools.value = (bizToolRes.data || []) as BizToolItem[]
     }
     catch (error) {
       console.error('loadAgents error', error)
@@ -217,6 +244,7 @@
       llmTemperature: row.llmTemperature ?? 0.7,
       systemMessage: row.systemMessage || '',
       kbIds: row.kbIds || '',
+      pluginCodes: (row.pluginIds || '').split(',').map(s => s.trim()).filter(Boolean),
       sort: row.sort ?? 0,
       enableRag: row.enableRag !== false,
       enableMcp: !!row.enableMcp,
@@ -247,6 +275,7 @@
         llmTemperature: form.llmTemperature,
         systemMessage: form.systemMessage,
         kbIds: form.kbIds,
+        pluginIds: form.pluginCodes.join(','),
         sort: form.sort,
         enableRag: form.enableRag,
         enableMcp: form.enableMcp,
@@ -308,6 +337,9 @@
           caps.push(t('agent.capWeb'))
         if (row.enableMcp)
           caps.push('MCP')
+        const plugins = (row.pluginIds || '').split(',').map(s => s.trim()).filter(Boolean)
+        if (plugins.length)
+          caps.push(...plugins.map(p => `插件:${p}`))
         return caps.length ? caps.join(' / ') : '-'
       },
     },

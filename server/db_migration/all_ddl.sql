@@ -2559,3 +2559,117 @@ execute procedure update_modified_column();
 alter table chat_memory add column if not exists summary text null;
 
 comment on column chat_memory.summary is 'Persisted conversation summary covering the dropped oldest messages (T8-02); NULL until first compression | 已被摘要覆盖并从 messages 窗口收缩掉的旧历史的持久化摘要（T8-02），首次压缩前为 NULL';
+
+-- =====================================================================
+-- V44__mall_plugin.sql（二开 T9-M1，2026-10-29）
+-- 商城导购场景：BizToolProvider 插件体系。
+--   · adi_agent / adi_character 加 plugin_ids（业务插件码，逗号分隔）
+--   · mall 五表：分类 / 商品 / 优惠券 / 用户券 / 活动
+-- 种子数据见 all_dml.sql V44 段。
+-- =====================================================================
+
+ALTER TABLE adi_agent     ADD COLUMN IF NOT EXISTS plugin_ids varchar(500) default '' not null;
+ALTER TABLE adi_character ADD COLUMN IF NOT EXISTS plugin_ids varchar(500) default '' not null;
+
+COMMENT ON COLUMN adi_agent.plugin_ids     IS 'Biz tool plugin codes, comma-separated (e.g. mall); tool name prefix routes to the provider | 业务插件编码，逗号分隔（如 mall），工具名前缀路由到对应 Provider';
+COMMENT ON COLUMN adi_character.plugin_ids IS 'Biz tool plugin codes, comma-separated (synced from agent) | 业务插件编码，逗号分隔（随智能体同步）';
+
+CREATE TABLE IF NOT EXISTS mall_category
+(
+    id          bigserial primary key,
+    code        varchar(50)  default ''                not null,
+    name        varchar(100) default ''                not null,
+    icon        varchar(200) default ''                not null,
+    sort        int          default 0                 not null,
+    is_enable   boolean      default true              not null,
+    create_time timestamp    default CURRENT_TIMESTAMP not null,
+    update_time timestamp    default CURRENT_TIMESTAMP not null,
+    is_deleted  boolean      default false             not null
+);
+COMMENT ON TABLE mall_category IS 'Mall product category | 商城商品分类';
+CREATE UNIQUE INDEX IF NOT EXISTS uk_mall_category_code ON mall_category (code) WHERE is_deleted = false;
+
+CREATE TABLE IF NOT EXISTS mall_product
+(
+    id             bigserial primary key,
+    name           varchar(200)   default ''                not null,
+    category_code  varchar(50)    default ''                not null,
+    price          numeric(12, 2) default 0                 not null,
+    original_price numeric(12, 2) default 0                 not null,
+    monthly_sales  bigint         default 0                 not null,
+    promo_tags     varchar(500)   default ''                not null,
+    coupon_hint    varchar(200)   default ''                not null,
+    remark         text           default ''                not null,
+    is_enable      boolean        default true              not null,
+    create_time    timestamp      default CURRENT_TIMESTAMP not null,
+    update_time    timestamp      default CURRENT_TIMESTAMP not null,
+    is_deleted     boolean        default false             not null
+);
+COMMENT ON TABLE mall_product IS 'Mall product | 商城商品';
+COMMENT ON COLUMN mall_product.promo_tags  IS 'Promotion tags, comma separated | 促销标签，逗号分隔';
+COMMENT ON COLUMN mall_product.coupon_hint IS 'Coupon hint shown to user | 优惠提示（如 满100减20）';
+CREATE INDEX IF NOT EXISTS idx_mall_product_category ON mall_product (category_code, is_deleted);
+
+CREATE TABLE IF NOT EXISTS mall_coupon
+(
+    id            bigserial primary key,
+    code          varchar(50)    default ''                not null,
+    title         varchar(200)   default ''                not null,
+    amount        numeric(12, 2) default 0                 not null,
+    min_spend     numeric(12, 2) default 0                 not null,
+    total_count   int            default -1                not null,
+    claimed_count int            default 0                 not null,
+    expire_time   timestamp                                null,
+    is_enable     boolean        default true              not null,
+    create_time   timestamp      default CURRENT_TIMESTAMP not null,
+    update_time   timestamp      default CURRENT_TIMESTAMP not null,
+    is_deleted    boolean        default false             not null
+);
+COMMENT ON TABLE mall_coupon IS 'Mall coupon template | 商城优惠券（模板）';
+COMMENT ON COLUMN mall_coupon.total_count   IS 'Total stock, -1 = unlimited | 发放总量，-1 不限量';
+COMMENT ON COLUMN mall_coupon.claimed_count IS 'Claimed count | 已领取数量';
+CREATE UNIQUE INDEX IF NOT EXISTS uk_mall_coupon_code ON mall_coupon (code) WHERE is_deleted = false;
+
+CREATE TABLE IF NOT EXISTS mall_user_coupon
+(
+    id           bigserial primary key,
+    user_id      bigint      default 0                 not null,
+    coupon_code  varchar(50) default ''                not null,
+    claimed_time timestamp   default CURRENT_TIMESTAMP not null,
+    is_used      boolean     default false             not null,
+    create_time  timestamp   default CURRENT_TIMESTAMP not null,
+    update_time  timestamp   default CURRENT_TIMESTAMP not null,
+    is_deleted   boolean     default false             not null
+);
+COMMENT ON TABLE mall_user_coupon IS 'Coupon claimed by user | 用户已领取的优惠券';
+CREATE UNIQUE INDEX IF NOT EXISTS uk_mall_user_coupon ON mall_user_coupon (user_id, coupon_code);
+
+CREATE TABLE IF NOT EXISTS mall_activity
+(
+    id          bigserial primary key,
+    title       varchar(200) default ''                not null,
+    description text         default ''                not null,
+    icon        varchar(200) default ''                not null,
+    sort        int          default 0                 not null,
+    is_enable   boolean      default true              not null,
+    create_time timestamp    default CURRENT_TIMESTAMP not null,
+    update_time timestamp    default CURRENT_TIMESTAMP not null,
+    is_deleted  boolean      default false             not null
+);
+COMMENT ON TABLE mall_activity IS 'Mall promotion activity | 商城优惠活动';
+
+DROP TRIGGER IF EXISTS trigger_mall_category_update_time ON mall_category;
+CREATE TRIGGER trigger_mall_category_update_time BEFORE UPDATE ON mall_category
+    FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+DROP TRIGGER IF EXISTS trigger_mall_product_update_time ON mall_product;
+CREATE TRIGGER trigger_mall_product_update_time BEFORE UPDATE ON mall_product
+    FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+DROP TRIGGER IF EXISTS trigger_mall_coupon_update_time ON mall_coupon;
+CREATE TRIGGER trigger_mall_coupon_update_time BEFORE UPDATE ON mall_coupon
+    FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+DROP TRIGGER IF EXISTS trigger_mall_user_coupon_update_time ON mall_user_coupon;
+CREATE TRIGGER trigger_mall_user_coupon_update_time BEFORE UPDATE ON mall_user_coupon
+    FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+DROP TRIGGER IF EXISTS trigger_mall_activity_update_time ON mall_activity;
+CREATE TRIGGER trigger_mall_activity_update_time BEFORE UPDATE ON mall_activity
+    FOR EACH ROW EXECUTE PROCEDURE update_modified_column();

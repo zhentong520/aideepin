@@ -3,6 +3,7 @@ package com.moyz.adi.common.service;
 import com.moyz.adi.common.config.AdiProperties;
 import com.moyz.adi.common.helper.LLMContext;
 import com.moyz.adi.common.interfaces.DelegateAgentSpi;
+import com.moyz.adi.common.interfaces.BizToolSpi;
 import com.moyz.adi.common.interfaces.SkillToolSpi;
 import com.moyz.adi.common.languagemodel.AbstractImageModelService;
 import com.moyz.adi.common.languagemodel.AbstractLLMService;
@@ -47,6 +48,9 @@ public class ModelStaticConfigInitializer {
     private DelegateAgentSpi delegateAgentTool;
 
     @Resource
+    private BizToolSpi bizToolService;
+
+    @Resource
     private FileService fileService;
 
     @Resource
@@ -58,6 +62,8 @@ public class ModelStaticConfigInitializer {
         LLMFallbackRouter.initConfig(adiProperties);
         ToolLoopBudget.initConfig(adiProperties);
         AbstractLLMService.initDependencies(stringRedisTemplate, modelHealthService, skillToolService, delegateAgentTool);
+        //T9-M2（2026-10-28）：业务工具插件静态推送（拔插式业务能力，如商城导购）
+        AbstractLLMService.initBizToolService(bizToolService);
         LLMContext.initHealthService(modelHealthService);
         AbstractImageModelService.initStatics(fileService);
         DashScopeAsrService.initStatics(restTemplate);

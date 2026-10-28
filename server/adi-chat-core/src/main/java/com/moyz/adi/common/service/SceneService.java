@@ -340,12 +340,15 @@ public class SceneService extends ServiceImpl<SceneMapper, Scene> {
         Double temperature = null == agent.getLlmTemperature() ? 0.7D : agent.getLlmTemperature();
         String kbIds = StringUtils.defaultString(agent.getKbIds());
         String mcpIds = StringUtils.defaultString(agent.getMcpIds());
+        //2026-10-28: 业务插件码也属于后台可改的配置项，必须同步（T9-M2）
+        String pluginIds = StringUtils.defaultString(agent.getPluginIds());
         boolean webSearch = Boolean.TRUE.equals(agent.getEnableWebSearch());
 
         boolean unchanged = Objects.equals(systemMessage, character.getAiSystemMessage())
                 && Objects.equals(temperature, character.getLlmTemperature())
                 && Objects.equals(kbIds, StringUtils.defaultString(character.getKbIds()))
                 && Objects.equals(mcpIds, StringUtils.defaultString(character.getMcpIds()))
+                && Objects.equals(pluginIds, StringUtils.defaultString(character.getPluginIds()))
                 && webSearch == Boolean.TRUE.equals(character.getIsEnableWebSearch());
         if (unchanged) {
             return;
@@ -354,6 +357,7 @@ public class SceneService extends ServiceImpl<SceneMapper, Scene> {
         character.setLlmTemperature(temperature);
         character.setKbIds(kbIds);
         character.setMcpIds(mcpIds);
+        character.setPluginIds(pluginIds);
         character.setIsEnableWebSearch(webSearch);
         characterMapper.updateById(character);
     }
@@ -389,6 +393,7 @@ public class SceneService extends ServiceImpl<SceneMapper, Scene> {
         character.setIsAutoplayAnswer(false);
         character.setKbIds(StringUtils.defaultString(agent.getKbIds()));
         character.setMcpIds(StringUtils.defaultString(agent.getMcpIds()));
+        character.setPluginIds(StringUtils.defaultString(agent.getPluginIds()));
         character.setSkillIds(null == template ? StringUtils.EMPTY : StringUtils.defaultString(template.getSkillIds()));
         character.setIsDeleted(false);
         return character;

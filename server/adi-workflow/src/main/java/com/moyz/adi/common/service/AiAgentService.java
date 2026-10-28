@@ -114,6 +114,7 @@ public class AiAgentService extends ServiceImpl<AgentMapper, Agent> {
             agent.setModelName(StringUtils.defaultString(agent.getModelName()));
             agent.setKbIds(StringUtils.defaultString(agent.getKbIds()));
             agent.setMcpIds(StringUtils.defaultString(agent.getMcpIds()));
+            agent.setPluginIds(StringUtils.defaultString(agent.getPluginIds()));
             if (null == agent.getLlmTemperature()) {
                 agent.setLlmTemperature(0.7D);
             }
@@ -153,6 +154,7 @@ public class AiAgentService extends ServiceImpl<AgentMapper, Agent> {
             exist.setModelName(patch(exist.getModelName(), agent.getModelName()));
             exist.setKbIds(patch(exist.getKbIds(), agent.getKbIds()));
             exist.setMcpIds(patch(exist.getMcpIds(), agent.getMcpIds()));
+            exist.setPluginIds(patch(exist.getPluginIds(), agent.getPluginIds()));
             if (null != agent.getLlmTemperature()) {
                 exist.setLlmTemperature(agent.getLlmTemperature());
             }
@@ -316,6 +318,7 @@ public class AiAgentService extends ServiceImpl<AgentMapper, Agent> {
         character.setIsAutoplayAnswer(false);
         character.setKbIds(StringUtils.isBlank(agent.getKbIds()) ? "" : agent.getKbIds());
         character.setMcpIds(StringUtils.isBlank(agent.getMcpIds()) ? "" : agent.getMcpIds());
+        character.setPluginIds(StringUtils.isBlank(agent.getPluginIds()) ? "" : agent.getPluginIds());
         return character;
     }
 
@@ -333,6 +336,7 @@ public class AiAgentService extends ServiceImpl<AgentMapper, Agent> {
         character.setAiSystemMessage(buildSystemMessage(agent));
         character.setKbIds(StringUtils.isBlank(agent.getKbIds()) ? "" : agent.getKbIds());
         character.setMcpIds(StringUtils.isBlank(agent.getMcpIds()) ? "" : agent.getMcpIds());
+        character.setPluginIds(StringUtils.isBlank(agent.getPluginIds()) ? "" : agent.getPluginIds());
         character.setIsEnableWebSearch(Boolean.TRUE.equals(agent.getEnableWebSearch()));
         if (null != agent.getLlmTemperature()) {
             character.setLlmTemperature(agent.getLlmTemperature());

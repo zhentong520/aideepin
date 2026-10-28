@@ -19,6 +19,7 @@ import com.moyz.adi.common.languagemodel.data.LLMResponseContent;
 import com.moyz.adi.common.memory.shortterm.AdiChatMemoryStore;
 import com.moyz.adi.common.memory.shortterm.ChatMemoryStores;
 import com.moyz.adi.common.interfaces.DelegateAgentSpi;
+import com.moyz.adi.common.interfaces.BizToolSpi;
 import com.moyz.adi.common.interfaces.SkillToolSpi;
 import com.moyz.adi.common.multiagent.AgentCallChain;
 import com.moyz.adi.common.rag.TokenEstimatorFactory;
@@ -113,6 +114,9 @@ public abstract class AbstractLLMService extends CommonModelService {
 
     private static volatile DelegateAgentSpi staticDelegateAgentTool;
 
+    /** T9-M2（2026-10-28）：业务工具插件（拔插式业务能力，如商城导购） */
+    private static volatile BizToolSpi staticBizToolService;
+
     /** ModelStaticConfigInitializer 启动期调用 */
     public static void initDependencies(StringRedisTemplate stringRedisTemplate,
                                         ModelHealthService modelHealthService,
@@ -122,6 +126,11 @@ public abstract class AbstractLLMService extends CommonModelService {
         staticModelHealthService = modelHealthService;
         staticSkillToolService = skillToolService;
         staticDelegateAgentTool = delegateAgentTool;
+    }
+
+    /** T9-M2：BizToolSpi 单独推送（避免改老签名波及调用方） */
+    public static void initBizToolService(BizToolSpi bizToolService) {
+        staticBizToolService = bizToolService;
     }
 
     //User#uuid => ttsJobInfo
@@ -264,6 +273,7 @@ public abstract class AbstractLLMService extends CommonModelService {
                 .sseUuid(params.getSseUuid())
                 .mcpClients(httpRequestParams.getMcpClients())
                 .skillBundle(httpRequestParams.getSkillBundle())
+                .bizToolBundle(httpRequestParams.getBizToolBundle())
                 .characterUuid(httpRequestParams.getCharacterUuid())
                 // T7-02：透传调用链给工具回调线程（delegate_agent 深度限制/防环）
                 .agentCallChain(httpRequestParams.getAgentCallChain())
@@ -333,6 +343,7 @@ public abstract class AbstractLLMService extends CommonModelService {
             return;
         }
         Map<ToolSpecification, ToolExecutor> toolExecutorMap = getRequestTools(params.getMcpClients(), params.getSkillBundle(),
+                params.getBizToolBundle(),
                 null == params.getUser() ? null : params.getUser().getId(), params.getCharacterUuid(), params.getAgentCallChain());
         dispatchStreamingChat(params, toolExecutorMap);
     }
@@ -569,6 +580,7 @@ public abstract class AbstractLLMService extends CommonModelService {
             AiMessage responseAiMessage = chatResponse.aiMessage();
             if (responseAiMessage.hasToolExecutionRequests()) {
                 Map<ToolSpecification, ToolExecutor> toolExecutorMap = getRequestTools(chatModelRequest.getMcpClients(), chatModelRequest.getSkillBundle(),
+                        chatModelRequest.getBizToolBundle(),
                         chatModelRequest.getChatUserId(), chatModelRequest.getCharacterUuid(), chatModelRequest.getAgentCallChain());
                 List<ToolExecutionResultMessage> toolExecutionMessages = createToolExecutionMessages(responseAiMessage, toolExecutorMap, null);
 
@@ -748,7 +760,9 @@ public abstract class AbstractLLMService extends CommonModelService {
      * 二开（T7-02，2026-10-20）：新增 delegate_agent 常驻注册（agent-as-tool），开关关闭时不注册；
      * 调用链随参数透传（嵌套深度限制/防环在门面收口）。
      */
-    private Map<ToolSpecification, ToolExecutor> getRequestTools(List<McpClient> mcpClients, SkillToolSpi.SkillBundle skillBundle, Long chatUserId, String characterUuid, AgentCallChain agentCallChain) {
+    private Map<ToolSpecification, ToolExecutor> getRequestTools(List<McpClient> mcpClients, SkillToolSpi.SkillBundle skillBundle,
+                                                                 BizToolSpi.ToolBundle bizToolBundle,
+                                                                 Long chatUserId, String characterUuid, AgentCallChain agentCallChain) {
         Map<ToolSpecification, ToolExecutor> tools = new HashMap<>();
         if (!CollectionUtils.isEmpty(mcpClients)) {
             // MCP Tools
@@ -774,6 +788,15 @@ public abstract class AbstractLLMService extends CommonModelService {
         if (delegateAgentTool.enabled()) {
             ToolSpecification delegateSpec = delegateAgentTool.buildSpecification();
             tools.put(delegateSpec, (req, memoryId) -> delegateAgentTool.invoke(req, chatUserId, characterUuid, agentCallChain));
+        }
+        // T9-M2（2026-10-28）：业务工具插件（商城导购等），按工具名前缀 {code}_ 路由到对应 provider
+        if (null != bizToolBundle && !CollectionUtils.isEmpty(bizToolBundle.toolSpecifications())) {
+            BizToolSpi bizToolService = staticBizToolService;
+            for (ToolSpecification toolSpecification : bizToolBundle.toolSpecifications()) {
+                tools.put(toolSpecification, (req, memoryId) ->
+                        null == bizToolService ? "ERROR: biz tool service unavailable"
+                                : bizToolService.execute(req.name(), req.arguments(), chatUserId, characterUuid));
+            }
         }
         return tools;
     }
@@ -817,6 +840,11 @@ public abstract class AbstractLLMService extends CommonModelService {
         DelegateAgentSpi delegateAgentTool = staticDelegateAgentTool;
         if (delegateAgentTool.enabled()) {
             toolSpecifications.add(delegateAgentTool.buildSpecification());
+        }
+        // T9-M2（2026-10-28）：业务工具插件工具清单注入（与执行侧 getRequestTools 前缀路由互通）
+        if (null != httpRequestParams.getBizToolBundle()
+                && !CollectionUtils.isEmpty(httpRequestParams.getBizToolBundle().toolSpecifications())) {
+            toolSpecifications.addAll(httpRequestParams.getBizToolBundle().toolSpecifications());
         }
 
         DefaultChatRequestParameters.Builder<?> builder = ChatRequestParameters.builder();

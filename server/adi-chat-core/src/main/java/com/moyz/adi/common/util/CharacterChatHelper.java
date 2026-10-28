@@ -17,6 +17,7 @@ import com.moyz.adi.common.rag.EmbeddingRagContext;
 import com.moyz.adi.common.rag.KbAclInfo;
 import com.moyz.adi.common.service.SkillService;
 import com.moyz.adi.common.service.UserMcpService;
+import com.moyz.adi.common.interfaces.BizToolSpi;
 import com.moyz.adi.common.interfaces.SkillToolSpi;
 import com.moyz.adi.common.util.AdiStringUtil;
 import com.moyz.adi.common.vo.ChatModelBuilderProperties;
@@ -77,13 +78,18 @@ public class CharacterChatHelper {
 
     private static volatile SkillService skillService;
 
+    /** T9-M2（2026-10-28）：业务工具插件（拔插式业务能力，如商城导购）；未启用插件时 prepare 返回空包 */
+    private static volatile BizToolSpi bizToolService;
+
     /** ChatCoreStaticConfigInitializer 启动期调用 */
     public static void initConfig(AdiProperties props, UserMcpService userMcpSvc,
-                                  SkillToolSpi skillToolSvc, SkillService skillSvc) {
+                                  SkillToolSpi skillToolSvc, SkillService skillSvc,
+                                  BizToolSpi bizToolSvc) {
         adiProperties = props;
         userMcpService = userMcpSvc;
         skillToolService = skillToolSvc;
         skillService = skillSvc;
+        bizToolService = bizToolSvc;
     }
 
     private CharacterChatHelper() {
@@ -391,6 +397,18 @@ public class CharacterChatHelper {
             }
         }
 
+        //T9-M2（2026-10-28）：业务工具插件（拔插式业务能力）——按角色 plugin_ids 生成
+        //工具包（manifest + 工具规格）；未配置或配置了未知插件码时安全跳过
+        String bizManifest = "";
+        if (StringUtils.isNotBlank(character.getPluginIds()) && null != bizToolService) {
+            List<String> pluginCodes = AdiStringUtil.stringToList(character.getPluginIds(), ",", String::trim);
+            BizToolSpi.ToolBundle bizBundle = bizToolService.prepare(pluginCodes);
+            if (!bizBundle.toolSpecifications().isEmpty()) {
+                bizManifest = bizBundle.manifest();
+                builder.bizToolBundle(bizBundle);
+            }
+        }
+
         //Thinking
         AiModel aiModel = llmService.getAiModel();
         Boolean returnThinking = checkIfReturnThinking(aiModel, character);
@@ -410,6 +428,12 @@ public class CharacterChatHelper {
         if (StringUtils.isNotBlank(skillManifest)) {
             String base = builder.build().getSystemMessage();
             builder.systemMessage(StringUtils.isBlank(base) ? skillManifest : base + "\n\n" + skillManifest);
+        }
+
+        //T9-M2：业务插件能力说明追加到 system prompt（在技能清单之后）
+        if (StringUtils.isNotBlank(bizManifest)) {
+            String base = builder.build().getSystemMessage();
+            builder.systemMessage(StringUtils.isBlank(base) ? bizManifest : base + "\n\n" + bizManifest);
         }
 
         return builder.build();

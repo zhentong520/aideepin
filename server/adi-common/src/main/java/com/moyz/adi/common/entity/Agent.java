@@ -60,6 +60,10 @@ public class Agent extends BaseEntity {
     @TableField("mcp_ids")
     private String mcpIds;
 
+    @Schema(title = "Enabled biz-tool plugin codes (comma separated, e.g. mall)")
+    @TableField("plugin_ids")
+    private String pluginIds;
+
     @Schema(title = "Enable RAG retrieval")
     @TableField("enable_rag")
     private Boolean enableRag;

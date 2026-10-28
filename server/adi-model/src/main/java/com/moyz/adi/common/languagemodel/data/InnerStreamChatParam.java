@@ -3,6 +3,7 @@ package com.moyz.adi.common.languagemodel.data;
 import com.moyz.adi.common.entity.User;
 import com.moyz.adi.common.interfaces.TriConsumer;
 import com.moyz.adi.common.languagemodel.data.LLMResponseContent;
+import com.moyz.adi.common.interfaces.BizToolSpi;
 import com.moyz.adi.common.interfaces.SkillToolSpi;
 import com.moyz.adi.common.vo.AnswerMeta;
 import com.moyz.adi.common.vo.PromptMeta;
@@ -28,6 +29,8 @@ public class InnerStreamChatParam {
     private List<McpClient> mcpClients;
     //Agent Skills 内置工具上下文，无技能时为 null
     private SkillToolSpi.SkillBundle skillBundle;
+    //T9-M2（2026-10-28）：业务工具插件上下文（manifest+工具集），未启用插件时为 null
+    private BizToolSpi.ToolBundle bizToolBundle;
     /**
      * 二开新增（2026-09-21）：当前对话角色 uuid，供 create_skill 工具绑定新技能。
      */

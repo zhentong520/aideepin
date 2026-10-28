@@ -55,6 +55,10 @@ public class Character extends BaseEntity {
     @TableField("skill_ids")
     private String skillIds;
 
+    @Schema(title = "启用的业务插件码列表（逗号分隔，如 mall）| Enabled biz-tool plugin codes")
+    @TableField("plugin_ids")
+    private String pluginIds;
+
     @Schema(title = "设置响应内容类型：1：自动（跟随用户的输入类型，如果用户输入是音频，则响应内容也同样是音频，如果用户输入是文本，则响应内容显示文本），2：文本，3：音频 | Response Content Type: 1=Auto (Follows User Input Type), 2=Text, 3=Audio")
     @TableField("answer_content_type")
     private Integer answerContentType;
