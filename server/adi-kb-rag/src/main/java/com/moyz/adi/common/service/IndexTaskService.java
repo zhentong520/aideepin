@@ -12,10 +12,13 @@ import com.moyz.adi.common.entity.User;
 import com.moyz.adi.common.enums.EmbeddingStatusEnum;
 import com.moyz.adi.common.enums.GraphicalStatusEnum;
 import com.moyz.adi.common.util.AdiStringUtil;
+import com.moyz.adi.common.util.JsonUtil;
 import com.moyz.adi.common.enums.SegmentModeEnum;
 import com.moyz.adi.common.exception.IndexTaskCancelledException;
+import com.moyz.adi.common.constant.SseConstant;
 import com.moyz.adi.common.helper.LLMContext;
 import com.moyz.adi.common.helper.RedisGuard;
+import com.moyz.adi.common.helper.SsePushGateway;
 import com.moyz.adi.common.languagemodel.AbstractLLMService;
 import com.moyz.adi.common.mapper.IndexTaskMapper;
 import com.moyz.adi.common.mapper.KbDocumentMapper;
@@ -43,6 +46,7 @@ import com.moyz.adi.common.task.TaskResult;
 
 import java.text.MessageFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -113,6 +117,10 @@ public class IndexTaskService {
 
     @Resource
     private IndexTaskMapper indexTaskMapper;
+
+    /** S2-06：任务终态跨实例推送（worker 侧产生，api 实例的 /notify/sse 长连接收） */
+    @Resource
+    private SsePushGateway ssePushGateway;
 
     // S2-02：执行触发迁到 task_queue——enqueue 与 task_queue INSERT 同事务（Outbox），
     // 业务回滚两者一起回滚；消费/重试/孤儿恢复由 TaskQueueConsumer 统一承担
@@ -364,7 +372,11 @@ public class IndexTaskService {
         ScheduledFuture<?> heartbeat = startHeartbeat(task);
         try {
             boolean skipped = route(task);
-            indexTaskMapper.finishOne(task.getId(), task.getExecutorEpoch(), STATUS_DONE, skipped ? "skipped: superseded by newer version" : "");
+            boolean finished = indexTaskMapper.finishOne(task.getId(), task.getExecutorEpoch(), STATUS_DONE, skipped ? "skipped: superseded by newer version" : "") > 0;
+            // S2-06：终态跨实例推送（尽力而为；仅真正终态化本行的执行者推送，zombie 不推）
+            if (finished && !skipped) {
+                pushIndexState(task, STATUS_DONE);
+            }
         } catch (IndexTaskCancelledException e) {
             log.info("Index task cancelled, docUuid:{}, reason:{}", task.getDocUuid(), e.getMessage());
             onCancelled(task);
@@ -381,6 +393,8 @@ public class IndexTaskService {
             // that belongs to the rerun/breaker
             if (indexTaskMapper.finishOne(task.getId(), task.getExecutorEpoch(), STATUS_FAILED, StringUtils.abbreviate(reason, 500)) > 0) {
                 markHostFailed(task, reason);
+                // S2-06：终态跨实例推送（尽力而为；仅真正终态化本行的执行者推送，zombie 不推）
+                pushIndexState(task, STATUS_FAILED);
             }
         } finally {
             heartbeat.cancel(false);
@@ -815,6 +829,22 @@ public class IndexTaskService {
                 .set(KbDocument::getGraphicalStatus, GraphicalStatusEnum.NONE)
                 .set(KbDocument::getFailReason, "")
                 .update();
+    }
+
+    /**
+     * S2-06：索引任务终态跨实例推送（尽力而为）。gateway 自捕获所有异常，绝不影响索引主流程；
+     * 本实例未持有该用户通知连接时为 no-op，跨实例由 Redis pub/sub 路由。
+     */
+    private void pushIndexState(IndexTask task, String status) {
+        try {
+            String payload = JsonUtil.toJson(Map.of(
+                    "taskType", "kb_index",
+                    "docUuid", task.getDocUuid(),
+                    "status", status));
+            ssePushGateway.push(task.getUserId(), SseConstant.SSEEventName.TASK_STATE_CHANGED, payload);
+        } catch (Exception e) {
+            log.warn("pushIndexState failed, indexTaskId:{}", task.getId(), e);
+        }
     }
 
     /**

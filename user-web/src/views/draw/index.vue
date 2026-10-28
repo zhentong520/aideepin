@@ -1,5 +1,5 @@
 <script setup lang='ts'>
-import { computed, nextTick, onActivated, ref, watch } from 'vue'
+import { computed, nextTick, onActivated, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useLoadingBar, useMessage } from 'naive-ui'
 import DisplayStyleInChat from './components/DisplayStyleInChat.vue'
 import DisplayStyleInGallery from './components/DisplayStyleInGallery.vue'
@@ -13,6 +13,8 @@ import api from '@/api'
 import { debounce } from '@/utils/functions/debounce'
 import { t } from '@/locales'
 import { changeFileUrlToUuid } from '@/utils/functions'
+import { openNotifySse } from '@/api/notify'
+import { checkProcess } from './helper'
 const appStore = useAppStore()
 const ms = useMessage()
 const loaddingBar = useLoadingBar()
@@ -106,6 +108,21 @@ watch(
 onActivated(async () => {
   chatStyleViewRef.value.gotoBottom()
   galleryStyleViewRef.value.gotoTop()
+})
+
+// S2-06：订阅任务状态通知 SSE（后端 3s 轮询兜底仍在，这里只做终态加速刷新）
+let closeNotifySse: (() => void) | null = null
+onMounted(() => {
+  closeNotifySse = openNotifySse({
+    onTaskStateChanged: (payload) => {
+      if (payload.taskType === 'draw' && payload.uuid)
+        checkProcess(payload.uuid)
+    },
+  })
+})
+onUnmounted(() => {
+  closeNotifySse?.()
+  closeNotifySse = null
 })
 </script>
 

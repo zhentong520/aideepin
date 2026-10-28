@@ -119,6 +119,13 @@ adi:
   # 回滚方式：ADI_MEMORY_STORE=mapdb 重启即可（MapDB 类与文件保留，未删）。
   memory:
     store: ${ADI_MEMORY_STORE:pg}
+  # S2-06：SSE 跨实例分发模式（redis | local，默认 redis）。
+  # redis：任务终态事件经 Redis pub/sub 广播，持有用户 /notify/sse 长连的实例本地投递
+  #   （多实例部署必须 redis）；Redis 故障时降级本地直投，前端轮询兜底。
+  # local：只投本实例（单实例部署可显式指定，省一次 pub/sub 开销）。
+  # 回滚方式：ADI_SSE_PUSH_MODE=local 重启即可。
+  sse:
+    push-mode: ${ADI_SSE_PUSH_MODE:redis}
   mail:
     # mock 模式：不连 SMTP，邮件内容打日志并落盘 {local.base-data-path}/mail-outbox/
     # 生产请配置真实 spring.mail 并保持 false（或设 ADI_MAIL_MOCK=false）

@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.moyz.adi.common.base.ThreadContext;
 import com.moyz.adi.common.config.AdiProperties;
 import com.moyz.adi.common.constant.RedisKeyConstant;
+import com.moyz.adi.common.constant.SseConstant;
 import com.moyz.adi.common.dto.*;
 import com.moyz.adi.common.entity.*;
 import com.moyz.adi.common.enums.ErrorEnum;
@@ -16,6 +17,7 @@ import com.moyz.adi.common.exception.BaseException;
 import com.moyz.adi.common.helper.ImageModelContext;
 import com.moyz.adi.common.helper.QuotaHelper;
 import com.moyz.adi.common.helper.RateLimitHelper;
+import com.moyz.adi.common.helper.SsePushGateway;
 import com.moyz.adi.common.languagemodel.AbstractImageModelService;
 import com.moyz.adi.common.mapper.DrawMapper;
 import com.moyz.adi.common.task.TaskQueueService;
@@ -73,6 +75,10 @@ public class DrawService extends ServiceImpl<DrawMapper, Draw> {
 
     @Resource
     private QuotaHelper quotaHelper;
+
+    /** S2-06：任务终态跨实例推送（worker 侧产生，api 实例的 /notify/sse 长连接收） */
+    @Resource
+    private SsePushGateway ssePushGateway;
 
     @Resource
     private RateLimitHelper rateLimitHelper;
@@ -222,10 +228,12 @@ public class DrawService extends ServiceImpl<DrawMapper, Draw> {
             String imageUuidsJoin = String.join(",", imageUuids);
             if (StringUtils.isBlank(imageUuidsJoin)) {
                 updateDrawFail(draw.getId(), "No image generated", genDuration);
+                pushDrawState(draw, "fail");
                 return;
             }
             String respImagesPath = String.join(",", images);
             updateDrawSuccess(draw.getId(), respImagesPath, imageUuidsJoin, genDuration);
+            pushDrawState(draw, "success");
 
             //Update the cost of current user
             boolean modelIsFree = imageModelService.getAiModel().getIsFree();
@@ -245,6 +253,7 @@ public class DrawService extends ServiceImpl<DrawMapper, Draw> {
             log.error("createFromRemote error", e);
             long failDuration = System.currentTimeMillis() - startTime;
             updateDrawFail(draw.getId(), e.getMessage(), failDuration);
+            pushDrawState(draw, "fail");
         } finally {
             stringRedisTemplate.delete(drawingKey);
         }
@@ -312,6 +321,22 @@ public class DrawService extends ServiceImpl<DrawMapper, Draw> {
         updateImage.setProcessStatusRemark(failMsg);
         updateImage.setDuration(NumberUtil.saturatedCastToInt(durationMs));
         getBaseMapper().updateById(updateImage);
+    }
+
+    /**
+     * S2-06：绘图终态跨实例推送（尽力而为）。gateway 自捕获所有异常，绝不影响生成主流程；
+     * 本实例未持有该用户通知连接时为 no-op，跨实例由 Redis pub/sub 路由。
+     */
+    private void pushDrawState(Draw draw, String status) {
+        try {
+            ObjectNode payload = objectMapper.createObjectNode();
+            payload.put("taskType", "draw");
+            payload.put("uuid", draw.getUuid());
+            payload.put("status", status);
+            ssePushGateway.push(draw.getUserId(), SseConstant.SSEEventName.TASK_STATE_CHANGED, payload.toString());
+        } catch (Exception e) {
+            log.warn("pushDrawState failed, drawId:{}", draw.getId(), e);
+        }
     }
 
     public DrawListResp listByCurrentUser(Long maxId, int pageSize) {

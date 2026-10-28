@@ -33,6 +33,11 @@ public interface SseConstant {
          * Per-node metrics event prefix; the full event name is {@code NODE_METRICS_PREFIX + nodeUuid + "]"}.
          */
         public static final String NODE_METRICS_PREFIX = "[NODE_METRICS_";
+        /**
+         * S2-06：任务终态通知事件（经 SsePushGateway 跨实例分发到 /notify/sse 长连通道）。
+         * data 为 JSON：{"taskType":"draw|kb_index","uuid"/"docUuid":...,"status":"success|fail|done|failed"}
+         */
+        public static final String TASK_STATE_CHANGED = "[TASK_STATE_CHANGED]";
     }
 
     class SSEEventData {

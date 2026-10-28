@@ -15,9 +15,11 @@ import com.moyz.adi.common.base.SearchEngineRespTypeHandler;
 import com.moyz.adi.common.base.ThreadContextTaskDecorator;
 import com.moyz.adi.common.base.UUIDTypeHandler;
 import com.moyz.adi.common.constant.AdiConstant;
+import com.moyz.adi.common.constant.RedisKeyConstant;
 import com.moyz.adi.common.dto.SearchEngineResp;
 import com.moyz.adi.common.entity.AiModel;
 import com.moyz.adi.common.entity.ModelPlatform;
+import com.moyz.adi.common.helper.RedisSsePushGateway;
 import com.moyz.adi.common.service.ModelPlatformService;
 import com.moyz.adi.common.languagemodel.DashScopeEmbeddingModelService;
 import com.moyz.adi.common.languagemodel.OpenAiEmbeddingModelService;
@@ -36,6 +38,7 @@ import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.context.annotation.Primary;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.http.client.BufferingClientHttpRequestFactory;
@@ -168,6 +171,28 @@ public class BeanConfig {
         executor.setAwaitTerminationSeconds(60);
         executor.initialize();
         return executor;
+    }
+
+    /**
+     * S2-06：SSE 跨实例分发订阅容器（redis 模式默认装配，与 {@link RedisSsePushGateway}
+     * 同条件同生灭）。Spring Data Redis 断线自动重连 + 重订阅（满足「断线重连恢复订阅」验收）；
+     * 收到广播后统一走 {@code gateway.onMessage} → 本实例注册表投递（单一代码路径，无重复投递）。
+     */
+    @Bean
+    @ConditionalOnProperty(name = "adi.sse.push-mode", havingValue = "redis", matchIfMissing = true)
+    public org.springframework.data.redis.listener.RedisMessageListenerContainer ssePushListenerContainer(
+            org.springframework.data.redis.connection.RedisConnectionFactory connectionFactory,
+            RedisSsePushGateway gateway) {
+        var container = new org.springframework.data.redis.listener.RedisMessageListenerContainer();
+        container.setConnectionFactory(connectionFactory);
+        container.addMessageListener((message, pattern) -> {
+            try {
+                gateway.onMessage(new String(message.getBody(), java.nio.charset.StandardCharsets.UTF_8));
+            } catch (Exception e) {
+                log.warn("sse push message decode error", e);
+            }
+        }, new org.springframework.data.redis.listener.ChannelTopic(RedisKeyConstant.SSE_PUSH_CHANNEL));
+        return container;
     }
 
     @Bean
