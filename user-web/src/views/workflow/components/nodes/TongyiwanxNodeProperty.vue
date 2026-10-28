@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { NButton, NIcon, NInput, NInputNumber, NSelect, NTooltip } from 'naive-ui'
 import { QuestionCircle16Regular } from '@vicons/fluent'
-import NodePropertyInput from '../NodePropertyInput.vue'
-import WfImageModelSelector from '../WfImageModelSelector.vue'
-import ReferComment from '../ReferComment.vue'
+import NodePropertyInput from 'aideepin-wf-shared/src/components/NodePropertyInput.vue'
+import WfImageModelSelector from 'aideepin-wf-shared/src/components/WfImageModelSelector.vue'
+import ReferComment from 'aideepin-wf-shared/src/components/ReferComment.vue'
 import { TONGYI_WANX_SIZE_OPTIONS } from '@/utils/constant'
 import { t } from '@/locales'
 interface Props {

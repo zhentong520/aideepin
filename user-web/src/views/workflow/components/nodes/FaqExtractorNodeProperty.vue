@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { NInputNumber } from 'naive-ui'
-import NodePropertyInput from '../NodePropertyInput.vue'
-import WfLLMSelector from '../WfLLMSelector.vue'
+import NodePropertyInput from 'aideepin-wf-shared/src/components/NodePropertyInput.vue'
+import WfLLMSelector from 'aideepin-wf-shared/src/components/WfLLMSelector.vue'
 import { t } from '@/locales'
 interface Props {
   workflow: Workflow.WorkflowInfo

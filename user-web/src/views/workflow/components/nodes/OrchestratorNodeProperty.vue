@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { NButton, NIcon, NInput, NSelect, NSwitch, NTooltip } from 'naive-ui'
 import { Add24Regular, Delete24Regular, QuestionCircle16Regular } from '@vicons/fluent'
-import NodePropertyInput from '../NodePropertyInput.vue'
+import NodePropertyInput from 'aideepin-wf-shared/src/components/NodePropertyInput.vue'
 import { t } from '@/locales'
 import { computed, onMounted, ref } from 'vue'
 import api from '@/api'

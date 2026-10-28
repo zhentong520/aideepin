@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { NButton, NCollapse, NCollapseItem, NInput, NInputNumber, NSelect, NSwitch, NTable, NTag, NTooltip } from 'naive-ui'
-import JsonEditorVue from 'json-editor-vue'
+// S2-07#4 下沉：单源实现，依赖统一经 #wf-shared-vendor（禁止裸导入/宿主@别名）
+import { JsonEditorVue, NButton, NCollapse, NCollapseItem, NInput, NInputNumber, NSelect, NSwitch, NTable, NTag, NTooltip, SvgIcon, t } from '#wf-shared-vendor'
 import NodePropertyInput from '../NodePropertyInput.vue'
-import { SvgIcon } from '@/wf/components'
-import { t } from '@/locales'
+
 const props = defineProps<Props>()
 enum Mode {
   text = 'text',

@@ -1,13 +1,9 @@
 <script setup lang="ts">
-import { computed, h, nextTick, ref, watch } from 'vue'
-import { NIcon, NSelect } from 'naive-ui'
-import { Cloud32Regular, LockClosed32Regular } from '@vicons/fluent'
-import type { SelectGroupOption, SelectInst, SelectOption } from 'naive-ui'
-import type { VNodeChild } from 'vue'
-import { debounce } from '@/utils/functions/debounce'
-import { useAuthStore } from '@/store'
-import api from '@/api'
-import { t } from '@/locales'
+// S2-07#4 下沉：单源实现，依赖统一经 #wf-shared-vendor（禁止裸导入/宿主@别名）
+import { Cloud32Regular, LockClosed32Regular, NIcon, NSelect, api, computed, h, nextTick, ref, t, useAuthStore, watch } from '#wf-shared-vendor'
+import type { SelectGroupOption, SelectInst, SelectOption, VNodeChild } from '#wf-shared-vendor'
+import { debounce } from '../utils/debounce'
+
 interface KbOption {
   value: string
   label: string
@@ -31,7 +27,7 @@ const currentPage = ref<number>(1)
 const pageSize = 10
 // 扁平 KB 列表（我的 + 公共去重），按分类动态分组渲染
 const flatKbs = ref<KbOption[]>([])
-// 分类 id -> 名称 映射（空对象表示接口不可用，退化为单组）
+// 分类 id -> 名称 映射（空串表示接口不可用，退化为单组）
 const categoryNames = ref<Record<number, string>>({})
 
 const options = computed<Array<SelectOption | SelectGroupOption>>(() => {
@@ -57,7 +53,7 @@ const options = computed<Array<SelectOption | SelectGroupOption>>(() => {
       lastCat = kb.categoryId
       const label = kb.categoryId > 0
         ? (categoryNames.value[kb.categoryId] || `#${kb.categoryId}`)
-        : t('knowledgeBase.uncategorized')
+        : t('columns.uncategorized')
       groups.push({
         type: 'group',
         label,
@@ -152,7 +148,7 @@ async function loadCategories() {
     for (const c of resp.data || []) map[Number(c.id)] = c.name
     categoryNames.value = map
   } catch (e) {
-    console.error(e)
+    console.error('load kb categories failed', e)
   }
 }
 

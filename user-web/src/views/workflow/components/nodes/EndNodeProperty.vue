@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { NInput } from 'naive-ui'
-import NodePropertyInput from '../NodePropertyInput.vue'
-import ReferComment from '../ReferComment.vue'
+import NodePropertyInput from 'aideepin-wf-shared/src/components/NodePropertyInput.vue'
+import ReferComment from 'aideepin-wf-shared/src/components/ReferComment.vue'
 import { t } from '@/locales'
 interface Props {
   workflow: Workflow.WorkflowInfo

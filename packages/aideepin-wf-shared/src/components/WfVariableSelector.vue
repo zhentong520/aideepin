@@ -1,12 +1,9 @@
 <script setup lang="ts">
-import { h, nextTick, ref } from 'vue'
-import { NSelect } from 'naive-ui'
-import type { VNodeChild } from 'vue'
-import type { SelectGroupOption, SelectOption } from 'naive-ui'
-import { emptyWorkflowInfo } from '@/wf/utils/functions'
-import { getIconByComponentName, getIconClassByComponentName } from '@/wf/utils/workflow-util'
-import { SvgIcon } from '@/wf/components'
-import { t } from '@/locales'
+// S2-07#4 下沉：单源实现，依赖统一经 #wf-shared-vendor（禁止裸导入/宿主@别名）
+import { NSelect, SvgIcon, getIconByComponentName, getIconClassByComponentName, h, nextTick, ref, t } from '#wf-shared-vendor'
+import type { SelectGroupOption, SelectOption, VNodeChild } from '#wf-shared-vendor'
+import { emptyWorkflowInfo } from '../functions/empty'
+
 interface Props {
   workflow: Workflow.WorkflowInfo
   wfNode: Workflow.WorkflowNode

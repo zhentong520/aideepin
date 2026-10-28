@@ -1,15 +1,8 @@
 <script setup lang='ts'>
-import { computed, ref } from 'vue'
-import { NDropdown, NImage, NImageGroup, NList, NListItem } from 'naive-ui'
-import AvatarComponent from '@/views/chat/components/Message/Avatar.vue'
-import TextComponent from '@/views/chat/components/Message/Text.vue'
-import NoPic from '@/assets/no_pic.png'
-import { SvgIcon } from '@/components/common'
-import { useIconRender } from '@/hooks/useIconRender'
-import { useAuthStore } from '@/store'
-import { getRealFileUrl } from '@/utils/functions'
-import { formatDuration } from '@/utils/format'
-import { t } from '@/locales'
+// S2-07#4 下沉：单源实现，依赖统一经 #wf-shared-vendor（禁止裸导入/宿主@别名）
+import { AvatarComponent, NDropdown, NImage, NImageGroup, NList, NListItem, NoPic, SvgIcon, TextComponent, computed, formatDuration, ref, t, useAuthStore, useIconRender } from '#wf-shared-vendor'
+import { getRealFileUrl } from '../../functions/empty'
+
 interface Props {
   wfRuntime: Workflow.WorkflowRuntime
   ioObject: any

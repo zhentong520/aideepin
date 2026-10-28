@@ -1,12 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { generate } from 'random-words'
-import { NButton, NCollapse, NCollapseItem, NInput, NList, NListItem, useMessage } from 'naive-ui'
-import { v4 as uuidv4 } from 'uuid'
+// S2-07#4 下沉：单源实现，依赖统一经 #wf-shared-vendor（禁止裸导入/宿主@别名）
+import { NButton, NCollapse, NCollapseItem, NInput, NList, NListItem, SvgIcon, computed, generate, t, useMessage, useWfStore, v4 as uuidv4 } from '#wf-shared-vendor'
 import WfVariableSelector from './WfVariableSelector.vue'
-import { SvgIcon } from '@/components/common'
-import { useWfStore } from '@/store'
-import { t } from '@/locales'
+
 interface Props {
   workflow: Workflow.WorkflowInfo
   wfNode: Workflow.WorkflowNode

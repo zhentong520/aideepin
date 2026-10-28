@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { NIcon, NInput, NInputNumber, NSelect, NTooltip } from 'naive-ui'
 import { QuestionCircle16Regular } from '@vicons/fluent'
-import NodePropertyInput from '../NodePropertyInput.vue'
-import ReferComment from '../ReferComment.vue'
+import NodePropertyInput from 'aideepin-wf-shared/src/components/NodePropertyInput.vue'
+import ReferComment from 'aideepin-wf-shared/src/components/ReferComment.vue'
 import { GOOGLE_COUNTRY_OPTIONS, GOOGLE_LANGUAGE_OPTIONS } from '@/wf/utils/constant'
 import { t } from '@/locales'
 interface Props {

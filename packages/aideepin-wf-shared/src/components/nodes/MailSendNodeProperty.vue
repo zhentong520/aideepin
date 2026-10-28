@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { NInput, NInputNumber, NRadio, NRadioGroup } from 'naive-ui'
+// S2-07#4 下沉：单源实现，依赖统一经 #wf-shared-vendor（禁止裸导入/宿主@别名）
+import { NInput, NInputNumber, NRadio, NRadioGroup, t } from '#wf-shared-vendor'
 import NodePropertyInput from '../NodePropertyInput.vue'
 import ReferComment from '../ReferComment.vue'
 import ReferTooltip from '../ReferTooltip.vue'
-import { t } from '@/locales'
+
 interface Props {
   workflow: Workflow.WorkflowInfo
   wfNode: Workflow.WorkflowNode

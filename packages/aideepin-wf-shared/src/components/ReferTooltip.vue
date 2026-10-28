@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { NTooltip } from 'naive-ui'
-import { SvgIcon } from '@/components/common'
-import { t } from '@/locales'
+// S2-07#4 下沉：单源实现，依赖统一经 #wf-shared-vendor（禁止裸导入/宿主@别名）
+import { NTooltip, SvgIcon, t } from '#wf-shared-vendor'
 import { braceLiteral } from './braceLiteral'
+
 interface Props {
   brief?: boolean
 }

@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { NSelect } from 'naive-ui'
-import type { SelectGroupOption, SelectOption } from 'naive-ui'
-import { useWfStore } from '@/store'
+// S2-07#4 下沉：单源实现，依赖统一经 #wf-shared-vendor（禁止裸导入/宿主@别名）
+import { NSelect, ref, useWfStore } from '#wf-shared-vendor'
+import type { SelectGroupOption, SelectOption } from '#wf-shared-vendor'
 
 interface Props {
   selected: string

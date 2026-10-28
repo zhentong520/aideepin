@@ -1,11 +1,8 @@
 <script setup lang="ts">
-import { h, ref, computed, onMounted } from 'vue'
-import { NSelect, NTooltip } from 'naive-ui'
-import type { SelectOption } from 'naive-ui'
-import type { VNodeChild } from 'vue'
-import { useAppStore } from '@/store'
-import AvatarComponent from '@/views/chat/components/Message/Avatar.vue'
-import { emptyAiModel } from '@/utils/functions'
+// S2-07#4 下沉：单源实现，依赖统一经 #wf-shared-vendor（禁止裸导入/宿主@别名）
+import { AvatarComponent, NSelect, NTooltip, computed, h, onMounted, ref, useAppStore } from '#wf-shared-vendor'
+import type { SelectOption, VNodeChild } from '#wf-shared-vendor'
+import { emptyAiModel } from '../functions/empty'
 
 interface Props {
   modelPlatform?: string

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { NIcon, NIconWrapper, NInput, NRadio, NRadioGroup, NSlider, NTooltip } from 'naive-ui'
 import { AnimalCat24Regular, QuestionCircle16Regular } from '@vicons/fluent'
-import WfKnowledgeSelector from '../WfKnowledgeSelector.vue'
+import WfKnowledgeSelector from 'aideepin-wf-shared/src/components/WfKnowledgeSelector.vue'
 import { t } from '@/locales'
 interface Props {
   workflow: Workflow.WorkflowInfo

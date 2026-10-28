@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import { v4 as uuidv4 } from 'uuid'
-import { generate } from 'random-words'
-import { NButton, NCollapse, NCollapseItem, NInput } from 'naive-ui'
+// S2-07#4 下沉：单源实现，依赖统一经 #wf-shared-vendor（禁止裸导入/宿主@别名）
+import { NButton, NCollapse, NCollapseItem, NInput, createNewEdge, deleteEdgesBySourceHandle, generate, t, updateEdgeBySourceHandle, v4 as uuidv4 } from '#wf-shared-vendor'
 import NodeSelector from '../NodeSelector.vue'
 import WfLLMSelector from '../WfLLMSelector.vue'
-import { createNewEdge, deleteEdgesBySourceHandle, updateEdgeBySourceHandle } from '@/views/workflow/utils/workflow-util'
-import { t } from '@/locales'
+
 interface Props {
   workflow: Workflow.WorkflowInfo
   uiWorkflow: Workflow.UIWorkflow

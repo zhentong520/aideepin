@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { NIcon, NInput, NTooltip } from 'naive-ui'
 import { QuestionCircle16Regular } from '@vicons/fluent'
-import NodePropertyInput from '../NodePropertyInput.vue'
-import ReferComment from '../ReferComment.vue'
-import WfLLMSelector from '../WfLLMSelector.vue'
+import NodePropertyInput from 'aideepin-wf-shared/src/components/NodePropertyInput.vue'
+import ReferComment from 'aideepin-wf-shared/src/components/ReferComment.vue'
+import WfLLMSelector from 'aideepin-wf-shared/src/components/WfLLMSelector.vue'
 import { t } from '@/locales'
 interface Props {
   workflow: Workflow.WorkflowInfo

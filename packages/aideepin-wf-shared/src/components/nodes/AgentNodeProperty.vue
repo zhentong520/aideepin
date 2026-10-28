@@ -1,13 +1,9 @@
 <script setup lang="ts">
-import { NIcon, NInput, NPopover, NSelect, NSwitch, NTooltip } from 'naive-ui'
-import { QuestionCircle16Regular } from '@vicons/fluent'
+// S2-07#4 下沉：单源实现，依赖统一经 #wf-shared-vendor（禁止裸导入/宿主@别名）
+import { NIcon, NInput, NPopover, NSelect, NSwitch, NTooltip, QuestionCircle16Regular, api, computed, onMounted, ref, t, useAppStore } from '#wf-shared-vendor'
 import NodePropertyInput from '../NodePropertyInput.vue'
 import ReferComment from '../ReferComment.vue'
 import WfLLMSelector from '../WfLLMSelector.vue'
-import { t } from '@/locales'
-import { computed, onMounted, ref } from 'vue'
-import { useAppStore } from '@/store'
-import api from '@/api'
 
 interface Props {
   workflow: Workflow.WorkflowInfo

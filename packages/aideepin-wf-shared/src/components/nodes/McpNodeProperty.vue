@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { NButton, NInput, NSelect, useMessage } from 'naive-ui'
+// S2-07#4 下沉：单源实现，依赖统一经 #wf-shared-vendor（禁止裸导入/宿主@别名）
+import { NButton, NInput, NSelect, api, computed, onMounted, ref, t, useMessage } from '#wf-shared-vendor'
 import NodePropertyInput from '../NodePropertyInput.vue'
 import ReferComment from '../ReferComment.vue'
 import { braceLiteral } from '../braceLiteral'
-import api from '@/wf/api'
-import { t } from '@/locales'
 
 interface Props {
   workflow: Workflow.WorkflowInfo

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import NodePropertyInput from '../NodePropertyInput.vue'
+import NodePropertyInput from 'aideepin-wf-shared/src/components/NodePropertyInput.vue'
 import { useWfStore } from '@/wf/stores'
 import { t } from '@/locales'
 interface Props {

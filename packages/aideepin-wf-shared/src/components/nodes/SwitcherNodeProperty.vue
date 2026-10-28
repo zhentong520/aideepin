@@ -1,14 +1,9 @@
 <script setup lang="ts">
-import { v4 as uuidv4 } from 'uuid'
-import { NAvatar, NButton, NCollapse, NCollapseItem, NInput, NTag, useMessage } from 'naive-ui'
+// S2-07#4 下沉：单源实现，依赖统一经 #wf-shared-vendor（禁止裸导入/宿主@别名）
+import { NAvatar, NButton, NCollapse, NCollapseItem, NInput, NTag, SvgIcon, createNewEdge, deleteEdgesBySourceHandle, shouzhitishi, t, updateEdgeBySourceHandle, useMessage, useWfStore, v4 as uuidv4 } from '#wf-shared-vendor'
 import NodeSelector from '../NodeSelector.vue'
 import WfVariableSelector from '../WfVariableSelector.vue'
 import OperatorSelector from '../OperatorSelector.vue'
-import shouzhitishi from '@/assets/shouzhitishi.svg'
-import { createNewEdge, deleteEdgesBySourceHandle, updateEdgeBySourceHandle } from '@/wf/utils/workflow-util'
-import { t } from '@/locales'
-import { SvgIcon } from '@/wf/components'
-import { useWfStore } from '@/wf/stores'
 
 interface Props {
   workflow: Workflow.WorkflowInfo
