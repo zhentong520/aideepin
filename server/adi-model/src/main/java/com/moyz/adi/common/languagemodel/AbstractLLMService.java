@@ -662,15 +662,17 @@ public abstract class AbstractLLMService extends CommonModelService {
             //保证①提示词始终在首位 ②每轮都生效（改人设/追加护栏对老会话立即生效）③不污染历史记忆。
             normalizeSystemMessage(chatMessages, chatModelRequest.getSystemMessage());
 
-            // 二开（T6-06，2026-10-20）：长对话摘要压缩。历史消息估算 token 超过阈值
-            // （adi.chat.summarize-token-threshold，默认 8000）时自动摘要压缩。
+            // 二开（T6-06，2026-10-20）：长对话摘要压缩。历史消息估算 token 超过阈值时自动摘要压缩。
+            // 二开（T8-01，2026-10-28）：阈值动态化——实际阈值 = min(配置阈值, 60% × maxInputTokens)。
+            // 固定阈值对小窗口模型形同虚设（TokenWindowChatMemory 先一步静默丢最旧消息，用户感知为失忆），
+            // 对大窗口模型又过早摘要；按模型输入窗口缩放后两种问题同时消除。
             // ⚠️ 必须在 normalizeSystemMessage 之后调用：系统提示词（index 0）永远保留原样，
             // 只压缩历史轮次（identity-guard 教训：压缩绝不能吃掉系统提示词）；
             // 压缩产物以 [CONVERSATION_SUMMARY] 标记为 SystemMessage 插在 index 1。
             // 压缩请求走现有 LLM 通道（buildChatLLM），低温 0.3 保证摘要稳定。
             chatMessages = ConversationCompressor.compressWithConfig(chatMessages,
                     buildChatLLM(ChatModelBuilderProperties.builder().temperature(0.3).build()),
-                    tokenCountEstimator);
+                    tokenCountEstimator, aiModel.getMaxInputTokens());
 
             //AI services currently do not support multimodality, use the low-level API for this. https://docs.langchain4j.dev/tutorials/ai-services#multimodality
             //重新组装用户消息及追加图片消息到chatMessage

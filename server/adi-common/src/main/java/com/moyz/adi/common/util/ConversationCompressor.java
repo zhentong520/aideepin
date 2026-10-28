@@ -41,6 +41,12 @@ public final class ConversationCompressor {
     public static final String SUMMARY_MARKER = "[CONVERSATION_SUMMARY]";
 
     /**
+     * T8-01：动态阈值系数——历史部分最多占模型输入窗口的 60%，
+     * 剩余空间留给系统提示词、当前轮消息与输出。
+     */
+    public static final double HISTORY_WINDOW_RATIO = 0.6;
+
+    /**
      * 按需压缩。逻辑：
      * 1. index 0（系统消息）不参与估算与压缩；
      * 2. 其余消息估算 token <= 阈值 → 原样返回；
@@ -125,6 +131,37 @@ public final class ConversationCompressor {
             return messages;
         }
         return compressIfNeeded(messages, chatModel, estimator, cfgThreshold, cfgKeepRecent);
+    }
+
+    /**
+     * T8-01：带模型动态阈值的压缩。实际阈值 = min(配置阈值, 60% × maxInputTokens)。
+     * <p>
+     * 动机：固定阈值（默认 8000）对上下文窗口小的模型（如 8k 窗口的小模型）
+     * 形同虚设——历史早已超过窗口，TokenWindowChatMemory 会静默丢掉最旧的消息
+     * （用户感知为「失忆」）；而对大窗口模型（128k+）又过早触发摘要，
+     * 浪费 token 且丢失细节。按模型窗口缩放后两种问题同时消除。
+     * <p>
+     * maxInputTokens 为空或 <= 0（模型未配置窗口）时退回纯配置阈值，行为与旧版一致。
+     */
+    public static List<ChatMessage> compressWithConfig(List<ChatMessage> messages, ChatModel chatModel,
+                                                       TokenCountEstimator estimator, Integer maxInputTokens) {
+        if (!cfgEnabled) {
+            return messages;
+        }
+        return compressIfNeeded(messages, chatModel, estimator,
+                effectiveThreshold(cfgThreshold, maxInputTokens), cfgKeepRecent);
+    }
+
+    /**
+     * T8-01：计算有效压缩阈值 = min(configuredThreshold, 60% × maxInputTokens)。
+     * 模型窗口缺失（null/<=0）时直接用配置阈值。
+     */
+    public static int effectiveThreshold(int configuredThreshold, Integer maxInputTokens) {
+        if (null == maxInputTokens || maxInputTokens <= 0) {
+            return configuredThreshold;
+        }
+        long dynamic = (long) Math.floor(maxInputTokens * HISTORY_WINDOW_RATIO);
+        return (int) Math.min(configuredThreshold, dynamic);
     }
 
     /**
