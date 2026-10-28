@@ -24,7 +24,7 @@ import com.moyz.adi.common.helper.LLMContext;
 import com.moyz.adi.common.helper.SseManager;
 import com.moyz.adi.common.languagemodel.AbstractLLMService;
 import com.moyz.adi.common.mapper.KnowledgeBaseMapper;
-import com.moyz.adi.common.memory.shortterm.MapDBChatMemoryStore;
+import com.moyz.adi.common.memory.shortterm.ChatMemoryStores;
 import com.moyz.adi.common.entity.DocumentSegment;
 import com.moyz.adi.common.rag.*;
 import com.moyz.adi.common.service.embedding.EmbeddingProviderInfo;
@@ -1065,7 +1065,7 @@ public class KnowledgeBaseService extends ServiceImpl<KnowledgeBaseMapper, Knowl
         TokenCountEstimator tokenizer = TokenEstimatorFactory.create(TokenEstimatorThreadLocal.getTokenEstimator());
         int tokens = 0;
         try {
-            List<ChatMessage> messages = MapDBChatMemoryStore.getSingleton().getMessages(memoryId);
+            List<ChatMessage> messages = ChatMemoryStores.get().getMessages(memoryId);
             if (messages != null && !messages.isEmpty()) {
                 tokens += tokenizer.estimateTokenCountInMessages(messages);
             }

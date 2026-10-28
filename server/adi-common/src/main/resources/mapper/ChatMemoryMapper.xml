@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.moyz.adi.common.mapper.ChatMemoryMapper">
+
+    <!-- S2-04: upsert keyed by business key memory_id (last-write-wins matches
+         langchain4j ChatMemoryStore whole-list-update semantics) -->
+    <insert id="upsert">
+        INSERT INTO chat_memory (memory_id, messages)
+        VALUES (#{memoryId}, #{messages})
+        ON CONFLICT (memory_id) DO UPDATE
+        SET messages = EXCLUDED.messages
+    </insert>
+
+    <select id="selectMessages" resultType="string">
+        SELECT messages
+        FROM chat_memory
+        WHERE memory_id = #{memoryId}
+    </select>
+
+    <delete id="deleteByMemoryId">
+        DELETE
+        FROM chat_memory
+        WHERE memory_id = #{memoryId}
+    </delete>
+
+</mapper>

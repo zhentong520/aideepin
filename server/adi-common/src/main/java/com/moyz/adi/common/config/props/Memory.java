@@ -50,4 +50,19 @@ public class Memory {
      * user confirmation before being persisted.
      */
     private boolean piiConfirmEnabled = true;
+
+    /**
+     * 二开新增（S2-04，2026-10-28）：短期记忆存储后端开关（adi.memory.store，mapdb | pg，默认 mapdb）。
+     * <p>
+     * pg 模式：短期记忆落 Postgres（chat_memory 表，一行一会话）+ Redis 读缓存，
+     * 多实例共享、重启不丢；首次读取某会话时若 pg 无记录而 MapDB 文件有，按会话
+     * 自动搬迁（灰度，不整库一次性迁）。mapdb 模式：历史行为（单机文件，多实例不共享），
+     * 作为回滚安全位保留。全量搬迁确认后 mapdb 分支与 org.mapdb 依赖一起删除。
+     * <p>
+     * Short-term memory backend switch. "pg" stores message windows in Postgres with a
+     * Redis read cache (multi-instance safe, restart-safe) and lazily migrates per-session
+     * legacy MapDB data on first read; "mapdb" (default) keeps the legacy single-node
+     * behaviour as a rollback position.
+     */
+    private String store = "mapdb";
 }

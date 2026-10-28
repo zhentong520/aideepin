@@ -21,9 +21,14 @@ import static org.mapdb.Serializer.STRING;
 
 /**
  * Short-Term Memory Storage based on MapDB
+ *
+ * @deprecated S2-04（ADR-003）：短期记忆已外置 Postgres（{@link PgChatMemoryStore}），
+ * 本类仅作为按会话灰度搬迁的数据源保留（{@link ChatMemoryStores#get()} 在 pg miss 时
+ * 读取）。全量搬迁确认后整个类与 mapdb 依赖一起下线（任务卡第 4 步），新代码禁止引用。
  */
+@Deprecated
 @Slf4j
-public class MapDBChatMemoryStore implements ChatMemoryStore {
+public class MapDBChatMemoryStore implements AdiChatMemoryStore {
 
     public static volatile MapDBChatMemoryStore singleton;
 

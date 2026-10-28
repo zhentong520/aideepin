@@ -28,7 +28,8 @@ import com.moyz.adi.common.helper.SseManager;
 import com.moyz.adi.common.languagemodel.AbstractLLMService;
 import com.moyz.adi.common.languagemodel.data.LLMResponseContent;
 import com.moyz.adi.common.memory.longterm.LongTermMemoryService;
-import com.moyz.adi.common.memory.shortterm.MapDBChatMemoryStore;
+import com.moyz.adi.common.memory.shortterm.AdiChatMemoryStore;
+import com.moyz.adi.common.memory.shortterm.ChatMemoryStores;
 import com.moyz.adi.common.memory.vo.MemoryAddParam;
 import com.moyz.adi.common.rag.AdiEmbeddingStoreContentRetriever;
 import com.moyz.adi.common.rag.GraphStoreContentRetriever;
@@ -633,8 +634,8 @@ public class CharacterChatService {
 
         //Short-term memory
         if (Boolean.TRUE.equals(character.getUnderstandContextEnable())) {
-            MapDBChatMemoryStore mapDBChatMemoryStore = MapDBChatMemoryStore.getSingleton();
-            List<ChatMessage> messages = mapDBChatMemoryStore.getMessages(askReq.getCharacterUuid());
+            AdiChatMemoryStore shortTermMemoryStore = ChatMemoryStores.get();
+            List<ChatMessage> messages = shortTermMemoryStore.getMessages(askReq.getCharacterUuid());
             List<ChatMessage> newMessages = new ArrayList<>(messages);
             // reasoning_content is stored in AiMessage.thinking() via returnThinking(true),
             // and will be sent back to DeepSeek API via sendThinking(true) during multi-turn tool-call scenarios.
@@ -642,7 +643,7 @@ public class CharacterChatService {
             // reasoning_content 通过 returnThinking(true) 存入 AiMessage.thinking()，
             // 并在多轮工具调用场景中通过 sendThinking(true) 自动回传 DeepSeek API。
             newMessages.add(AiMessage.builder().text(response.getContent()).thinking(response.getThinkingContent()).build());
-            mapDBChatMemoryStore.updateMessages(askReq.getCharacterUuid(), newMessages);
+            shortTermMemoryStore.updateMessages(askReq.getCharacterUuid(), newMessages);
         }
 
         // Prefer the current model for long-term memory; fall back to getFirstEnableAndFree()

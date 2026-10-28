@@ -109,6 +109,8 @@ public class RedisKeyConstant {
      * 值: user object
      */
     public static final String USER_INFO = "user:info:";
+    /** S2-04：短期记忆缓存（值为 langchain4j 序列化消息窗口，写穿透 TTL 30min）| short-term chat memory cache */
+    public static final String CHAT_MEMORY = "chat:memory:";
 
     /**
      * 找回密码的请求绑在

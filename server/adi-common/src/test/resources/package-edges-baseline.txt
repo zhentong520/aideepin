@@ -60,6 +60,7 @@ interfaces -> vo
 mapper -> dto
 mapper -> entity
 mapper -> vo
+memory -> mapper
 memory -> util
 multiagent -> enums
 multiagent -> exception

@@ -16,7 +16,7 @@ import com.moyz.adi.common.languagemodel.data.InnerStreamChatParam;
 import com.moyz.adi.common.languagemodel.data.ToolLoopBudget;
 import com.moyz.adi.common.languagemodel.data.LLMException;
 import com.moyz.adi.common.languagemodel.data.LLMResponseContent;
-import com.moyz.adi.common.memory.shortterm.MapDBChatMemoryStore;
+import com.moyz.adi.common.memory.shortterm.ChatMemoryStores;
 import com.moyz.adi.common.interfaces.DelegateAgentSpi;
 import com.moyz.adi.common.interfaces.SkillToolSpi;
 import com.moyz.adi.common.multiagent.AgentCallChain;
@@ -627,7 +627,7 @@ public abstract class AbstractLLMService extends CommonModelService {
             //滑动窗口算法限制消息长度
             // Sliding window algorithm to limit message length
             TokenWindowChatMemory memory = TokenWindowChatMemory.builder()
-                    .chatMemoryStore(MapDBChatMemoryStore.getSingleton())
+                    .chatMemoryStore(ChatMemoryStores.get())
                     .id(memoryId)
                     //二开（2026-10-05）：保持系统提示词在首位，与 CompositeRag 的记忆窗口保持一致。
                     //二开：keep the system message first, consistent with CompositeRag.
@@ -640,7 +640,7 @@ public abstract class AbstractLLMService extends CommonModelService {
             //SystemMessage，结果是系统提示词位置错乱、且每轮都被存储层丢弃（身份护栏因此完全失效）。
             //Do NOT put the system message into short-term memory; it is prepended during assembly.
             //先把历史里那份可能已过期的系统提示词刷新成本轮的版本。
-            MapDBChatMemoryStore.getSingleton().refreshSystemMessage(memoryId, chatModelRequest.getSystemMessage());
+            ChatMemoryStores.get().refreshSystemMessage(memoryId, chatModelRequest.getSystemMessage());
 
             //处理重复的UserMessage
             // Handle duplicate UserMessage

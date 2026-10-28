@@ -108,6 +108,12 @@ adi:
   # S1-13：登录 Cookie 是否带 Secure（仅 HTTPS 回传）。本地 http 调试 false，生产 true。
   auth:
     cookie-secure: ${ADI_COOKIE_SECURE:false}
+  # S2-04：短期记忆存储后端（mapdb | pg，代码默认 mapdb=历史行为；此处显式启用 pg）。
+  # pg 模式：消息窗口落 chat_memory 表 + Redis 读缓存，多实例共享、重启不丢；
+  # 某会话在 pg 首次读取 miss 时自动从 MapDB 文件搬迁该会话（灰度迁移）。
+  # 回滚方式：ADI_MEMORY_STORE=mapdb 重启即可（MapDB 类与文件保留，未删）。
+  memory:
+    store: ${ADI_MEMORY_STORE:pg}
   mail:
     # mock 模式：不连 SMTP，邮件内容打日志并落盘 {local.base-data-path}/mail-outbox/
     # 生产请配置真实 spring.mail 并保持 false（或设 ADI_MAIL_MOCK=false）

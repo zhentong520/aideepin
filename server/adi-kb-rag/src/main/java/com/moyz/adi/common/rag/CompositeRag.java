@@ -7,7 +7,7 @@ import com.moyz.adi.common.helper.SseManager;
 import com.moyz.adi.common.interfaces.IStreamingChatAssistant;
 import com.moyz.adi.common.interfaces.ITempStreamingChatAssistant;
 import com.moyz.adi.common.interfaces.TriConsumer;
-import com.moyz.adi.common.memory.shortterm.MapDBChatMemoryStore;
+import com.moyz.adi.common.memory.shortterm.ChatMemoryStores;
 import com.moyz.adi.common.languagemodel.AbstractLLMService;
 import com.moyz.adi.common.vo.*;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
@@ -153,7 +153,7 @@ public class CompositeRag {
                     //身份护栏会被挤出/丢弃，导致模型自曝底层模型名。
                     //二开：keep the system message first, otherwise the identity guard is dropped.
                     .alwaysKeepSystemMessageFirst(true)
-                    .chatMemoryStore(MapDBChatMemoryStore.getSingleton())
+                    .chatMemoryStore(ChatMemoryStores.get())
                     .build();
             QueryTransformer queryTransformer = new CompressingQueryTransformer(llmService.buildChatLLM(params.getModelProperties()));
             RetrievalAugmentor retrievalAugmentor = DefaultRetrievalAugmentor.builder()
@@ -168,7 +168,7 @@ public class CompositeRag {
             if (StringUtils.isNotBlank(chatModelRequest.getSystemMessage())) {
                 //二开（2026-10-05）：先刷新历史里已固化的系统提示词，再交给 AiServices 注入。
                 //否则旧的那份（不含身份护栏）会一直留在首位，模型仍会自曝底层模型名。
-                MapDBChatMemoryStore.getSingleton().refreshSystemMessage(
+                ChatMemoryStores.get().refreshSystemMessage(
                         chatModelRequest.getMemoryId(), chatModelRequest.getSystemMessage());
                 tokenStream = assistant.chatWithSystem(chatModelRequest.getMemoryId(), chatModelRequest.getSystemMessage(), chatModelRequest.getUserMessage(), new ArrayList<>());
             } else {
