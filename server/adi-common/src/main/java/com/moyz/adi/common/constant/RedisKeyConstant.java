@@ -111,6 +111,8 @@ public class RedisKeyConstant {
     public static final String USER_INFO = "user:info:";
     /** S2-04：短期记忆缓存（值为 langchain4j 序列化消息窗口，写穿透 TTL 30min）| short-term chat memory cache */
     public static final String CHAT_MEMORY = "chat:memory:";
+    /** T8-02：短期记忆压缩摘要缓存（值为摘要纯文本，写穿透 TTL 同 CHAT_MEMORY）| persisted conversation summary cache */
+    public static final String CHAT_MEMORY_SUMMARY = "chat:memory:summary:";
     /** S2-06：SSE 跨实例分发 pub/sub 频道（值为 SsePushMessage JSON，广播制、实例本地按持有连接过滤）| SSE cross-instance fan-out channel */
     public static final String SSE_PUSH_CHANNEL = "sse:push:channel";
 

@@ -133,6 +133,23 @@ public final class ChatMemoryStores {
             delegate.refreshSystemMessage(memoryId, systemMessage);
         }
 
+        // ==================== T8-02：摘要槽位委托 ====================
+
+        @Override
+        public boolean supportsSummary() {
+            return delegate.supportsSummary();
+        }
+
+        @Override
+        public String getSummary(Object memoryId) {
+            return delegate.getSummary(memoryId);
+        }
+
+        @Override
+        public void saveSummaryAndShrink(Object memoryId, String summary, List<ChatMessage> remainingMessages) {
+            delegate.saveSummaryAndShrink(memoryId, summary, remainingMessages);
+        }
+
         private String legacyJson(Object memoryId) {
             try {
                 List<ChatMessage> legacy = MapDBChatMemoryStore.getSingleton().getMessages(memoryId);

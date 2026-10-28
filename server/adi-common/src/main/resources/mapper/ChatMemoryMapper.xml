@@ -3,7 +3,8 @@
 <mapper namespace="com.moyz.adi.common.mapper.ChatMemoryMapper">
 
     <!-- S2-04: upsert keyed by business key memory_id (last-write-wins matches
-         langchain4j ChatMemoryStore whole-list-update semantics) -->
+         langchain4j ChatMemoryStore whole-list-update semantics).
+         T8-02: conflict updates messages only, leaves summary column untouched. -->
     <insert id="upsert">
         INSERT INTO chat_memory (memory_id, messages)
         VALUES (#{memoryId}, #{messages})
@@ -11,8 +12,26 @@
         SET messages = EXCLUDED.messages
     </insert>
 
+    <!-- T8-02: summary write-back + window shrink in one atomic upsert -->
+    <insert id="upsertWithSummary">
+        INSERT INTO chat_memory (memory_id, messages, summary)
+        VALUES (#{memoryId},
+                COALESCE(#{messages}, (SELECT messages FROM chat_memory WHERE memory_id = #{memoryId})),
+                #{summary})
+        ON CONFLICT (memory_id) DO UPDATE
+        SET messages = COALESCE(EXCLUDED.messages, chat_memory.messages),
+            summary  = EXCLUDED.summary
+    </insert>
+
     <select id="selectMessages" resultType="string">
         SELECT messages
+        FROM chat_memory
+        WHERE memory_id = #{memoryId}
+    </select>
+
+    <!-- T8-02: read only the persisted summary column -->
+    <select id="selectSummary" resultType="string">
+        SELECT summary
         FROM chat_memory
         WHERE memory_id = #{memoryId}
     </select>

@@ -208,4 +208,65 @@ class ConversationCompressorTest {
         assertSame(messages, out, "开关关闭时原样返回");
         assertNull(llm.lastRequest);
     }
+
+    // ==================== T8-02 摘要持久化回写 ====================
+
+    @Test
+    void mergeSummaryIncludesPriorAndNewOlder() {
+        FakeChatModel llm = new FakeChatModel();
+        // 8 轮历史 ~1616 token > 1200 阈值；prior 摘要须进入合并 prompt，
+        // 且新增 older 也在（增量摘要：已摘要的旧历史不再重复进 transcript）
+        List<ChatMessage> messages = buildHistory(8, 400);
+        ConversationCompressor.CompressResult result = ConversationCompressor.compressIfNeeded(
+                messages, llm, new FixedEstimator(), 1200, 4, "此前的摘要：用户在讨论部署方案");
+        assertTrue(result.compressed(), "超阈值必须压缩");
+        assertEquals("这是历史对话的摘要", result.summary(), "summary 为无标记纯文本，供槽位回写");
+        assertNotNull(llm.lastRequest);
+        String prompt = llm.lastRequest.messages().get(0).toString();
+        assertTrue(prompt.contains("此前的摘要"), "合并 prompt 必须携带 prior 摘要");
+        assertTrue(prompt.contains("新增的对话"), "合并 prompt 必须携带新增 older");
+        // 消息结构：系统消息 + 摘要消息 + 最近 4 条
+        assertEquals(1 + 1 + 4, result.messages().size());
+        assertEquals(SYSTEM_PROMPT, ((SystemMessage) result.messages().get(0)).text());
+        assertTrue(((SystemMessage) result.messages().get(1)).text().startsWith(ConversationCompressor.SUMMARY_MARKER));
+    }
+
+    @Test
+    void blankPriorFallsBackToPlainSummarize() {
+        FakeChatModel llm = new FakeChatModel();
+        List<ChatMessage> messages = buildHistory(8, 400);
+        ConversationCompressor.CompressResult result = ConversationCompressor.compressIfNeeded(
+                messages, llm, new FixedEstimator(), 1200, 4, null);
+        assertTrue(result.compressed());
+        String prompt = llm.lastRequest.messages().get(0).toString();
+        assertTrue(prompt.contains("压缩成一段简洁摘要"), "prior 为空走纯摘要 prompt");
+    }
+
+    @Test
+    void underThresholdReturnsUnchangedWithCompressedFalse() {
+        FakeChatModel llm = new FakeChatModel();
+        List<ChatMessage> messages = buildHistory(2, 40);
+        ConversationCompressor.CompressResult result = ConversationCompressor.compressIfNeeded(
+                messages, llm, new FixedEstimator(), 800, 4, "旧摘要");
+        assertFalse(result.compressed(), "未超阈值不压缩（回注 prior 是调用方职责）");
+        assertSame(messages, result.messages());
+        assertNull(llm.lastRequest);
+    }
+
+    @Test
+    void mergeFailureFallsBackToUncompressed() {
+        FakeChatModel llm = new FakeChatModel();
+        llm.fail = true;
+        List<ChatMessage> messages = buildHistory(8, 400);
+        ConversationCompressor.CompressResult result = ConversationCompressor.compressIfNeeded(
+                messages, llm, new FixedEstimator(), 1200, 4, "旧摘要");
+        assertFalse(result.compressed(), "摘要失败回退不压缩，绝不让压缩导致对话失败");
+        assertEquals(messages, result.messages());
+    }
+
+    @Test
+    void summaryMessageHelperFormat() {
+        SystemMessage msg = ConversationCompressor.summaryMessage("测试摘要内容");
+        assertEquals(ConversationCompressor.SUMMARY_MARKER + " 以下是之前对话的摘要：\n测试摘要内容", msg.text());
+    }
 }

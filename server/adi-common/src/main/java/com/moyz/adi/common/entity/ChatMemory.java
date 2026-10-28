@@ -33,6 +33,12 @@ public class ChatMemory implements Serializable {
      */
     private String messages;
 
+    /**
+     * T8-02：已持久化的会话摘要——覆盖已从 messages 窗口收缩掉的旧历史；
+     * 首次压缩前为 NULL。见 PgChatMemoryStore#saveSummaryAndShrink。
+     */
+    private String summary;
+
     @TableField("create_time")
     private LocalDateTime createTime;
 

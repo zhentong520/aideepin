@@ -172,4 +172,55 @@ class PgChatMemoryStoreTest {
         assertTrue(PgChatMemoryStore.deserialize(null).isEmpty());
         assertTrue(PgChatMemoryStore.deserialize("").isEmpty());
     }
+
+    // ==================== T8-02：压缩摘要持久化槽位 ====================
+
+    @Test
+    void supportsSummary() {
+        assertTrue(store.supportsSummary(), "pg 实现必须声明支持摘要槽位（MapDB 默认 false）");
+    }
+
+    @Test
+    void getSummaryCacheHitSkipsDb() {
+        when(valueOperations.get(PgChatMemoryStore.summaryCacheKey(MEMORY_ID))).thenReturn("旧摘要");
+
+        assertEquals("旧摘要", store.getSummary(MEMORY_ID));
+        verify(chatMemoryMapper, never()).selectSummary(anyString());
+    }
+
+    @Test
+    void getSummaryMissFallsBackToDbAndRefills() {
+        when(valueOperations.get(PgChatMemoryStore.summaryCacheKey(MEMORY_ID))).thenReturn(null);
+        when(chatMemoryMapper.selectSummary(MEMORY_ID)).thenReturn("旧摘要");
+
+        assertEquals("旧摘要", store.getSummary(MEMORY_ID));
+        verify(valueOperations).set(eq(PgChatMemoryStore.summaryCacheKey(MEMORY_ID)), eq("旧摘要"), eq(PgChatMemoryStore.CACHE_TTL));
+    }
+
+    @Test
+    void getSummaryAbsentReturnsNull() {
+        when(valueOperations.get(anyString())).thenReturn(null);
+        when(chatMemoryMapper.selectSummary(MEMORY_ID)).thenReturn(null);
+
+        assertNull(store.getSummary(MEMORY_ID));
+    }
+
+    @Test
+    void saveSummaryAndShrinkWritesMapperAndBothCaches() {
+        List<ChatMessage> remaining = List.of(SystemMessage.from("sys"), UserMessage.from("q"), AiMessage.from("a"));
+
+        store.saveSummaryAndShrink(MEMORY_ID, "合并摘要", remaining);
+
+        //messages 与 summary 单条 upsert 原子完成
+        verify(chatMemoryMapper).upsertWithSummary(eq(MEMORY_ID), anyString(), eq("合并摘要"));
+        verify(valueOperations).set(eq(PgChatMemoryStore.summaryCacheKey(MEMORY_ID)), eq("合并摘要"), eq(PgChatMemoryStore.CACHE_TTL));
+        verify(valueOperations).set(eq(PgChatMemoryStore.cacheKey(MEMORY_ID)), anyString(), eq(PgChatMemoryStore.CACHE_TTL));
+    }
+
+    @Test
+    void saveSummaryBlankIsNoop() {
+        store.saveSummaryAndShrink(MEMORY_ID, " ", List.of(UserMessage.from("q")));
+
+        verify(chatMemoryMapper, never()).upsertWithSummary(anyString(), anyString(), anyString());
+    }
 }

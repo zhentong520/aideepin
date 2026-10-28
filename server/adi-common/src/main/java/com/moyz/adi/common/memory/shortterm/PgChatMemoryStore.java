@@ -152,6 +152,61 @@ public class PgChatMemoryStore implements AdiChatMemoryStore {
         }
     }
 
+    // ==================== T8-02：压缩摘要持久化槽位 ====================
+
+    @Override
+    public boolean supportsSummary() {
+        return true;
+    }
+
+    @Override
+    public String getSummary(Object memoryId) {
+        String key = (String) memoryId;
+        if (null == key) {
+            return null;
+        }
+        //1. cache hit（与 messages 缓存同 TTL、同降级约定）
+        try {
+            String cached = stringRedisTemplate.opsForValue().get(summaryCacheKey(key));
+            if (null != cached) {
+                return StringUtils.isBlank(cached) ? null : cached;
+            }
+        } catch (Exception e) {
+            log.warn("chat memory summary cache read failed, fallback to db, memoryId:{}", key, e);
+        }
+        //2. db + cache-aside refill
+        String summary = chatMemoryMapper.selectSummary(key);
+        if (StringUtils.isBlank(summary)) {
+            return null;
+        }
+        try {
+            stringRedisTemplate.opsForValue().set(summaryCacheKey(key), summary, CACHE_TTL);
+        } catch (Exception e) {
+            log.warn("chat memory summary cache refill failed (non-fatal), memoryId:{}", key, e);
+        }
+        return summary;
+    }
+
+    @Override
+    public void saveSummaryAndShrink(Object memoryId, String summary, List<ChatMessage> remainingMessages) {
+        String key = (String) memoryId;
+        if (null == key || StringUtils.isBlank(summary)) {
+            return;
+        }
+        String json = serializeFiltered(remainingMessages);
+        //messages 为 null 时 SQL 内 COALESCE 保住现有窗口（防御，正常路径 recent 非空）
+        chatMemoryMapper.upsertWithSummary(key, json, summary);
+        //write-through 双缓存，失败降级靠 TTL 过期回源
+        try {
+            stringRedisTemplate.opsForValue().set(summaryCacheKey(key), summary, CACHE_TTL);
+            if (null != json) {
+                stringRedisTemplate.opsForValue().set(cacheKey(key), json, CACHE_TTL);
+            }
+        } catch (Exception e) {
+            log.warn("chat memory summary write-through failed (non-fatal), memoryId:{}", key, e);
+        }
+    }
+
     /**
      * 序列化 + 与 MapDB 版本对齐的过滤规则（行为平移，保证搬迁前后记忆窗口一致）：
      * ① 首位 AiMessage 移除（langchain4j 历史约定）；② SystemMessage 只保留 index 0。
@@ -194,5 +249,9 @@ public class PgChatMemoryStore implements AdiChatMemoryStore {
 
     static String cacheKey(String memoryId) {
         return RedisKeyConstant.CHAT_MEMORY + memoryId;
+    }
+
+    static String summaryCacheKey(String memoryId) {
+        return RedisKeyConstant.CHAT_MEMORY_SUMMARY + memoryId;
     }
 }

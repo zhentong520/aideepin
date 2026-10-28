@@ -40,11 +40,20 @@ public final class ConversationCompressor {
     /** 压缩消息标记 | Marker prefixed to the generated summary message */
     public static final String SUMMARY_MARKER = "[CONVERSATION_SUMMARY]";
 
+    private static final String SUMMARY_PREFIX = SUMMARY_MARKER + " 以下是之前对话的摘要：\n";
+
     /**
      * T8-01：动态阈值系数——历史部分最多占模型输入窗口的 60%，
      * 剩余空间留给系统提示词、当前轮消息与输出。
      */
     public static final double HISTORY_WINDOW_RATIO = 0.6;
+
+    /**
+     * T8-02：压缩结果——消息列表之外额外暴露「本次摘要纯文本（无标记）」与
+     * 是否发生压缩，供调用方做摘要持久化回写（PgChatMemoryStore summary 槽位）。
+     */
+    public record CompressResult(List<ChatMessage> messages, String summary, boolean compressed) {
+    }
 
     /**
      * 按需压缩。逻辑：
@@ -62,19 +71,33 @@ public final class ConversationCompressor {
     public static List<ChatMessage> compressIfNeeded(List<ChatMessage> messages, ChatModel chatModel,
                                                      TokenCountEstimator estimator,
                                                      int thresholdTokens, int keepRecent) {
+        return compressIfNeeded(messages, chatModel, estimator, thresholdTokens, keepRecent, null).messages();
+    }
+
+    /**
+     * T8-02：带既有摘要的按需压缩。priorSummary 为上一轮持久化的摘要纯文本（无标记）：
+     * <ul>
+     *   <li>超阈值 → 摘要产出为「priorSummary + 本轮 older」的合并摘要
+     *       （增量摘要：已摘要过的旧历史不再重复进入 transcript，一次压缩一次 LLM）；</li>
+     *   <li>未超阈值 → 原样返回（compressed=false），由调用方负责回注 priorSummary。</li>
+     * </ul>
+     */
+    public static CompressResult compressIfNeeded(List<ChatMessage> messages, ChatModel chatModel,
+                                                  TokenCountEstimator estimator,
+                                                  int thresholdTokens, int keepRecent, String priorSummary) {
         if (null == messages || messages.size() <= 1) {
-            return messages;
+            return new CompressResult(messages, null, false);
         }
         List<ChatMessage> history = messages.subList(1, messages.size());
         if (history.isEmpty()) {
-            return messages;
+            return new CompressResult(messages, null, false);
         }
         int totalTokens = 0;
         for (ChatMessage msg : history) {
             totalTokens += estimator.estimateTokenCountInText(extractText(msg));
         }
         if (totalTokens <= thresholdTokens) {
-            return messages;
+            return new CompressResult(messages, null, false);
         }
         log.info("conversation compression triggered, historyMessages:{}, estimatedTokens:{}, threshold:{}",
                 history.size(), totalTokens, thresholdTokens);
@@ -86,23 +109,23 @@ public final class ConversationCompressor {
         List<ChatMessage> older = new ArrayList<>(history.subList(0, history.size() - keep));
         List<ChatMessage> recent = new ArrayList<>(history.subList(history.size() - keep, history.size()));
         if (older.isEmpty()) {
-            return messages;
+            return new CompressResult(messages, null, false);
         }
 
-        String summary = summarize(older, chatModel);
+        String summary = mergeSummarize(priorSummary, older, chatModel);
         if (StringUtils.isBlank(summary)) {
             // 摘要失败 → 回退不压缩（宁可信窗口截断，也不能让对话失败）
             log.warn("conversation compression failed (empty summary), fallback to uncompressed");
-            return messages;
+            return new CompressResult(messages, null, false);
         }
 
         List<ChatMessage> compressed = new ArrayList<>();
         compressed.add(messages.get(0));
-        compressed.add(SystemMessage.from(SUMMARY_MARKER + " 以下是之前对话的摘要：\n" + summary));
+        compressed.add(summaryMessage(summary));
         compressed.addAll(recent);
         log.info("conversation compressed, before:{} messages/~{} tokens, after:{} messages",
                 messages.size(), totalTokens, compressed.size());
-        return compressed;
+        return new CompressResult(compressed, summary, true);
     }
 
     /**
@@ -145,11 +168,20 @@ public final class ConversationCompressor {
      */
     public static List<ChatMessage> compressWithConfig(List<ChatMessage> messages, ChatModel chatModel,
                                                        TokenCountEstimator estimator, Integer maxInputTokens) {
+        return compressWithConfigResult(messages, chatModel, estimator, maxInputTokens, null).messages();
+    }
+
+    /**
+     * T8-02：动态阈值 + 既有摘要的全量入口。
+     */
+    public static CompressResult compressWithConfigResult(List<ChatMessage> messages, ChatModel chatModel,
+                                                          TokenCountEstimator estimator, Integer maxInputTokens,
+                                                          String priorSummary) {
         if (!cfgEnabled) {
-            return messages;
+            return new CompressResult(messages, null, false);
         }
         return compressIfNeeded(messages, chatModel, estimator,
-                effectiveThreshold(cfgThreshold, maxInputTokens), cfgKeepRecent);
+                effectiveThreshold(cfgThreshold, maxInputTokens), cfgKeepRecent, priorSummary);
     }
 
     /**
@@ -162,6 +194,13 @@ public final class ConversationCompressor {
         }
         long dynamic = (long) Math.floor(maxInputTokens * HISTORY_WINDOW_RATIO);
         return (int) Math.min(configuredThreshold, dynamic);
+    }
+
+    /**
+     * T8-02：构造摘要系统消息（压缩产物与调用方回注共用同一格式）。
+     */
+    public static SystemMessage summaryMessage(String summary) {
+        return SystemMessage.from(SUMMARY_PREFIX + summary);
     }
 
     /**
@@ -178,6 +217,33 @@ public final class ConversationCompressor {
         }
         String prompt = "请把以下对话历史压缩成一段简洁摘要（保留关键事实、决定与未完成的任务，"
                 + "删除寒暄与重复内容，不超过 500 字）：\n\n" + sb;
+        return doSummarize(prompt, chatModel);
+    }
+
+    /**
+     * T8-02：增量合并摘要——priorSummary 非空时，prompt 只带「上轮摘要 + 本轮新增 older」，
+     * 已摘要过的旧历史不再重复进入 transcript（消除每轮重复摘要的 token 成本 ×N）。
+     */
+    private static String mergeSummarize(String priorSummary, List<ChatMessage> older, ChatModel chatModel) {
+        if (StringUtils.isBlank(priorSummary)) {
+            return summarize(older, chatModel);
+        }
+        StringBuilder sb = new StringBuilder();
+        for (ChatMessage msg : older) {
+            String text = extractText(msg);
+            if (StringUtils.isBlank(text)) {
+                continue;
+            }
+            sb.append(msg instanceof UserMessage ? "用户: " : "助手: ").append(text).append("\n");
+        }
+        String prompt = "以下是这段对话此前的摘要：\n" + priorSummary
+                + "\n\n以下是摘要之后新增的对话：\n" + sb
+                + "\n\n请把新增对话合并进摘要，输出一段更新后的完整摘要"
+                + "（保留关键事实、决定与未完成的任务，删除寒暄与重复内容，不超过 500 字）：";
+        return doSummarize(prompt, chatModel);
+    }
+
+    private static String doSummarize(String prompt, ChatModel chatModel) {
         try {
             ChatRequest request = ChatRequest.builder()
                     .messages(List.of(UserMessage.from(prompt)))

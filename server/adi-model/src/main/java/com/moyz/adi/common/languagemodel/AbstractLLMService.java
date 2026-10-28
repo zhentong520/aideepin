@@ -16,6 +16,7 @@ import com.moyz.adi.common.languagemodel.data.InnerStreamChatParam;
 import com.moyz.adi.common.languagemodel.data.ToolLoopBudget;
 import com.moyz.adi.common.languagemodel.data.LLMException;
 import com.moyz.adi.common.languagemodel.data.LLMResponseContent;
+import com.moyz.adi.common.memory.shortterm.AdiChatMemoryStore;
 import com.moyz.adi.common.memory.shortterm.ChatMemoryStores;
 import com.moyz.adi.common.interfaces.DelegateAgentSpi;
 import com.moyz.adi.common.interfaces.SkillToolSpi;
@@ -666,13 +667,34 @@ public abstract class AbstractLLMService extends CommonModelService {
             // 二开（T8-01，2026-10-28）：阈值动态化——实际阈值 = min(配置阈值, 60% × maxInputTokens)。
             // 固定阈值对小窗口模型形同虚设（TokenWindowChatMemory 先一步静默丢最旧消息，用户感知为失忆），
             // 对大窗口模型又过早摘要；按模型输入窗口缩放后两种问题同时消除。
+            // 二开（T8-02，2026-10-28）：摘要持久化回写——压缩产出的摘要落到 PgChatMemoryStore 的
+            // summary 槽位，同时把已摘要覆盖的旧消息从 messages 窗口收缩掉；后续轮次从槽位回注，
+            // 只有新增历史再超阈值时才增量合并摘要（一次压缩一次 LLM），消除每轮重复摘要（成本 ×N）。
             // ⚠️ 必须在 normalizeSystemMessage 之后调用：系统提示词（index 0）永远保留原样，
             // 只压缩历史轮次（identity-guard 教训：压缩绝不能吃掉系统提示词）；
             // 压缩产物以 [CONVERSATION_SUMMARY] 标记为 SystemMessage 插在 index 1。
             // 压缩请求走现有 LLM 通道（buildChatLLM），低温 0.3 保证摘要稳定。
-            chatMessages = ConversationCompressor.compressWithConfig(chatMessages,
+            AdiChatMemoryStore memoryStore = ChatMemoryStores.get();
+            String priorSummary = memoryStore.supportsSummary() ? memoryStore.getSummary(memoryId) : null;
+            ConversationCompressor.CompressResult compressResult = ConversationCompressor.compressWithConfigResult(
+                    chatMessages,
                     buildChatLLM(ChatModelBuilderProperties.builder().temperature(0.3).build()),
-                    tokenCountEstimator, aiModel.getMaxInputTokens());
+                    tokenCountEstimator, aiModel.getMaxInputTokens(), priorSummary);
+            chatMessages = compressResult.messages();
+            if (compressResult.compressed() && memoryStore.supportsSummary()) {
+                try {
+                    //摘要消息落 summary 槽位（不进 messages 窗口）：收缩后窗口 = 系统消息 + 最近消息
+                    List<ChatMessage> shrunk = new ArrayList<>(compressResult.messages());
+                    shrunk.remove(1);
+                    memoryStore.saveSummaryAndShrink(memoryId, compressResult.summary(), shrunk);
+                } catch (Exception e) {
+                    //回写失败不阻断本轮：摘要已在本轮上下文里，最坏退化为下轮重新摘要（T6-06 原行为）
+                    log.warn("chat memory summary write-back failed (non-fatal), memoryId:{}", memoryId, e);
+                }
+            } else if (!compressResult.compressed() && StringUtils.isNotBlank(priorSummary) && chatMessages.size() > 1) {
+                //本轮未触发压缩 → 回注上轮持久化摘要（插在系统消息之后、历史之前）
+                chatMessages.add(1, ConversationCompressor.summaryMessage(priorSummary));
+            }
 
             //AI services currently do not support multimodality, use the low-level API for this. https://docs.langchain4j.dev/tutorials/ai-services#multimodality
             //重新组装用户消息及追加图片消息到chatMessage

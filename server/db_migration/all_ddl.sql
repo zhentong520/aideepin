@@ -2549,3 +2549,13 @@ create trigger trigger_chat_memory_update_time
     on chat_memory
     for each row
 execute procedure update_modified_column();
+
+-- =====================================================================
+-- V43__chat_memory_summary.sql（二开 T8-02，2026-10-28）
+-- chat_memory 加 summary 槽位：压缩摘要持久化回写（方案 A），消除每轮重复摘要；
+-- 摘要覆盖的旧消息随压缩从 messages 窗口收缩掉，装配时从槽位回注。
+-- =====================================================================
+
+alter table chat_memory add column if not exists summary text null;
+
+comment on column chat_memory.summary is 'Persisted conversation summary covering the dropped oldest messages (T8-02); NULL until first compression | 已被摘要覆盖并从 messages 窗口收缩掉的旧历史的持久化摘要（T8-02），首次压缩前为 NULL';
