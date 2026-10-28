@@ -4,6 +4,12 @@ WORKDIR /app
 
 COPY pom.xml ./
 COPY adi-common/pom.xml adi-common/
+# OPT-15 批 2~6 新增模块：pom 必须全部在位，否则预热阶段 Maven 读根 pom <modules> 直接报 Child module does not exist
+COPY adi-draw/pom.xml adi-draw/
+COPY adi-model/pom.xml adi-model/
+COPY adi-kb-rag/pom.xml adi-kb-rag/
+COPY adi-chat-core/pom.xml adi-chat-core/
+COPY adi-workflow/pom.xml adi-workflow/
 COPY adi-chat/pom.xml adi-chat/
 COPY adi-admin/pom.xml adi-admin/
 COPY adi-bootstrap/pom.xml adi-bootstrap/

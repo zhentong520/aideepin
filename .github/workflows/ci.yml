@@ -118,6 +118,16 @@ jobs:
             diff /tmp/schema-contract.d.ts src/schema.d.ts | head -20
             exit 1
           fi
+      - name: Assert server Dockerfile pom list in sync (prevent new-module drift)
+        run: |
+          node -e "
+          const fs = require('fs');
+          const pom = fs.readFileSync('server/pom.xml','utf8');
+          const modules = [...pom.matchAll(/<module>([^<]+)<\/module>/g)].map(m=>m[1]);
+          const df = fs.readFileSync('server/Dockerfile','utf8');
+          const missing = modules.filter(m => !df.includes('COPY ' + m + '/pom.xml'));
+          if (missing.length) { console.error('::error::server/Dockerfile missing pom COPY for: ' + missing.join(', ')); process.exit(1); }
+          "
       - name: Assert toolchain major versions aligned (OPT-13 gate)
         run: |
           node -e "
