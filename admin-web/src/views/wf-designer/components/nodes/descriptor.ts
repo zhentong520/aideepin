@@ -60,7 +60,7 @@ import DatabaseNode from './DatabaseNode.vue'
 import McpNode from './McpNode.vue'
 import SkillNode from './SkillNode.vue'
 
-import StartNodeProperty from './StartNodeProperty.vue'
+import StartNodeProperty from 'aideepin-wf-shared/src/nodes/StartNodeProperty.vue'
 import AnswerNodeProperty from './AnswerNodeProperty.vue'
 import ClassifierNodeProperty from './ClassifierNodeProperty.vue'
 import SwitcherNodeProperty from './SwitcherNodeProperty.vue'

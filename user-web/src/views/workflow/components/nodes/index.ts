@@ -21,7 +21,7 @@ import McpNode from './McpNode.vue'
 import SkillNode from './SkillNode.vue'
 import OrchestratorNode from './OrchestratorNode.vue'
 
-import StartNodeProperty from './StartNodeProperty.vue'
+import StartNodeProperty from 'aideepin-wf-shared/src/nodes/StartNodeProperty.vue'
 import AnswerNodeProperty from './AnswerNodeProperty.vue'
 import ClassifierNodeProperty from './ClassifierNodeProperty.vue'
 import SwticherNodeProperty from './SwitcherNodeProperty.vue'

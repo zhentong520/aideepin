@@ -71,7 +71,7 @@ import ParallelNode from './ParallelNode.vue'
 import CodeNode from './CodeNode.vue'
 import SubWorkflowNode from './SubWorkflowNode.vue'
 
-import StartNodeProperty from './StartNodeProperty.vue'
+import StartNodeProperty from 'aideepin-wf-shared/src/nodes/StartNodeProperty.vue'
 import EndNodeProperty from './EndNodeProperty.vue'
 import AnswerNodeProperty from './AnswerNodeProperty.vue'
 import ClassifierNodeProperty from './ClassifierNodeProperty.vue'

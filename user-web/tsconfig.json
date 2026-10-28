@@ -16,7 +16,8 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "#wf-shared-vendor": ["./src/wf-shared-vendor.ts"]
     },
     "types": ["vite/client", "node", "naive-ui/volar"]
   },

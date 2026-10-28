@@ -70,6 +70,9 @@ export default defineConfig((env) => {
     resolve: {
       alias: {
         '@': path.resolve(process.cwd(), 'src'),
+        // 共享包 SFC 供应商模块（S2-07 步骤④）：共享包内不裸导入 vue/naive-ui，
+        // 统一经本别名拿到宿主实现（与 admin 端同名别名对齐）
+        '#wf-shared-vendor': path.resolve(process.cwd(), 'src/wf-shared-vendor.ts'),
       },
     },
     plugins: setupPlugins(viteEnv),

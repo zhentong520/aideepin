@@ -51,6 +51,12 @@ export default ({ command, mode }: ConfigEnv): UserConfig => {
           find: /\/#\//,
           replacement: pathResolve('types') + '/',
         },
+        // 共享包 SFC 供应商模块（S2-07 步骤④）：共享包内不裸导入 vue/naive-ui，
+        // 统一经本别名拿到宿主实现（与 user 端同名别名对齐）
+        {
+          find: '#wf-shared-vendor',
+          replacement: pathResolve('src/wf-shared-vendor.ts'),
+        },
         {
           find: '@',
           replacement: pathResolve('src') + '/',

@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import { computed, h, reactive, ref } from 'vue'
+// S2-07 步骤④（Task #49）SFC 下沉试点：user/admin 两端 StartNodeProperty 同源单点。
+// ⚠️ 本文件在共享包（link:，无自身 node_modules）内，禁止裸导入 vue/naive-ui/uuid
+// 或使用宿主 '@/xxx' 路径——一切依赖经 '#wf-shared-vendor' 拿宿主实现（两端各有
+// 一个同名供应商模块重导出；解析在宿主上下文完成，vite alias + tsconfig paths 生效）。
+// Workflow 命名空间为宿主全局环境声明，宿主程序编译本文件时可见。
+import { computed, h, reactive, ref } from '#wf-shared-vendor'
 import {
   NButton,
   NCollapse,
@@ -11,12 +16,13 @@ import {
   NModal,
   NSelect,
   NSwitch,
-} from 'naive-ui'
-import { v4 as uuidv4 } from 'uuid'
-import { SvgIcon } from '@/components/common'
-import { getNameByInputType } from '@/views/workflow/utils/workflow-util'
-import { useWfStore } from '@/store'
-import { t } from '@/locales'
+  SvgIcon,
+  getNameByInputType,
+  t,
+  useWfStore,
+  uuidv4,
+} from '#wf-shared-vendor'
+
 interface Props {
   workflow: Workflow.WorkflowInfo
   wfNode: Workflow.WorkflowNode

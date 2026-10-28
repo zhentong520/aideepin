@@ -33,6 +33,9 @@
       ],
       "/#/*": [
         "types/*"
+      ],
+      "#wf-shared-vendor": [
+        "src/wf-shared-vendor.ts"
       ]
     }
   },
