@@ -3,13 +3,14 @@
  * （workflow-util-core，注入式：store 取模型/标题/埋点由本薄壳提供）。
  * 函数签名与迁移前保持一致，消费方（wf-designer 各 .vue）零改动。
  *
- * admin 语义（与迁移前一致）：
- * - 标题走 i18n t('workflow.componentTitle.x')（user 端走 descriptor，语义分叉不收）
+ * admin 语义（S2-07 步骤①更新）：
+ * - 图标/图标色/组件标题已收编到共享包节点描述（descriptor 单一来源，与 user 端同源）；
+ *   描述未收录的类型回退 i18n key
  * - 连线无校验、全局 animated:true（user 的 T3-06 校验/T3-03 着色为增强语义）
  * - 无 T3-05 历史栈埋点
  */
 import { useAppStore } from '@/wf/stores'
-import { t } from '@/locales'
+import i18n, { t } from '@/locales'
 import {
   createNewNode as coreCreateNewNode,
   createWorkflowEdge,
@@ -18,6 +19,7 @@ import {
   deleteEdgesBySourceHandle as coreDeleteEdgesBySourceHandle,
   getInputLabelFromParamName as coreGetInputLabelFromParamName,
   getNameByInputType as coreGetNameByInputType,
+  getWfNodeDescriptorData,
   type WfUtilHooks,
 } from 'aideepin-wf-shared'
 
@@ -28,7 +30,7 @@ function getHooks(): WfUtilHooks {
   return {
     getFirstLLM: (type?: string) => appStore.getFirstLLM(type),
     listImageModels: () => appStore.imageModels,
-    getComponentTitle: name => t(`workflow.componentTitle.${name}`),
+    getComponentTitle: name => getComponentTitle(name),
     onNodeOrEdgeChanged: () => {},
   }
 }
@@ -90,97 +92,25 @@ export function getNameByInputType(type: number) {
   return coreGetNameByInputType(type)
 }
 
-// 图标/图标色：admin 走 switch 硬编码（user 端走 descriptor.ts 单一来源，语义分叉不收共享包）
+// S2-07（ADR-005）步骤①：图标/图标色收编到共享包节点描述单一来源。
+// 收编前已机器 diff：20 个重叠类型 icon/iconClass 与原 switch 逐项一致（零视觉变化），
+// 并自动补齐 P3 五节点（Orchestrator/Loop/Parallel/Code/SubWorkflow）此前缺失的图标。
 export function getIconByComponentName(name: string) {
-  switch (name.toLowerCase()) {
-    case 'answer':
-      return 'carbon:question-answering'
-    case 'classifier':
-      return 'carbon:type-pattern'
-    case 'knowledgeretrieval':
-      return 'carbon:connect-target'
-    case 'documentextractor':
-      return 'carbon:ibm-knowledge-catalog-standard'
-    case 'keywordextractor':
-      return 'carbon:api-key'
-    case 'faqextractor':
-      return 'fluent-mdl2:book-answers'
-    case 'switcher':
-      return 'oui:logstash-if'
-    case 'template':
-      return 'carbon:prompt-template'
-    case 'openaiimage':
-      return 'solar:pallete-2-linear'
-    case 'tongyiwanx':
-      return 'solar:pallete-2-linear'
-    case 'google':
-      return 'ri:google-line'
-    case 'humanfeedback':
-      return 'covid:transmission-virus-human-transmit-2'
-    case 'mailsend':
-      return 'carbon:mail-all'
-    case 'httprequest':
-      return 'carbon:http'
-    case 'agent':
-      return 'carbon:bot'
-    case 'database':
-      return 'carbon:data-base'
-    case 'mcp':
-      return 'carbon:tool-kit'
-    case 'skill':
-      return 'tabler:puzzle'
-    case 'end':
-      return 'carbon:closed-caption'
-    case 'start':
-      return 'carbon:play-outline'
-    default:
-      return ''
-  }
+  return getWfNodeDescriptorData(name)?.icon ?? ''
 }
 
 export function getIconClassByComponentName(name: string) {
-  switch (name.toLowerCase()) {
-    case 'answer':
-      return 'text-green-800'
-    case 'classifier':
-      return 'text-violet-900'
-    case 'knowledgeretrieval':
-      return 'text-stone-900'
-    case 'documentextractor':
-      return 'text-rose-900'
-    case 'keywordextractor':
-      return 'text-cyan-900'
-    case 'faqextractor':
-      return 'text-teal-600'
-    case 'switcher':
-      return 'text-yellow-900'
-    case 'template':
-      return 'text-sky-800'
-    case 'openaiimage':
-      return 'text-fuchsia-700'
-    case 'tongyiwanx':
-      return 'text-fuchsia-700'
-    case 'google':
-      return 'text-emerald-900'
-    case 'humanfeedback':
-      return 'text-zinc-800'
-    case 'mailsend':
-      return 'text-amber-800'
-    case 'httprequest':
-      return 'text-slate-800'
-    case 'agent':
-      return 'text-indigo-800'
-    case 'database':
-      return 'text-indigo-800'
-    case 'mcp':
-      return 'text-teal-700'
-    case 'skill':
-      return 'text-orange-700'
-    case 'end':
-      return 'text-orange-800'
-    case 'start':
-      return 'text-blue-900'
-    default:
-      return ''
-  }
+  return getWfNodeDescriptorData(name)?.iconClass ?? ''
+}
+
+/**
+ * S2-07 步骤①：组件标题从共享包节点描述取（单一来源，zh/en 随当前 locale）。
+ * 描述未收录的类型（如 Special）回退 i18n key（保留兜底，行为与收编前一致）。
+ */
+export function getComponentTitle(name: string): string {
+  const desc = getWfNodeDescriptorData(name)
+  if (!desc)
+    return t(`workflow.componentTitle.${name}`)
+  const locale = (i18n.global.locale as unknown as { value: string })?.value || 'zh-CN'
+  return locale.startsWith('en') ? desc.componentTitle.en : desc.componentTitle.zh
 }

@@ -38,3 +38,7 @@ export * from './functions/empty'
 
 // 工作流设计器核心纯逻辑（注入式：端特有 store/i18n/历史栈由两端薄壳传入）
 export * from './utils/workflow-util-core'
+
+// S2-07（ADR-005）步骤①：工作流节点描述单源（类型 + 25 节点数据 + 内置模板 + 查找助手）
+export * from './descriptor/types'
+export * from './descriptor/data'

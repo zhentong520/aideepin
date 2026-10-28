@@ -1,8 +1,7 @@
 <script lang="ts" setup>
 import { useWfStore } from '@/wf/stores'
 import { SvgIcon } from '@/wf/components'
-import { getIconByComponentName, getIconClassByComponentName } from '@/wf/utils/workflow-util'
-import { t } from '@/locales'
+import { getComponentTitle, getIconByComponentName, getIconClassByComponentName } from '@/wf/utils/workflow-util'
 const wfStore = useWfStore()
 
 function onDragStart(event: DragEvent, nodeType: string) {
@@ -27,7 +26,8 @@ function onDragStart(event: DragEvent, nodeType: string) {
             :icon="getIconByComponentName(component.name)"
           />
           <div class="leading-10">
-            {{ t(`workflow.componentTitle.${component.name}`) }}
+            <!-- S2-07 步骤①：标题从共享包节点描述取（i18n 缺 key 时原实现显示原始 key） -->
+            {{ getComponentTitle(component.name) }}
           </div>
         </div>
       </template>
