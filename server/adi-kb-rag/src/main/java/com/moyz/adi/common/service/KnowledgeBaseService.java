@@ -732,8 +732,8 @@ public class KnowledgeBaseService extends ServiceImpl<KnowledgeBaseMapper, Knowl
         int maxInputTokens = null == aiModel ? 0 : aiModel.getMaxInputTokens();
         int maxResults = knowledgeBase.getRetrieveMaxResults();
         if (maxResults < 1 && maxInputTokens > 0) {
-            String memoryId = knowledgeBase.getUuid() + "_" + user.getUuid();
-            int reservedTokens = computeReservedTokens(memoryId, knowledgeBase.getQuerySystemMessage());
+            // T8-03：独立问答没有跨问答历史可预留，只按系统提示词计算预留量
+            int reservedTokens = computeReservedTokens(null, knowledgeBase.getQuerySystemMessage());
             maxResults = EmbeddingRag.getRetrieveMaxResults(qaRecord.getQuestion(), maxInputTokens, reservedTokens);
         }
         if (maxResults < 1 && maxInputTokens == 0) {
@@ -815,7 +815,10 @@ public class KnowledgeBaseService extends ServiceImpl<KnowledgeBaseMapper, Knowl
                 .temperature(knowledgeBase.getQueryLlmTemperature())
                 .build();
         ChatModelRequest chatRequestParams = ChatModelRequest.builder()
-                .memoryId(knowledgeBase.getUuid() + "_" + user.getUuid())
+                // T8-03（2026-10-28）：KB QA 改为独立问答——不再传 memoryId。
+                // 旧实现 memoryId=kbUuid_userUuid，同一用户同一 KB 的所有问答共用一份短期记忆，
+                // 历史永远累积且无法开新话题（跨话题串扰）。不传 memoryId 走 AbstractLLMService
+                // 的无状态分支：每轮只有系统提示词 + 本轮检索上下文 + 用户问题，从零开始。
                 .systemMessage(AssistantIdentityGuard.append(knowledgeBase.getQuerySystemMessage(), knowledgeBase.getTitle()))
                 .userMessage(prompt)
                 .build();
@@ -967,8 +970,8 @@ public class KnowledgeBaseService extends ServiceImpl<KnowledgeBaseMapper, Knowl
             //token budget must be computed on the merged text, otherwise it under-estimates usage.
             String effectiveSystemMessage = AssistantIdentityGuard.append(knowledgeBase.getQuerySystemMessage(), knowledgeBase.getTitle());
             if (maxResults < 1) {
-                String memoryId = qaRecord.getKbUuid() + "_" + user.getUuid();
-                int reservedTokens = computeReservedTokens(memoryId, effectiveSystemMessage);
+                // T8-03：独立问答没有跨问答历史可预留，只按系统提示词计算预留量
+                int reservedTokens = computeReservedTokens(null, effectiveSystemMessage);
                 maxResults = EmbeddingRag.getRetrieveMaxResults(qaRecord.getQuestion(), maxInputTokens, reservedTokens);
             }
 
@@ -976,7 +979,9 @@ public class KnowledgeBaseService extends ServiceImpl<KnowledgeBaseMapper, Knowl
             sseAskParam.setUuid(qaRecord.getUuid());
             sseAskParam.setHttpRequestParams(
                     ChatModelRequest.builder()
-                            .memoryId(qaRecord.getKbUuid() + "_" + user.getUuid())
+                            // T8-03（2026-10-28）：KB QA 改为独立问答——不再传 memoryId。
+                            // 不传时 CompositeRag 走 ITempStreamingChatAssistant 无状态分支：
+                            // 每轮只有系统提示词 + 检索上下文 + 本轮问题，同用户同 KB 的历史不再串扰。
                             .systemMessage(effectiveSystemMessage)
                             .userMessage(qaRecord.getQuestion())
                             .build()
@@ -1065,9 +1070,12 @@ public class KnowledgeBaseService extends ServiceImpl<KnowledgeBaseMapper, Knowl
         TokenCountEstimator tokenizer = TokenEstimatorFactory.create(TokenEstimatorThreadLocal.getTokenEstimator());
         int tokens = 0;
         try {
-            List<ChatMessage> messages = ChatMemoryStores.get().getMessages(memoryId);
-            if (messages != null && !messages.isEmpty()) {
-                tokens += tokenizer.estimateTokenCountInMessages(messages);
+            // T8-03：独立问答不传 memoryId，无历史可读，直接跳过
+            if (StringUtils.isNotBlank(memoryId)) {
+                List<ChatMessage> messages = ChatMemoryStores.get().getMessages(memoryId);
+                if (messages != null && !messages.isEmpty()) {
+                    tokens += tokenizer.estimateTokenCountInMessages(messages);
+                }
             }
         } catch (Exception e) {
             log.warn("Failed to load chat memory for token estimation, memoryId:{}", memoryId, e);
