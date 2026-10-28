@@ -4,6 +4,8 @@ import cn.hutool.core.img.Img;
 import cn.hutool.core.io.FileUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.moyz.adi.common.base.ThreadContext;
 import com.moyz.adi.common.config.AdiProperties;
 import com.moyz.adi.common.constant.RedisKeyConstant;
@@ -16,6 +18,8 @@ import com.moyz.adi.common.helper.QuotaHelper;
 import com.moyz.adi.common.helper.RateLimitHelper;
 import com.moyz.adi.common.languagemodel.AbstractImageModelService;
 import com.moyz.adi.common.mapper.DrawMapper;
+import com.moyz.adi.common.task.TaskQueueService;
+import com.moyz.adi.common.task.TaskResult;
 import com.moyz.adi.common.util.LocalCache;
 import com.moyz.adi.common.util.LocalDateTimeUtil;
 import com.moyz.adi.common.util.PrivilegeUtil;
@@ -30,7 +34,6 @@ import org.apache.logging.log4j.util.Strings;
 import org.springframework.beans.BeanUtils;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.awt.*;
@@ -50,9 +53,20 @@ import static com.moyz.adi.common.util.LocalCache.MODEL_ID_TO_OBJ;
 @Service
 public class DrawService extends ServiceImpl<DrawMapper, Draw> {
 
+    /** S2-03：绘图执行迁 ADR-002 统一任务队列（DrawTaskHandler.TYPE 保持一致） */
+    public static final String TASK_TYPE_DRAW = "DRAW";
+    /** 用户触发绘图的默认优先级（数值越小越先执行） */
+    public static final int PRIORITY_DRAW = 4;
+
     @Resource
     @Lazy
     private DrawService self;
+
+    @Resource
+    private TaskQueueService taskQueueService;
+
+    @Resource
+    private ObjectMapper objectMapper;
 
     @Resource
     private AdiProperties adiProperties;
@@ -153,7 +167,8 @@ public class DrawService extends ServiceImpl<DrawMapper, Draw> {
         }
         getBaseMapper().insert(draw);
         Draw obj = this.lambdaQuery().eq(Draw::getUuid, uuid).one();
-        self.createFromRemote(obj, user);
+        // S2-03：执行体改由 task_queue 驱动（Outbox：同事务提交后 2s 轮询可见）
+        self.submitDrawQueue(obj.getId(), user.getId());
         return uuid;
     }
 
@@ -169,16 +184,23 @@ public class DrawService extends ServiceImpl<DrawMapper, Draw> {
                 .eq(Draw::getProcessStatus, STATUS_FAIL)
                 .oneOpt().orElseThrow(() -> new BaseException(B_FIND_IMAGE_404));
 
-        self.createFromRemote(obj, user);
+        // S2-03：失败重画 = 重置领域状态后重新投递（executeById 只执行 doing 行）
+        this.lambdaUpdate()
+                .eq(Draw::getId, obj.getId())
+                .set(Draw::getProcessStatus, STATUS_DOING)
+                .set(Draw::getProcessStatusRemark, "")
+                .update();
+        self.submitDrawQueue(obj.getId(), user.getId());
     }
 
     /**
-     * 异步生成图片
+     * S2-03：执行一次图片生成（原 @Async("imagesExecutor") 消费体，现由 task_queue 驱动）。
+     * 内部自捕获异常并落 draw.fail，调用方拿到的返回恒为正常——生成失败保持
+     * 「用户手工 regenerate」旧语义，不自动重试（自动重试会重复消耗图像配额）。
      *
-     * @param draw
-     * @param user
+     * @param draw 绘图记录（process_status 应为 doing）
+     * @param user 触发用户
      */
-    @Async("imagesExecutor")
     public void createFromRemote(Draw draw, User user) {
         String drawingKey = MessageFormat.format(RedisKeyConstant.USER_DRAWING, user.getId());
         stringRedisTemplate.opsForValue().set(drawingKey, "1", 30, TimeUnit.SECONDS);
@@ -226,6 +248,43 @@ public class DrawService extends ServiceImpl<DrawMapper, Draw> {
         } finally {
             stringRedisTemplate.delete(drawingKey);
         }
+    }
+
+    /**
+     * S2-03：task_queue DRAW 任务执行入口（{@code DrawTaskHandler} 委托）。
+     * <ul>
+     *   <li>draw 行不存在（被删）或触发用户已注销 → ok（无事可做）；</li>
+     *   <li>draw 已终态（success/fail）→ ok：fail 保持「用户手工 regenerate」旧语义，
+     *       不自动重试；孤儿回收重跑终态行也不会重复生成/重复扣配额；</li>
+     *   <li>doing → 执行生成。进程重启后 doing 行由 task_queue 孤儿回收（600s）重跑，自愈续跑。</li>
+     * </ul>
+     */
+    public TaskResult executeById(long drawId) {
+        Draw draw = this.getById(drawId);
+        if (null == draw || null == draw.getProcessStatus()) {
+            log.warn("Draw row missing or status unknown, skip. id:{}", drawId);
+            return TaskResult.ok();
+        }
+        if (STATUS_SUCCESS == draw.getProcessStatus() || STATUS_FAIL == draw.getProcessStatus()) {
+            log.info("Draw already terminal, skip. id:{}, status:{}", drawId, draw.getProcessStatus());
+            return TaskResult.ok();
+        }
+        User user = userService.getByUserId(draw.getUserId());
+        if (null == user) {
+            log.warn("Draw owner not found, skip. id:{}, userId:{}", drawId, draw.getUserId());
+            return TaskResult.ok();
+        }
+        createFromRemote(draw, user);
+        return TaskResult.ok();
+    }
+
+    /**
+     * S2-03：投递绘图任务到 task_queue（纯 INSERT 同调用方事务，Outbox 语义）。
+     */
+    public void submitDrawQueue(long drawId, long userId) {
+        ObjectNode payload = objectMapper.createObjectNode();
+        payload.put("drawId", drawId);
+        taskQueueService.submit(TASK_TYPE_DRAW, payload, PRIORITY_DRAW, userId);
     }
 
     public void updateDrawSuccess(Long drawId, String respImagesPath, String localImagesUuid, long durationMs) {

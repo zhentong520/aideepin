@@ -11,9 +11,10 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * S1-14：mainExecutor/imagesExecutor 治理回归。
+ * S1-14：mainExecutor 等线程池治理回归。
  * mainExecutor 承载 @Async 的 LLM 长调用，禁止 CallerRunsPolicy（饱和时回落
  * Tomcat 线程会拖垮 web 容器），改 AbortPolicy + 扩队列 + 线程名 + 优雅停机。
+ * S2-03：imagesExecutor 已删除（绘图执行迁入 task_queue 统一消费）。
  */
 class BeanConfigExecutorPolicyTest {
 
@@ -42,14 +43,6 @@ class BeanConfigExecutorPolicyTest {
         } catch (ReflectiveOperationException e) {
             throw new IllegalStateException(e);
         }
-    }
-
-    @Test
-    void imagesExecutorIsNamed() {
-        ThreadPoolTaskExecutor executor = (ThreadPoolTaskExecutor) new BeanConfig().imagesExecutor();
-
-        //本卡范围为 imagesExecutor 补线程名前缀（拒绝策略保持原状）
-        assertEquals("adi-image-", executor.getThreadNamePrefix());
     }
 
     @Test

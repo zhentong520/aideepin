@@ -139,23 +139,6 @@ public class BeanConfig {
         return executor;
     }
 
-    @Bean(name = "imagesExecutor")
-    public AsyncTaskExecutor imagesExecutor() {
-        int processorsNum = Runtime.getRuntime().availableProcessors();
-        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        log.info("imagesExecutor corePoolSize:{},maxPoolSize:{}", processorsNum, processorsNum * 2);
-        executor.setCorePoolSize(processorsNum);
-        executor.setMaxPoolSize(processorsNum * 2);
-        executor.setQueueCapacity(200);
-        executor.setKeepAliveSeconds(60);
-        executor.setAllowCoreThreadTimeOut(true);
-        //S1-14: named threads so a thread dump shows which pool a stuck image task belongs to
-        executor.setThreadNamePrefix("adi-image-");
-        executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
-        executor.initialize();
-        return executor;
-    }
-
     /**
      * S2-01：task_queue 消费专用线程池。
      * <p>
