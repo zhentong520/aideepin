@@ -15,6 +15,13 @@ RUN pnpm install --frozen-lockfile
 
 COPY admin-web/ ./
 
+# OPT-05 后 .env 不入库：CI/干净上下文构建必须生成 env 文件（与本地 .env.production 对齐，nginx 挂 /admin/）
+RUN cp .env.example .env && \
+    sed -e 's|^VITE_GLOB_SITE_URL = .*|VITE_GLOB_SITE_URL = /|' \
+        -e 's|^VITE_PUBLIC_PATH = .*|VITE_PUBLIC_PATH = /admin/|' \
+        -e 's|^VITE_BASE_URL = .*|VITE_BASE_URL = /admin|' \
+        .env.example > .env.production
+
 RUN pnpm run build
 
 FROM nginx:alpine

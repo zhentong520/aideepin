@@ -15,6 +15,9 @@ RUN pnpm install --frozen-lockfile
 
 COPY user-web/ ./
 
+# OPT-05 后 .env 不入库：CI/干净上下文构建必须生成 env 文件（example == 本地 canonical 值）
+RUN cp .env.example .env
+
 # 构建含 type-check 与 i18n 检查（质量门禁，不允许跳过）
 RUN pnpm run build
 

@@ -61,6 +61,9 @@ jobs:
           node-version: 22
           cache: pnpm
           cache-dependency-path: user-web/pnpm-lock.yaml
+      - name: Generate env file (OPT-05 keeps .env out of repo; example == canonical values)
+        working-directory: user-web
+        run: cp .env.example .env
       - name: Install & build (build script runs i18n guard + type-check)
         working-directory: user-web
         run: pnpm install --frozen-lockfile && pnpm build
@@ -76,6 +79,15 @@ jobs:
           node-version: 22
           cache: pnpm
           cache-dependency-path: admin-web/pnpm-lock.yaml
+      - name: Generate env files (OPT-05 keeps .env out of repo; CI builds deterministic values)
+        working-directory: admin-web
+        run: |
+          cp .env.example .env
+          # 生产差异项与本地 .env.production 对齐：admin-web 由 nginx 挂在 /admin/ 下
+          sed -e 's|^VITE_GLOB_SITE_URL = .*|VITE_GLOB_SITE_URL = /|' \
+              -e 's|^VITE_PUBLIC_PATH = .*|VITE_PUBLIC_PATH = /admin/|' \
+              -e 's|^VITE_BASE_URL = .*|VITE_BASE_URL = /admin|' \
+              .env.example > .env.production
       - name: Install & build (build script runs i18n guard + type-check + postBuild)
         working-directory: admin-web
         run: pnpm install --frozen-lockfile && pnpm build
