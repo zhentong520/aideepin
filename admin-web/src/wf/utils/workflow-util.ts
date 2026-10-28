@@ -25,7 +25,7 @@ import {
 
 export * from 'aideepin-wf-shared'
 
-function getHooks(): WfUtilHooks {
+export function getHooks(): WfUtilHooks {
   const appStore = useAppStore()
   return {
     getFirstLLM: (type?: string) => appStore.getFirstLLM(type),

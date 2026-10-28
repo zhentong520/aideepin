@@ -42,3 +42,6 @@ export * from './utils/workflow-util-core'
 // S2-07（ADR-005）步骤①：工作流节点描述单源（类型 + 25 节点数据 + 内置模板 + 查找助手）
 export * from './descriptor/types'
 export * from './descriptor/data'
+
+// S2-07（ADR-005）步骤②：画布编排 composable（注入式：vue 原语/vue-flow 实例/双端差异语义由宿主传入）
+export * from './canvas/use-workflow-canvas'

@@ -1,11 +1,10 @@
 <script setup lang='ts'>
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import type { ComputedRef, Ref } from 'vue'
 import { NButton, NDropdown, NLayout, NLayoutContent, NLayoutSider, NModal, NTooltip, useMessage } from 'naive-ui'
-import type { DropdownOption } from 'naive-ui'
 import type { Edge, Node, NodeChange } from '@vue-flow/core'
 import { Panel, VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
-import { v4 as uuidv4 } from 'uuid'
 import { AgentNode, AnswerNode, ClassifierNode, DatabaseNode, DocumentExtractorNode, EndNode, FaqExtractorNode, GoogleNode, HttpRequestNode, HumanFeedbackNode, KeywordExtractorNode, KnowledgeRetrievalNode, MailSendNode, McpNode, OpenAiImageNode, SkillNode, SpecialNode, StartNode, SwitcherNode, TemplateNode, TongyiwanxNode } from './components/nodes'
 import SpecialEdge from './components/edges/SpecialEdge.vue'
 import CustomEdge from './components/edges/CustomEdge.vue'
@@ -14,11 +13,11 @@ import RunDetail from '@/views/wf-designer/components/RunDetail.vue'
 import WfDefineRightPanel from '@/views/wf-designer/WfDefineRightPanel.vue'
 import WfDefineSidebar from '@/views/wf-designer/WfDefineSiderbar.vue'
 import { emptyWorkflowInfo } from '@/wf/utils/functions'
-import { createNewEdge, createNewNode } from '@/wf/utils/workflow-util'
+import { createNewNode, getHooks } from '@/wf/utils/workflow-util'
 // T9-08：画布分组（Container）—— 覆盖层方案，元数据存成员节点 data.layout
-// OPT-16：同源实现收敛到共享包，admin 端原文件改为转发出口
-import type { WfContainerView } from 'aideepin-wf-shared'
-import { collapsedAnchorBox, collectContainers, computeContainerBox, createContainer, moveContainerMembers, removeContainer } from 'aideepin-wf-shared'
+// S2-07#2：画布编排（连线/拖拽回写/分组）收敛到共享包控制器
+import { createWfCanvas, shouldHidePanelOnNodeChanges } from 'aideepin-wf-shared'
+import type { WfCanvasController, WfComputed, WfRef } from 'aideepin-wf-shared'
 import { useUserStore, useWfStore } from '@/wf/stores'
 import { useDesignerStore } from './useDesignerStore'
 import api from '@/wf/api'
@@ -48,7 +47,7 @@ const saveDisabledTip = computed(() => {
 })
 
 const {
-  onInit, fitView, onConnect, onNodeClick, onEdgeClick, onNodesChange, onEdgesChange, onNodeDragStop,
+  onInit, fitView, onConnect, onNodeClick, onEdgeClick, onNodesChange, onNodeDragStop,
   addSelectedNodes, project, getSelectedNodes, viewport, updateNode,
 } = useVueFlow()
 
@@ -56,34 +55,26 @@ const uw = designerStore.wfUuidToUIWorkflow.get(props.workflow.uuid) || { nodes:
 designerStore.wfUuidToUIWorkflow.set(props.workflow.uuid, uw)
 const uiWorkflow = reactive(uw)
 
-function renderGraph() {
-  if (uiWorkflow.nodes.length > 0)
-    return
+// S2-07#2 宿主侧类型适配：注入的 ref/computed 本就是 vue 真实响应式原语，控制器成员
+// 运行时即真实 Ref/ComputedRef；vue-tsc 仅对带 Ref 品牌的类型做模板自动解包，
+// 这里把共享包的结构化最小类型映射回 vue 真实类型（共享包保持零 vue 依赖，铁律不破坏）
+type RealCanvasRefs<C> = {
+  [K in keyof C]: C[K] extends WfComputed<infer T> ? ComputedRef<T>
+    : C[K] extends WfRef<infer T> ? Ref<T>
+    : C[K]
+}
 
-  const initX = 10
-  const initY = 50
-  const wfNodes = props.workflow.nodes
-  const wfEdges = props.workflow.edges
-  for (let i = 0; i < wfNodes.length; i++) {
-    const node = wfNodes[i]
-    const px = node.positionX ? node.positionX : initX + 230 * i
-    const py = node.positionY ? node.positionY : initY
-    const newNode = {
-      id: node.uuid,
-      type: node.wfComponent.name.toLowerCase(),
-      data: node,
-      position: { x: px, y: py },
-    }
-    uiWorkflow.nodes.push(newNode)
-  }
-  for (let i = 0; i < wfEdges.length; i++) {
-    const wfEdge = wfEdges[i]
-    const sourceNode = props.workflow.nodes.find((item: Workflow.WorkflowNode) => item.uuid === wfEdge.sourceNodeUuid)
-    if (!sourceNode) {
-      console.error('sourceNode not found', wfEdge.sourceNodeUuid)
-      continue
-    }
-    const newEdge = {
+// ==================== S2-07#2：画布编排控制器（连线/拖拽回写/分组，共享包） ====================
+// admin 端语义：宽松连线（无自环/重复拦截，全局动画）+ 无历史埋点
+const canvas = createWfCanvas({
+  vue: { ref, computed, watch },
+  flow: { viewport, updateNode, getSelectedNodes },
+  hooks: getHooks(),
+  host: {
+    workflow: props.workflow,
+    uiWorkflow,
+    connectStrict: false,
+    buildEdge: (wfEdge, _sourceNode) => ({
       id: wfEdge.uuid,
       source: wfEdge.sourceNodeUuid,
       target: wfEdge.targetNodeUuid,
@@ -91,36 +82,22 @@ function renderGraph() {
       type: 'special',
       animated: true,
       data: wfEdge,
-    }
-    uiWorkflow.edges.push(newEdge)
-  }
-}
+    }),
+    onEdgeRejected: () => {},
+    pushHistory: () => {},
+    nodeFallbackWidth: 220,
+    flowRootEl: () => wrapper.value?.$el as HTMLElement | undefined,
+    t,
+  },
+}) as unknown as RealCanvasRefs<WfCanvasController>
+// 模板消费的控制器成员（解构引用不丢响应式）
+const { zoomLevel, panX, panY, containerViews, selectedNodeCount, canGroupSelection, containerMenu, containerMenuOptions, onContainerHeaderDown, onContainerHeaderContextMenu, onContainerMenuSelect } = canvas
+
+// ==================== 画布渲染（S2-07#2：已收敛到共享包控制器 canvas.renderGraph） ====================
 
 onNodesChange((changes: NodeChange[]) => {
-  let nodeUnSelected = false
-  for (const change of changes) {
-    if ('selected' in change) {
-      if (!change.selected && selectedWfNode.value?.uuid === change.id) {
-        nodeUnSelected = true
-      }
-    }
-    // else if ('dragging' in change) {
-    //   //停止拖动时才计算是否要打开属性面板
-    //   if (change.dragging) {
-    //     const snode = props.workflow.nodes.find((item: Workflow.WorkflowNode) => item.uuid === change.id)
-    //     if (snode) {
-    //       snode.positionX = change.position.x
-    //       snode.positionY = change.position.y
-    //     }
-    //   }
-    // }
-  }
-  if (nodeUnSelected)
+  if (shouldHidePanelOnNodeChanges(changes, selectedWfNode.value?.uuid))
     hidePropertyPanel.value = true
-})
-
-onEdgesChange((_changes) => {
-  // changes are arrays of type `EdgeChange`
 })
 
 /**
@@ -129,13 +106,7 @@ onEdgesChange((_changes) => {
  * You can add additional properties to your new edge (like a type or label) or block the creation altogether by not calling `addEdges`
  */
 onConnect((connection) => {
-  createNewEdge({
-    workflow: props.workflow,
-    uiWorkflow,
-    source: connection.source,
-    sourceHandle: connection.sourceHandle ? connection.sourceHandle : '',
-    target: connection.target,
-  })
+  canvas.handleConnect(connection)
 })
 
 // any event that is emitted from the `<VueFlow />` component can be listened to using the `onEventName` method
@@ -182,20 +153,9 @@ function onDrop(event: DragEvent) {
 
 /**
  * onNodeDragStop is called when a node is done being dragged
- *
- * Node drag events provide you with:
- * 1. the event object
- * 2. the nodes array (if multiple nodes are dragged)
- * 3. the node that initiated the drag
- * 4. any intersections with other nodes
  */
 onNodeDragStop(({ node }) => {
-  // selectedWfNode.value = node.data
-  if (node) {
-    node.data.positionX = node.position.x
-    node.data.positionY = node.position.y
-  }
-  // hidePropertyPanel.value = false
+  canvas.handleNodeDragStop(node)
 })
 
 // Node click event handler
@@ -212,197 +172,15 @@ onEdgeClick(() => {
     hidePropertyPanel.value = false
 })
 
-// ==================== T9-08：画布分组（Container）覆盖层 ====================
-// 纯视觉组织：分组框是与 vue-flow 同坐标系的绝对定位层（用 viewport 做 x/zoom 变换），
-// 成员节点仍是独立节点（不使用 parentId 父子化，避免破坏 positionX/positionY 语义）。
-// 元数据写在成员节点的 data.layout（后端 jsonb 已就绪），执行引擎不感知分组。
-const CONTAINER_NODE_WIDTH = 220
-const CONTAINER_NODE_FALLBACK_HEIGHT = 80
-
-const zoomLevel = computed(() => viewport.value?.zoom ?? 1)
-const panX = computed(() => viewport.value?.x ?? 0)
-const panY = computed(() => viewport.value?.y ?? 0)
-
-// 折叠态隐藏的成员 uuid 集合：vue-flow 的 hidden 是纯视觉标记，不入库
-const hiddenNodeIds = ref<Set<string>>(new Set())
-
-const containerViews = computed<WfContainerView[]>(() => {
-  const views = collectContainers(props.workflow.nodes)
-  const positions = new Map<string, { x: number, y: number }>()
-  for (const node of uiWorkflow.nodes)
-    positions.set(node.id, { x: node.position.x, y: node.position.y })
-
-  return views.map((view) => {
-    // 折叠时成员被 hidden，dimensions 不可靠，改用成员坐标锚点占位
-    view.box = view.container.collapsed
-      ? collapsedAnchorBox(view.memberUuids, positions)
-      : computeContainerBox(uiWorkflow.nodes, view.memberUuids, CONTAINER_NODE_WIDTH, CONTAINER_NODE_FALLBACK_HEIGHT)
-    return view
-  })
-})
-
-/**
- * 折叠态收敛为「只有标题栏」：把折叠分组的成员从画布隐藏。
- * hidden 走 vue-flow 的节点字段（渲染时返回 null），不写进 data，故不会入库；
- * 折叠状态本身持久化在 leader 节点的 layout.container.collapsed。
- */
-watch(
-  () => containerViews.value.map(view => `${view.container.id}:${view.container.collapsed ? 1 : 0}`).join('|'),
-  () => {
-    const hidden = new Set<string>()
-    for (const view of containerViews.value) {
-      if (!view.container.collapsed)
-        continue
-
-      for (const uuid of view.memberUuids)
-        hidden.add(uuid)
-    }
-    hiddenNodeIds.value = hidden
-  },
-  { immediate: true },
-)
-
-/**
- * 折叠态收敛为「只有标题栏」：把折叠分组的成员从画布隐藏。
- * hidden 走 vue-flow 的节点字段（渲染时返回 null），不写进 data，故不会入库；
- * 折叠状态本身持久化在 leader 节点的 layout.container.collapsed。
- *
- * 监听 hidden 集合 + 节点列表双重依赖：画布重建 ui 节点后新对象上没有 hidden 标记，
- * 必须重新同步，否则折叠的分组会「漏出」成员节点。
- */
-watch(
-  [hiddenNodeIds, () => uiWorkflow.nodes.map(node => node.id).join('|')],
-  ([hidden]) => {
-    for (const node of uiWorkflow.nodes) {
-      node.hidden = hidden.has(node.id)
-      // vue-flow 单向 :nodes 绑定只侦听数组引用/长度，节点属性级变更不会重新解析内部 store，
-      // 必须用 updateNode 显式同步，否则折叠时成员节点不会真正从画布隐藏
-      updateNode(node.id, { hidden: node.hidden })
-    }
-  },
-  { immediate: true },
-)
-
-// 分组是否可成组：至少选中 2 个节点
-const selectedNodeCount = computed(() => getSelectedNodes.value.length)
-const canGroupSelection = computed(() => getSelectedNodes.value.length >= 2)
-
-/** 框选成组：把当前选中的节点合成一个分组 */
+// ==================== T9-08：画布分组（S2-07#2 已收敛到共享包控制器 canvas） ====================
+/** 框选成组（页面薄壳：只负责成功/失败提示） */
 function onGroupSelected() {
-  const uuids = getSelectedNodes.value.map(node => node.id)
-  const container = createContainer(props.workflow, uuids, defaultContainerTitle(), uuidv4().replace(/-/g, ''))
-  if (!container) {
+  if (canvas.groupSelectedNodes())
+    ms.success(t('workflow.containerGroupSuccess'))
+  else
     ms.warning(t('workflow.containerGroupFailed'))
-    return
-  }
-
-  ms.success(t('workflow.containerGroupSuccess'))
 }
 
-function defaultContainerTitle(): string {
-  return `${t('workflow.containerDefaultTitle')} ${containerViews.value.length + 1}`
-}
-
-/** 折叠/展开：只改 leader 节点上的 container.collapsed */
-function toggleContainer(view: WfContainerView) {
-  const leader = props.workflow.nodes.find(node => node.uuid === view.leaderUuid)
-  if (!leader?.layout?.container)
-    return
-
-  leader.layout.container.collapsed = !leader.layout.container.collapsed
-}
-
-/** 解组：清除全部成员节点的分组元数据 */
-function onUngroupContainer(view: WfContainerView) {
-  removeContainer(props.workflow, view.container.id)
-}
-
-/** 整体拖动：拖标题栏带动全部成员移动，同步 positionX/positionY */
-const containerDragState = ref<{
-  memberUuids: string[]
-  startX: number
-  startY: number
-} | null>(null)
-
-function onContainerHeaderDown(view: WfContainerView, event: PointerEvent) {
-  if (view.container.collapsed)
-    return
-
-  event.preventDefault()
-  event.stopPropagation()
-  containerDragState.value = {
-    memberUuids: [...view.memberUuids],
-    startX: event.clientX,
-    startY: event.clientY,
-  }
-  window.addEventListener('pointermove', onContainerHeaderMove)
-  window.addEventListener('pointerup', onContainerHeaderUp)
-}
-
-function onContainerHeaderMove(event: PointerEvent) {
-  const drag = containerDragState.value
-  if (!drag)
-    return
-
-  // 屏幕位移 -> 画布位移：除以 zoom 抵消视口缩放
-  const dx = (event.clientX - drag.startX) / (zoomLevel.value || 1)
-  const dy = (event.clientY - drag.startY) / (zoomLevel.value || 1)
-  if (dx === 0 && dy === 0)
-    return
-
-  drag.startX = event.clientX
-  drag.startY = event.clientY
-  moveContainerMembers(uiWorkflow.nodes, drag.memberUuids, dx, dy)
-}
-
-function onContainerHeaderUp() {
-  containerDragState.value = null
-  window.removeEventListener('pointermove', onContainerHeaderMove)
-  window.removeEventListener('pointerup', onContainerHeaderUp)
-}
-
-/** 标题栏右键菜单：折叠展开 / 解组 */
-const containerMenu = ref<{ show: boolean, x: number, y: number, groupId: string }>({
-  show: false,
-  x: 0,
-  y: 0,
-  groupId: '',
-})
-
-const containerMenuOptions = computed<DropdownOption[]>(() => {
-  const view = containerViews.value.find(item => item.container.id === containerMenu.value.groupId)
-  const collapsed = view?.container.collapsed ?? false
-  return [
-    { label: collapsed ? t('workflow.containerExpand') : t('workflow.containerCollapse'), key: 'toggle' },
-    { label: t('workflow.containerUngroup'), key: 'ungroup' },
-  ]
-})
-
-function onContainerHeaderContextMenu(view: WfContainerView, event: MouseEvent) {
-  event.preventDefault()
-  event.stopPropagation()
-  const target = wrapper.value?.$el?.getBoundingClientRect()
-  containerMenu.value = {
-    show: true,
-    x: event.clientX - (target?.left ?? 0),
-    y: event.clientY - (target?.top ?? 0),
-    groupId: view.container.id,
-  }
-}
-
-function onContainerMenuSelect(key: string) {
-  const groupId = containerMenu.value.groupId
-  containerMenu.value.show = false
-  const view = containerViews.value.find(item => item.container.id === groupId)
-  if (!view)
-    return
-
-  if (key === 'toggle') {
-    toggleContainer(view)
-  } else if (key === 'ungroup') {
-    onUngroupContainer(view)
-  }
-}
 
 function onRun() {
   showRunModal.value = true
@@ -429,17 +207,16 @@ onMounted(() => {
   nextTick(() => {
     if (wfStore.wfComponents.length === 0) {
       setTimeout(() => {
-        renderGraph()
+        canvas.renderGraph()
       }, 2000)
     } else {
-      renderGraph()
+      canvas.renderGraph()
     }
   })
 })
 
 onUnmounted(() => {
-  window.removeEventListener('pointermove', onContainerHeaderMove)
-  window.removeEventListener('pointerup', onContainerHeaderUp)
+  canvas.detachCanvasListeners()
 })
 </script>
 
