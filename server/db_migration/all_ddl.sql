@@ -2471,3 +2471,81 @@ execute procedure update_modified_column();
 
 alter table adi_workflow_node add column if not exists layout jsonb default '{}'::jsonb not null;
 comment on column adi_workflow_node.layout is 'Canvas layout metadata (T9-08 container grouping etc.), no execution semantics | 画布布局元数据（T9-08 Container分组等），不参与执行语义';
+
+-- =====================================================================
+-- V18__shedlock.sql（二开 S1-07a，2026-10-27）
+-- ShedLock 定时任务防重（多实例共库部署时 @Scheduled 不重复执行）。
+-- 表结构遵循 ShedLock JdbcTemplateLockProvider 约定（usingDbTime 模式）。
+-- =====================================================================
+
+create table if not exists shedlock (
+    name       varchar(64)  not null,
+    lock_until timestamp    not null,
+    locked_at  timestamp    not null,
+    locked_by  varchar(255) not null,
+    constraint shedlock_pkey primary key (name)
+);
+
+-- =====================================================================
+-- V19__task_queue.sql（二开 S2-01/ADR-002，2026-10-27）
+-- 统一异步任务底座 task_queue：生产方业务事务内 INSERT（同库即天然 Outbox）；
+-- 消费方 FOR UPDATE SKIP LOCKED 抢占（Postgres 原生，多实例安全）；
+-- 失败按指数退避重试，超 max_retry 转 DEAD；RUNNING 心跳超时视为孤儿重回 PENDING。
+-- =====================================================================
+
+create table if not exists task_queue
+(
+    id             bigserial primary key,
+    task_type      varchar(64)  not null,
+    payload        jsonb        not null,
+    status         varchar(16)  not null default 'PENDING',
+    priority       smallint     not null default 5,
+    retry_count    int          not null default 0,
+    max_retry      int          not null default 3,
+    next_run_at    timestamp    not null default now(),
+    owner_instance varchar(64),
+    last_error     text,
+    created_by     bigint,
+    create_time    timestamp    not null default now(),
+    update_time    timestamp    not null default now(),
+    is_deleted     boolean      not null default false
+);
+
+create index if not exists idx_task_consume on task_queue (status, priority, next_run_at)
+    where status in ('PENDING', 'RUNNING');
+create index if not exists idx_task_type on task_queue (task_type, status);
+
+comment on table task_queue is '统一异步任务队列（S2-01/ADR-002）| Unified async task queue';
+comment on column task_queue.priority is '数字小=优先级高 | lower value = higher priority';
+
+drop trigger if exists trigger_task_queue_update_time on task_queue;
+create trigger trigger_task_queue_update_time
+    before update
+    on task_queue
+    for each row
+execute procedure update_modified_column();
+
+-- =====================================================================
+-- V20__chat_memory.sql（二开 S2-04/ADR-003，2026-10-28）
+-- 短期记忆外置 Postgres：一行 = 一个 memory_id 的完整消息窗口
+-- （langchain4j ChatMessageSerializer 序列化 JSON，整列表读写语义）。
+-- =====================================================================
+
+create table if not exists chat_memory
+(
+    memory_id   varchar(64) primary key,
+    messages    text        not null,
+    create_time timestamp   not null default now(),
+    update_time timestamp   not null default now()
+);
+
+comment on table chat_memory is '短期记忆存储（S2-04/ADR-003）| Short-term chat memory store';
+comment on column chat_memory.memory_id is '记忆键（会话 uuid / 角色 uuid）| memory key';
+comment on column chat_memory.messages is '消息窗口 JSON（langchain4j 序列化）| serialized message window';
+
+drop trigger if exists trigger_chat_memory_update_time on chat_memory;
+create trigger trigger_chat_memory_update_time
+    before update
+    on chat_memory
+    for each row
+execute procedure update_modified_column();
