@@ -15,7 +15,6 @@
 import type { Component } from 'vue'
 import {
   wfNodeDescriptorData,
-  getWfNodeDescriptorData,
   getWfNodePreset as sharedGetWfNodePreset,
   wfNodePresets as sharedWfNodePresets,
 } from 'aideepin-wf-shared'
@@ -80,7 +79,7 @@ import TemplateNodeProperty from './TemplateNodeProperty.vue'
 import KeywordExtractorNodeProperty from './KeywordExtractorNodeProperty.vue'
 import DocumentExtractorNodeProperty from './DocumentExtractorNodeProperty.vue'
 import FaqExtractorNodeProperty from './FaqExtractorNodeProperty.vue'
-import KnowledgeRetrievalNodeProperty from './KnowledgeRetrievalNodeProperty.vue'
+import KnowledgeRetrievalNodeProperty from 'aideepin-wf-shared/src/components/nodes/KnowledgeRetrievalNodeProperty.vue'
 import GoogleNodeProperty from './GoogleNodeProperty.vue'
 import OpenAiImageNodeProperty from './OpenAiImageNodeProperty.vue'
 import TongyiwanxNodeProperty from './TongyiwanxNodeProperty.vue'
@@ -143,7 +142,9 @@ export const wfNodePresets: WfNodePreset[] = sharedWfNodePresets
 
 /** 按组件名取节点描述（大小写不敏感；无匹配返回 undefined） */
 export function getWfNodeDescriptor(name?: string | null): WfNodeDescriptor | undefined {
-  return getWfNodeDescriptorData(name) as WfNodeDescriptor | undefined
+  if (!name) return undefined
+  const lower = name.toLowerCase()
+  return wfNodeDescriptors.find((desc) => desc.type.toLowerCase() === lower)
 }
 
 /** 按模板 key 取内置节点模板 */

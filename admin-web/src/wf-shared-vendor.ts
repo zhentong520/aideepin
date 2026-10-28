@@ -7,7 +7,7 @@
  * （两端 vite alias + tsconfig paths 各自指向本端实现，解析全程发生在宿主上下文）。
  * 批量迁 SFC 时新增依赖先加到本文件，禁止在共享 SFC 里新增裸导入/别名导入。
  */
-export { computed, h, nextTick, onMounted, reactive, ref, watch } from 'vue'
+export { computed, h, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 export type { Component, VNodeChild } from 'vue'
 export {
   NAvatar,
@@ -18,6 +18,7 @@ export {
   NDropdown,
   NFlex,
   NIcon,
+  NIconWrapper,
   NImage,
   NImageGroup,
   NInput,
@@ -25,20 +26,28 @@ export {
   NList,
   NListItem,
   NModal,
+  NP,
   NPopover,
   NRadio,
   NRadioGroup,
   NSelect,
+  NSlider,
   NSwitch,
+  NTab,
+  NTabPane,
+  NTabs,
   NTable,
   NTag,
+  NText,
   NTooltip,
+  NUpload,
+  NUploadDragger,
   useMessage,
 } from 'naive-ui'
-export type { SelectGroupOption, SelectInst, SelectOption } from 'naive-ui'
+export type { SelectGroupOption, SelectInst, SelectOption, UploadFileInfo, UploadInst } from 'naive-ui'
 export { v4, v4 as uuidv4 } from 'uuid'
 export { default as JsonEditorVue } from 'json-editor-vue'
-export { Cloud32Regular, LockClosed32Regular, QuestionCircle16Regular } from '@vicons/fluent'
+export { AnimalCat24Regular, Cloud32Regular, LockClosed32Regular, QuestionCircle16Regular } from '@vicons/fluent'
 export { generate } from 'random-words'
 export { useRouter } from 'vue-router'
 export { t } from '@/locales'
@@ -52,6 +61,10 @@ export {
   updateEdgeBySourceHandle,
 } from '@/wf/utils/workflow-util'
 export { useWfStore, useAppStore, useAuthStore } from '@/wf/stores'
+// useRuntimeStore：RunDetail 运行时变更 store 钩子——admin 用独立 designerStore，
+// user 端复用 useWfStore；共享 RunDetail 只面向本钩子编程
+export { useDesignerStore as useRuntimeStore } from '@/views/wf-designer/useDesignerStore'
+export { default as RuntimeNodes } from '@/views/wf-designer/components/RuntimeNodes.vue'
 export { default as api } from '@/wf/api'
 export { default as AvatarComponent } from '@/wf/chat-msg/Avatar.vue'
 export { default as TextComponent } from '@/wf/chat-msg/Text.vue'

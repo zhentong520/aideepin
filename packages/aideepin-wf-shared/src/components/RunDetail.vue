@@ -1,13 +1,14 @@
 <script lang="ts" setup>
-import { nextTick, onUnmounted, reactive, ref, watch } from 'vue'
-import { NButton, NInput, NInputNumber, NP, NSwitch, NTab, NTabPane, NTabs, NText, NUpload, NUploadDragger, useMessage } from 'naive-ui'
-import type { UploadFileInfo, UploadInst } from 'naive-ui'
-import RuntimeNodes from './RuntimeNodes.vue'
-import { useAuthStore, useWfStore } from '@/wf/stores'
-import { useDesignerStore } from '../useDesignerStore'
-import { SvgIcon } from '@/wf/components'
-import api from '@/wf/api'
-import { t } from '@/locales'
+// S2-07#4 下沉：单源实现，依赖统一经 #wf-shared-vendor（禁止裸导入/宿主@别名）
+// ① store：运行时变更加 appendWfRuntimes/updateXxx 统一走 useRuntimeStore
+//   （admin=useDesignerStore / user=useWfStore，方法面两端对齐）；wfStore 仅用于 getStartNode
+// ② RuntimeNodes：端组件经 vendor 注入（admin 无 T3-09 功能，@locate 无人触达为无害 no-op）
+// ③ replayEvent/locateNode：user 端 T3-09 事件，admin 不监听即为 no-op
+import { nextTick, onUnmounted, reactive, ref, watch } from '#wf-shared-vendor'
+import { NButton, NInput, NInputNumber, NP, NSwitch, NTab, NTabPane, NTabs, NText, NUpload, NUploadDragger, RuntimeNodes, SvgIcon, api, t, useAuthStore, useMessage, useRuntimeStore, useWfStore } from '#wf-shared-vendor'
+import type { UploadFileInfo, UploadInst } from '#wf-shared-vendor'
+import type { WfReplayEvent } from './wf-replay'
+
 interface Props {
   workflow: Workflow.WorkflowInfo
 }
@@ -19,16 +20,20 @@ interface TabObj {
 interface Emit {
   (e: 'runDone'): void
   (e: 'runError', errorMsg: string): void
+  // T3-09：失败条目点击 → 画布定位（转发给 WorkflowDefine）
+  (e: 'locateNode', nodeUuid: string): void
+  // T3-09：执行链路回放事件（reset/node/finish/error）
+  (e: 'replayEvent', ev: WfReplayEvent): void
 }
 const props = defineProps<Props>()
 const emit = defineEmits<Emit>()
 const headers = { Authorization: '' }
+const runtimeStore = useRuntimeStore()
 const wfStore = useWfStore()
-const designerStore = useDesignerStore()
 const authStore = useAuthStore()
 const token = ref<string>(authStore.token)
 const ms = useMessage()
-const submitting = ref<boolean>(designerStore.submitting)
+const submitting = ref<boolean>(runtimeStore.submitting)
 const startNode = wfStore.getStartNode(props.workflow.uuid)
 const wfRuntimeUuid = ref<string>('')
 const runtimeNodes = reactive<Workflow.WfRuntimeNode[]>([])
@@ -117,6 +122,8 @@ async function run() {
     wfRuntimeUuid.value = ''
     const nodeUuidToRuntimeNodeUuid = new Map<string, string>()
     runtimeNodes.splice(0, runtimeNodes.length)
+    // T3-09：回放开始 —— 清空上一轮画布高亮
+    emit('replayEvent', { type: 'reset' })
     await api.workflowRun({
       options: {
         uuid: currWfUuid,
@@ -134,14 +141,12 @@ async function run() {
           wfRuntime.input[item.name] = { ...item.content }
         })
         wfRuntimeUuid.value = wfRuntime.uuid
-        designerStore.appendWfRuntimes(
+        runtimeStore.appendWfRuntimes(
           currWfUuid,
           [wfRuntime],
         )
       },
-      thinkingDataReceived: (_chunk) => {
-        // 处理思考数据
-      },
+      thinkingDataReceived: () => {},
       messageReceived: (chunk, event) => {
         const eventName = event || ''
         try {
@@ -149,15 +154,17 @@ async function run() {
             const nodeUuid = eventName.replace('[NODE_RUN_', '').replace(']', '')
             const runtimeNode = JSON.parse(chunk) as Workflow.WfRuntimeNode
             nodeUuidToRuntimeNodeUuid.set(nodeUuid, runtimeNode.uuid)
-            designerStore.appendRuntimeNode(
+            runtimeStore.appendRuntimeNode(
               wfRuntimeUuid.value,
               runtimeNode,
             )
             runtimeNodes.push(runtimeNode)
+            // T3-09：回放 —— 节点状态驱动画布高亮/连线动画
+            emit('replayEvent', { type: 'node', nodeUuid, status: runtimeNode.status, remark: runtimeNode.statusRemark || '' })
           } else if (eventName.includes('[NODE_CHUNK_')) {
             const nodeUuid = eventName.replace('[NODE_CHUNK_', '').replace(']', '')
             const runtimeNodeUuid = nodeUuidToRuntimeNodeUuid.get(nodeUuid) || ''
-            designerStore.appendChunkToRuntimeNode(
+            runtimeStore.appendChunkToRuntimeNode(
               wfRuntimeUuid.value,
               runtimeNodeUuid,
               chunk,
@@ -165,7 +172,7 @@ async function run() {
           } else if (eventName.includes('[NODE_INPUT_')) {
             const nodeUuid = eventName.replace('[NODE_INPUT_', '').replace(']', '')
             const runtimeNodeUuid = nodeUuidToRuntimeNodeUuid.get(nodeUuid) || ''
-            designerStore.appendInputToRuntimeNode(
+            runtimeStore.appendInputToRuntimeNode(
               wfRuntimeUuid.value,
               runtimeNodeUuid,
               chunk,
@@ -173,7 +180,7 @@ async function run() {
           } else if (eventName.includes('[NODE_OUTPUT_')) {
             const nodeUuid = eventName.replace('[NODE_OUTPUT_', '').replace(']', '')
             const runtimeNodeUuid = nodeUuidToRuntimeNodeUuid.get(nodeUuid) || ''
-            designerStore.appendOutputToRuntimeNode(
+            runtimeStore.appendOutputToRuntimeNode(
               wfRuntimeUuid.value,
               runtimeNodeUuid,
               chunk,
@@ -186,10 +193,10 @@ async function run() {
             const nodeUuid = eventName.replace('[NODE_METRICS_', '').replace(']', '')
             const runtimeNodeUuid = nodeUuidToRuntimeNodeUuid.get(nodeUuid) || ''
             const metrics = JSON.parse(chunk) as Workflow.AnyNodeMetrics
-            designerStore.updateRuntimeNodeMetrics(wfRuntimeUuid.value, runtimeNodeUuid, metrics)
+            runtimeStore.updateRuntimeNodeMetrics(wfRuntimeUuid.value, runtimeNodeUuid, metrics)
           } else if (eventName.includes('[RUNTIME_METRICS]')) {
             const metrics = JSON.parse(chunk) as Workflow.RuntimeMetrics
-            designerStore.updateRuntimeMetrics(wfRuntimeUuid.value, metrics)
+            runtimeStore.updateRuntimeMetrics(wfRuntimeUuid.value, metrics)
           }
         } catch (error) {
           console.error(error)
@@ -199,9 +206,10 @@ async function run() {
         nextTick(() => {
           submitting.value = false
           resetInputs()
-          designerStore.updateSuccess(currWfUuid, wfRuntimeUuid.value, chunk)
+          runtimeStore.updateSuccess(currWfUuid, wfRuntimeUuid.value, chunk)
           runtimeErrorMsg.value = ''
           ms.success(t('workflow.runSuccess'))
+          emit('replayEvent', { type: 'finish' })
           emit('runDone')
         })
       },
@@ -209,8 +217,9 @@ async function run() {
         submitting.value = false
         resetInputs()
         ms.error(`${t('common.systemTip')}${error}`)
-        designerStore.updateErrorMsg(currWfUuid, wfRuntimeUuid.value, error)
+        runtimeStore.updateErrorMsg(currWfUuid, wfRuntimeUuid.value, error)
         runtimeErrorMsg.value = error || ''
+        emit('replayEvent', { type: 'error' })
         emit('runError', error)
       },
     })
@@ -257,7 +266,7 @@ function onUploadFinish({ file, event }: { file: UploadFileInfo; event?: Progres
 }
 
 function handleStop() {
-  if (designerStore.wfUuidToWfRuntimeLoading.get(currWfUuid))
+  if (runtimeStore.wfUuidToWfRuntimeLoading.get(currWfUuid))
     controller.abort()
 
   submitting.value = false
@@ -278,7 +287,7 @@ watch(
 )
 
 onUnmounted(() => {
-  if (designerStore.wfUuidToWfRuntimeLoading.get(currWfUuid))
+  if (runtimeStore.wfUuidToWfRuntimeLoading.get(currWfUuid))
     controller.abort()
 })
 </script>
@@ -294,7 +303,10 @@ onUnmounted(() => {
       <NTabPane name="runtimes" display-directive="show" :tab-props="{ style: 'display:none' }">
         <transition name="collapse">
           <div v-show="showCurrentExecution" class="max-h-[500px] overflow-y-auto mb-2">
-            <RuntimeNodes :nodes="runtimeNodes" :workflow="workflow" :error-msg="runtimeErrorMsg" />
+            <RuntimeNodes
+              :nodes="runtimeNodes" :workflow="workflow" :error-msg="runtimeErrorMsg"
+              @locate="(nodeUuid: string) => emit('locateNode', nodeUuid)"
+            />
             <div class="sticky bottom-0 left-0 flex justify-center">
               <NButton v-show="submitting" size="tiny" @click="handleStop">
                 <template #icon>

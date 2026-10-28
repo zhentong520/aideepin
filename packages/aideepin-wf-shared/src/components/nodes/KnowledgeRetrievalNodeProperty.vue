@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { NIcon, NIconWrapper, NInput, NRadio, NRadioGroup, NSlider, NTooltip } from 'naive-ui'
-import { AnimalCat24Regular, QuestionCircle16Regular } from '@vicons/fluent'
-import WfKnowledgeSelector from 'aideepin-wf-shared/src/components/WfKnowledgeSelector.vue'
-import { t } from '@/locales'
+// S2-07#4 下沉：单源实现，依赖统一经 #wf-shared-vendor（禁止裸导入/宿主@别名）
+// 采用 user 版语义：top_n/score 加 ?? 兜底（后端默认 3 / 0.6，避免历史节点空值时滑块空白）
+import { NIcon, NIconWrapper, NInput, NRadio, NRadioGroup, NSlider, NTooltip, AnimalCat24Regular, QuestionCircle16Regular, t } from '#wf-shared-vendor'
+import WfKnowledgeSelector from '../WfKnowledgeSelector.vue'
+
 interface Props {
   workflow: Workflow.WorkflowInfo
   wfNode: Workflow.WorkflowNode
@@ -42,7 +43,7 @@ function onKnowledgeSelected(uuid: string, name: string) {
         <span class="param-hint">建议 3（后端默认召回数，上限 10）</span>
       </div>
       <div class="px-2">
-        <NSlider :value="nodeConfig.top_n" :step="1" :min="1" :max="30" :on-update:value="onTopNChange">
+        <NSlider :value="nodeConfig.top_n ?? 3" :step="1" :min="1" :max="30" :on-update:value="onTopNChange">
           <template #thumb>
             <NIconWrapper :size="24" :border-radius="12">
               <NIcon :size="18" :component="AnimalCat24Regular" />
@@ -57,7 +58,7 @@ function onKnowledgeSelected(uuid: string, name: string) {
         <span class="param-hint">建议 0.6</span>
       </div>
       <div class="px-2">
-        <NSlider :value="nodeConfig.score" :step="0.1" :min="0.1" :max="1" :on-update:value="onScoreChange">
+        <NSlider :value="nodeConfig.score ?? 0.6" :step="0.1" :min="0.1" :max="1" :on-update:value="onScoreChange">
           <template #thumb>
             <NIconWrapper :size="24" :border-radius="12">
               <NIcon :size="18" :component="AnimalCat24Regular" />

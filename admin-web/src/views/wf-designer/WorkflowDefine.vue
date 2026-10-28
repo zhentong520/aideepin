@@ -19,7 +19,7 @@
   import SpecialEdge from './components/edges/SpecialEdge.vue'
   import CustomEdge from './components/edges/CustomEdge.vue'
   import CustomEdge2 from './components/edges/CustomEdge2.vue'
-  import RunDetail from '@/views/wf-designer/components/RunDetail.vue'
+  import RunDetail from 'aideepin-wf-shared/src/components/RunDetail.vue'
   import WfDefineRightPanel from '@/views/wf-designer/WfDefineRightPanel.vue'
   import WfDefineSidebar from '@/views/wf-designer/WfDefineSiderbar.vue'
   import { emptyWorkflowInfo } from '@/wf/utils/functions'

@@ -14,7 +14,7 @@ import SpecialNode from './components/nodes/SpecialNode.vue'
 import SpecialEdge from './components/edges/SpecialEdge.vue'
 import CustomEdge from './components/edges/CustomEdge.vue'
 import CustomEdge2 from './components/edges/CustomEdge2.vue'
-import RunDetail from '@/views/workflow/components/RunDetail.vue'
+import RunDetail from 'aideepin-wf-shared/src/components/RunDetail.vue'
 import VersionHistoryModal from '@/views/workflow/components/VersionHistoryModal.vue'
 import TriggerModal from '@/views/workflow/components/TriggerModal.vue'
 // T3-09：执行链路回放事件
