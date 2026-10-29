@@ -51,6 +51,8 @@ public class WorkflowStarter {
     @Resource
     private WorkflowRuntimeNodeService workflowRuntimeNodeService;
 
+    /** @Lazy 破构造器环：WfNodeProvider 构造器注入本类，若此处立即解析会成环（真实 boot 才暴露）。 */
+    @Lazy
     @Resource
     private WfNodeProvider nodeProvider;
 

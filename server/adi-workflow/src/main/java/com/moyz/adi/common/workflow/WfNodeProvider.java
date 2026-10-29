@@ -15,6 +15,7 @@ import com.moyz.adi.common.service.SkillService;
 import com.moyz.adi.common.service.skill.SkillToolService;
 import com.moyz.adi.common.workflow.node.AbstractWfNode;
 import jakarta.validation.Validator;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
@@ -34,7 +35,8 @@ public class WfNodeProvider {
         this.deps = deps;
     }
 
-    /** 生产用：容器逐个注入依赖，组装成只读快照 */
+    /** 生产用：容器逐个注入依赖，组装成只读快照。多构造器必须显式标注，否则 Spring 找不到可用构造器（真实 boot 才暴露）。 */
+    @Autowired
     public WfNodeProvider(Validator validator,
                           AgentService agentService,
                           DbDatasourceService dbDatasourceService,

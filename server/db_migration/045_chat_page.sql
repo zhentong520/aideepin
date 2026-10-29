@@ -36,7 +36,7 @@ CREATE TRIGGER trigger_adi_chat_page_update_time BEFORE UPDATE ON adi_chat_page
 
 -- ---------- 2. 种子数据：商城导购示例页（绑定 044 的种子场景） ----------
 INSERT INTO adi_chat_page(uuid, name, icon, page_schema, scene_uuid, agent_uuid, sort, is_enable)
-SELECT 'adi_chatpage_mall_000000000000000001',
+SELECT 'adi_chatpage_mall_00000000000001',
        '商城导购',
        'ShoppingCartOutlined',
        '{
@@ -47,7 +47,7 @@ SELECT 'adi_chatpage_mall_000000000000000001',
            { "type": "sceneInfo" }
          ]
        }'::jsonb,
-       'adi_mall_scene_0000000000000000001',
+       'adi_mall_scene_00000000000000001',
        '',
        99, true
-WHERE NOT EXISTS (SELECT 1 FROM adi_chat_page WHERE uuid = 'adi_chatpage_mall_000000000000000001' AND is_deleted = false);
+WHERE NOT EXISTS (SELECT 1 FROM adi_chat_page WHERE uuid = 'adi_chatpage_mall_00000000000001' AND is_deleted = false);

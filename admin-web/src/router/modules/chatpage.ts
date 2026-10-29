@@ -39,6 +39,10 @@ const routes: Array<RouteRecordRaw> = [
     meta: {
       title: 'route.chatPageDesigner',
       permissions: ['admin:agent:view'],
+      // 菜单生成（filterRouter）只认 meta.hidden，hideInMenu 它不识别——
+      // 缺 hidden 会让这个需要 :uuid 参数的全屏页变成顶层菜单项，
+      // 点击时 push 缺参路由直接抛 "No match found"（真实浏览器 E2E 暴露）。
+      hidden: true,
       hideInMenu: true,
     },
   },

@@ -83,7 +83,19 @@ public class TokenFilter extends OncePerRequestFilter {
      */
     private String contextPathPrefix;
 
+    /**
+     * Tomcat（10.1.x）DefaultInstanceManager 不允许同一 Servlet Filter 类出现多个
+     * {@code @PostConstruct} 方法——第二个会直接抛
+     * {@code IllegalArgumentException: Invalid [jakarta.annotation.PostConstruct] annotation}
+     * （Spring 侧无此限制，所以 CI 不真实 boot 永远暴露不了）。聚合入口只留一个；
+     * 两个子方法保留原名 public，供单测反射独立调用（S1-06）。
+     */
     @PostConstruct
+    public void init() {
+        initContextPathPrefix();
+        initExcludeUrls();
+    }
+
     public void initContextPathPrefix() {
         String raw = contextPath;
         if (StringUtils.isBlank(raw)) {
@@ -98,8 +110,7 @@ public class TokenFilter extends OncePerRequestFilter {
         log.info("TokenFilter context path prefix: '{}'", this.contextPathPrefix);
     }
 
-    /** 白名单单独装填：@PostConstruct 拿 bean 依赖，便于测试里独立替换（S1-06）。 */
-    @PostConstruct
+    /** 白名单单独装填：拿 bean 依赖装填白名单，便于测试里独立替换（S1-06）。 */
     public void initExcludeUrls() {
         Auth auth = adiProperties.getAuth();
         this.excludeUrls = (auth == null || auth.getExcludeUrls() == null)

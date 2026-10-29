@@ -827,16 +827,16 @@ INSERT INTO mall_activity(title, description, icon, sort, is_enable) SELECT
 
 -- ---------- 6. 种子场景「商城导购」 + 种子智能体（plugin_ids='mall'，不绑模型） ----------
 INSERT INTO adi_scene(uuid, user_id, title, remark, icon, sort, is_enable)
-SELECT 'adi_mall_scene_0000000000000000001', 0,
+SELECT 'adi_mall_scene_00000000000000001', 0,
        '商城导购',
        '查产品→选分类→看热销→比价格优惠→问问题→领优惠券，一站式智能导购客服。',
        'ShoppingCartOutlined', 99, true
-WHERE NOT EXISTS (SELECT 1 FROM adi_scene WHERE uuid = 'adi_mall_scene_0000000000000000001' AND is_deleted = false);
+WHERE NOT EXISTS (SELECT 1 FROM adi_scene WHERE uuid = 'adi_mall_scene_00000000000000001' AND is_deleted = false);
 
 INSERT INTO adi_agent(uuid, user_id, title, remark, avatar_url, system_message, work_design,
                       model_platform, model_name, llm_temperature, kb_ids, mcp_ids, plugin_ids,
                       enable_rag, enable_mcp, enable_web_search, character_uuid, sort, is_enable)
-SELECT 'adi_mall_agent_0000000000000000001', 0,
+SELECT 'adi_mall_agent_00000000000000001', 0,
        '商城导购助手',
        '商城智能导购客服：商品推荐、价格优惠查询、知识库问答、优惠券领取。',
        '',
@@ -850,18 +850,18 @@ SELECT 'adi_mall_agent_0000000000000000001', 0,
 7. 回答简洁清晰，价格用人民币符号 ¥ 表示，商品推荐不超过 10 个。',
        '', '', '', 0.70, '', '', 'mall',
        true, false, false, '', 99, true
-WHERE NOT EXISTS (SELECT 1 FROM adi_agent WHERE uuid = 'adi_mall_agent_0000000000000000001' AND is_deleted = false);
+WHERE NOT EXISTS (SELECT 1 FROM adi_agent WHERE uuid = 'adi_mall_agent_00000000000000001' AND is_deleted = false);
 
 INSERT INTO adi_scene_agent(uuid, scene_uuid, agent_uuid, sort)
-SELECT 'adi_mall_sceneagent_000000000000001', 'adi_mall_scene_0000000000000000001', 'adi_mall_agent_0000000000000000001', 1
+SELECT 'adi_mall_sceneagent_000000000001', 'adi_mall_scene_00000000000000001', 'adi_mall_agent_00000000000000001', 1
 WHERE NOT EXISTS (SELECT 1 FROM adi_scene_agent
-                  WHERE scene_uuid = 'adi_mall_scene_0000000000000000001'
-                    AND agent_uuid = 'adi_mall_agent_0000000000000000001'
+                  WHERE scene_uuid = 'adi_mall_scene_00000000000000001'
+                    AND agent_uuid = 'adi_mall_agent_00000000000000001'
                     AND is_deleted = false);
 
 -- ---------- 2. 种子数据：商城导购示例页（绑定 044 的种子场景） ----------
 INSERT INTO adi_chat_page(uuid, name, icon, page_schema, scene_uuid, agent_uuid, sort, is_enable)
-SELECT 'adi_chatpage_mall_000000000000000001',
+SELECT 'adi_chatpage_mall_00000000000001',
        '商城导购',
        'ShoppingCartOutlined',
        '{
@@ -872,7 +872,7 @@ SELECT 'adi_chatpage_mall_000000000000000001',
            { "type": "sceneInfo" }
          ]
        }'::jsonb,
-       'adi_mall_scene_0000000000000000001',
+       'adi_mall_scene_00000000000000001',
        '',
        99, true
-WHERE NOT EXISTS (SELECT 1 FROM adi_chat_page WHERE uuid = 'adi_chatpage_mall_000000000000000001' AND is_deleted = false);
+WHERE NOT EXISTS (SELECT 1 FROM adi_chat_page WHERE uuid = 'adi_chatpage_mall_00000000000001' AND is_deleted = false);

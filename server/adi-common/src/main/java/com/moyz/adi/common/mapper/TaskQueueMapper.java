@@ -2,11 +2,13 @@ package com.moyz.adi.common.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.moyz.adi.common.entity.TaskQueue;
+import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 /**
  * S2-01：task_queue 数据访问。抢占等原子语句在 XML（TaskQueueMapper.xml）。
  */
+@Mapper
 public interface TaskQueueMapper extends BaseMapper<TaskQueue> {
 
     /**
