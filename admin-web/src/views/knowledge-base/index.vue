@@ -14,6 +14,9 @@
       <n-button secondary @click="openCatModal">
         {{ t('knowledgeBase.categoryManage') }}
       </n-button>
+      <n-button type="info" @click="handleCreate">
+        {{ t('common.newAdd') }}
+      </n-button>
     </n-space>
 
     <BasicTable
@@ -30,7 +33,7 @@
       v-model:show="showEditModal"
       :show-icon="false"
       preset="dialog"
-      :title="t('common.edit')"
+      :title="isCreating ? t('common.newAdd') : t('common.edit')"
       class="min-w-[600px]"
     >
       <n-form
@@ -346,7 +349,9 @@
   }
   const showEditModal = ref(false)
   const formBtnLoading = ref(false)
-  const editFormParams = reactive({
+  // 新建/编辑共用一个弹窗；新建时不带 uuid 提交，后端 edit 接口无 id/uuid 即走 insert 分支
+  const isCreating = ref(false)
+  const defaultEditFormParams = () => ({
     uuid: '',
     title: '',
     remark: '',
@@ -376,6 +381,7 @@
     defaultVisibilityGroups: [] as string[],
     defaultSensitivity: 'ORG',
   })
+  const editFormParams = reactive(defaultEditFormParams())
   const publicOpts = [
     {
       label: t('common.yes'),
@@ -645,8 +651,15 @@
     formBtnLoading.value = true
     formRef.value.validate(async (errors: any) => {
       if (!errors) {
-        await api.edit({ ...editFormParams, isPublic: editFormParams.isPublic })
-        window['$message'].success(t('common.editSuccess'))
+        // 新建时不带 uuid（空串视为未设置），后端按 insert 处理
+        const payload: Recordable = { ...editFormParams, isPublic: editFormParams.isPublic }
+        if (isCreating.value) {
+          delete payload.uuid
+        }
+        await api.edit(payload)
+        window['$message'].success(
+          isCreating.value ? t('common.saveSuccessTip') : t('common.editSuccess')
+        )
         setTimeout(() => {
           showEditModal.value = false
           reloadTable()
@@ -658,7 +671,14 @@
     })
   }
 
+  function handleCreate() {
+    isCreating.value = true
+    Object.assign(editFormParams, defaultEditFormParams())
+    showEditModal.value = true
+  }
+
   function handleEdit(record: Recordable) {
+    isCreating.value = false
     showEditModal.value = true
     Object.assign(editFormParams, record)
     // 后端 Long 序列化为字符串，NSelect option value 是 number，需强转否则回显失败

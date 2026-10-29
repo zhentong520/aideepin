@@ -19,8 +19,11 @@
   /**
    * P2 拖拽画布设计器：左侧区块侧栏拖入 → 画布摆放 → 右侧属性编辑 → 保存写回
    * page_schema（blocks 数组按 y 排序，每区块带 layout {x,y,w}，向后兼容流式渲染）。
+   *
+   * ⚠️ vue-flow 的两个 CSS 必须在非 scoped 样式块引入（见底部 style 注释），
+   * 否则节点丢失 position:absolute 被背景盖住，点击/拖拽全失效。
+   * 用法与 wf-designer/WorkflowDefine.vue 对齐：无显式 id 的 useVueFlow()。
    */
-  const FLOW_ID = 'chatpage-designer'
 
   const route = useRoute()
   const router = useRouter()
@@ -31,9 +34,7 @@
   const saving = ref(false)
   const pageInfo = ref<ChatPageItem | null>(null)
 
-  const { project, onNodeDragStop, onNodeClick, onPaneClick, findNode } = useVueFlow({
-    id: FLOW_ID,
-  })
+  const { project, onNodeDragStop, onNodeClick, onPaneClick, findNode } = useVueFlow()
 
   // 注意：不能用 ref<Node[]> —— vue-flow 的 Node 泛型在 ref 包装下触发
   // vue-tsc 1.8.27 + TS 4.9 的 TS2589/Debug Failure 编译器崩溃，用 any[] 承载
@@ -292,7 +293,6 @@
       <!-- 画布 -->
       <div class="canvas-wrap" @drop="onDrop" @dragover="onDragOver">
         <VueFlow
-          :id="FLOW_ID"
           :nodes="nodes"
           fit-view-on-init
           :default-viewport="{ zoom: 0.9 }"
@@ -371,10 +371,15 @@
   </div>
 </template>
 
-<style lang="less" scoped>
+<style lang="less">
+  // vue-flow 主题样式必须在非 scoped 块引入：scoped 块里 @import 的规则会被追加
+  // [data-v-xxx] 作用域，VueFlow 内部 DOM 匹配不到 → .vue-flow__node 丢失
+  // position:absolute，被背景 SVG 盖住，点击/拖拽全部失效（真实踩坑）
   @import '@vue-flow/core/dist/style.css';
   @import '@vue-flow/core/dist/theme-default.css';
+</style>
 
+<style lang="less" scoped>
   .cp-designer {
     display: flex;
     flex-direction: column;
@@ -406,6 +411,15 @@
     flex: 1;
     display: flex;
     overflow: hidden;
+
+    // naive-ui NSpin 根节点下还有 .n-spin-content 一层（默认 display:block），
+    // 不撑开的话左侧栏/画布/属性面板会竖着堆叠（真实页面截图踩坑）
+    :deep(.n-spin-content) {
+      height: 100%;
+      display: flex;
+      align-items: stretch;
+      width: 100%;
+    }
   }
 
   .block-sider,

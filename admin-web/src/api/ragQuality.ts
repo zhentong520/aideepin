@@ -14,10 +14,13 @@ export interface RagQualityReq {
 }
 
 function qualityDashboard(data: RagQualityReq) {
+  // ⚠️ beginTime/endTime 必须拼进 URL query：axios 封装对无 body 的 POST 会把 params
+  // 挪进请求体，后端 @RequestParam 收不到 → missingParameter（与成本看板同款坑）
   return http.request({
-    url: `/admin/rag/quality-dashboard`,
+    url: `/admin/rag/quality-dashboard?beginTime=${encodeURIComponent(
+      data.beginTime
+    )}&endTime=${encodeURIComponent(data.endTime)}`,
     method: 'post',
-    params: { beginTime: data.beginTime, endTime: data.endTime },
   })
 }
 

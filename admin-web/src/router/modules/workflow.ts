@@ -49,20 +49,24 @@ const routes: Array<RouteRecordRaw> = [
         path: 'designer',
         name: 'WorkflowDesignerLayout',
         meta: {
-          // 注意：必须给 title。admin 的面包屑/TagsView 会无条件对 matched 链执行 t(meta.title)，
-          // 缺 title 会抛出 vue-i18n "Invalid arguments" 并打断整个页面渲染
-          title: 'route.workflowDesigner',
-          hideInMenu: true,
-        },
-        component: () => import('@/views/wf-designer/layout/Layout.vue'),
-        children: [
-          {
-            path: ':uuid',
-            name: 'WorkflowDesigner',
-            meta: {
-              title: 'route.workflowDesigner',
-              hideInMenu: true,
-            },
+        // 注意：必须给 title。admin 的面包屑/TagsView 会无条件对 matched 链执行 t(meta.title)，
+        // 缺 title 会抛出 vue-i18n "Invalid arguments" 并打断整个页面渲染
+        title: 'route.workflowDesigner',
+        // 菜单过滤 filterRouter 只认 meta.hidden（同 chatpage.ts 的坑）：
+        // 缺 hidden 会把需要 :uuid 参数的设计器挂成菜单项，点击 push 缺参路由正文空白（= 菜单点击无效）
+        hidden: true,
+        hideInMenu: true,
+      },
+      component: () => import('@/views/wf-designer/layout/Layout.vue'),
+      children: [
+        {
+          path: ':uuid',
+          name: 'WorkflowDesigner',
+          meta: {
+            title: 'route.workflowDesigner',
+            hidden: true,
+            hideInMenu: true,
+          },
             component: () => import('@/views/wf-designer/index.vue'),
           },
         ],
