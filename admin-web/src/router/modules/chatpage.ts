@@ -31,6 +31,17 @@ const routes: Array<RouteRecordRaw> = [
       },
     ],
   },
+  {
+    // P2 拖拽画布设计器：全屏独立页，不出现在菜单
+    path: '/chatpage/design/:uuid',
+    name: 'ChatPageDesigner',
+    component: () => import('@/views/chatpage/design.vue'),
+    meta: {
+      title: 'route.chatPageDesigner',
+      permissions: ['admin:agent:view'],
+      hideInMenu: true,
+    },
+  },
 ]
 
 export default routes

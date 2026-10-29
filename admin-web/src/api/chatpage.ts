@@ -7,12 +7,23 @@ import { http } from '@/utils/http/axios'
  * 数组顺序即展示顺序）+ 场景绑定（可选智能体覆盖）。
  * 用户端 /chat/page/:uuid 按 schema 渲染外壳并走现有场景会话链路。
  */
+/**
+ * 区块画布布局（P2 拖拽设计器）。可选：全部区块带 layout 时用户端走自由画布布局，
+ * 任一缺失则整页回退流式渲染（数组顺序）。x/y 为画布坐标，w 为区块宽度（h 自适应）。
+ */
+export interface BlockLayout {
+  x: number
+  y: number
+  w: number
+}
+
 export interface PageBlock {
   type: 'welcome' | 'quickPrompts' | 'richText' | 'sceneInfo'
   title?: string
   subtitle?: string
   items?: string[]
   content?: string
+  layout?: BlockLayout
 }
 
 export interface ChatPageItem {

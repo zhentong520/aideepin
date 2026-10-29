@@ -664,6 +664,7 @@ export default {  common: {
     mallData: '商城数据管理',
     chatPageManagement: '聊天页面',
     chatPageList: '聊天页面配置',
+    chatPageDesigner: '页面画布设计',
   },
   tokenMonitor: {
     userName: '用户名',
@@ -795,6 +796,15 @@ export default {  common: {
     deleteConfirm: '确认删除该聊天页面？用户端将立即不可见。',
     loadFailed: '加载失败',
     saveFailed: '保存失败',
+    openDesigner: '画布设计',
+    backToList: '返回列表',
+    designerHint: '拖拽区块到画布摆放位置，点击区块编辑属性；保存后用户端按画布布局渲染。',
+    blockPalette: '区块面板',
+    blockProps: '区块属性',
+    blockWidth: '宽度',
+    addPrompt: '添加提问',
+    noBlockSelected: '点击画布中的区块编辑属性',
+    notFoundRow: '页面不存在或已删除',
   },
   ragQuality: {
     query: '查询',

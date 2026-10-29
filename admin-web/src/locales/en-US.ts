@@ -674,6 +674,7 @@ export default {
     mallData: 'Mall Data Management',
     chatPageManagement: 'Chat Pages',
     chatPageList: 'Chat Page Config',
+    chatPageDesigner: 'Page Canvas Designer',
   },
   tokenMonitor: {
     userName: 'User',
@@ -805,6 +806,15 @@ export default {
     deleteConfirm: 'Delete this chat page? It becomes invisible to users immediately.',
     loadFailed: 'Load failed',
     saveFailed: 'Save failed',
+    openDesigner: 'Design',
+    backToList: 'Back to list',
+    designerHint: 'Drag blocks onto the canvas to place them; click a block to edit its properties. The user side renders with the canvas layout after save.',
+    blockPalette: 'Block Palette',
+    blockProps: 'Block Properties',
+    blockWidth: 'Width',
+    addPrompt: 'Add prompt',
+    noBlockSelected: 'Click a block on the canvas to edit its properties',
+    notFoundRow: 'Page not found or deleted',
   },
   ragQuality: {
     query: 'Query',

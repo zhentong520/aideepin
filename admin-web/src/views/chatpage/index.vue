@@ -84,6 +84,7 @@
 
 <script setup lang="ts">
   import { computed, h, onMounted, reactive, ref } from 'vue'
+  import { useRouter } from 'vue-router'
   import { NSwitch, useDialog, useMessage } from 'naive-ui'
   import { TableAction } from '@/components/Table'
   import { t } from '@/locales'
@@ -92,6 +93,7 @@
 
   const message = useMessage()
   const dialog = useDialog()
+  const router = useRouter()
 
   const loading = ref(false)
   const saving = ref(false)
@@ -295,12 +297,13 @@
     {
       title: t('common.action'),
       key: 'actions',
-      width: 160,
+      width: 200,
       render: (row: ChatPageItem) =>
         h(TableAction as any, {
           style: 'button',
           actions: [
             { label: t('common.edit'), onClick: () => openEdit(row) },
+            { label: t('chatpage.openDesigner'), onClick: () => router.push(`/chatpage/design/${row.uuid}`) },
             { label: t('common.delete'), onClick: () => doDelete(row) },
           ],
         }),

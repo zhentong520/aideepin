@@ -14,8 +14,16 @@
           <h1 class="page-title">{{ page.name }}</h1>
         </div>
 
-        <div class="blocks">
-          <div v-for="(block, idx) in blocks" :key="`${block.type}-${idx}`">
+        <div
+          class="blocks"
+          :class="{ 'blocks-canvas': isCanvasLayout }"
+          :style="isCanvasLayout ? { minHeight: `${canvasMinHeight}px` } : undefined"
+        >
+          <div
+            v-for="(block, idx) in blocks"
+            :key="`${block.type}-${idx}`"
+            :style="blockStyle(block)"
+          >
             <!-- 欢迎语 -->
             <div v-if="block.type === 'welcome'" class="block block-welcome">
               <h2 class="welcome-title">{{ block.title }}</h2>
@@ -80,6 +88,26 @@
   const page = ref<ChatPageInfo | null>(null)
 
   const blocks = computed<ChatPageBlock[]>(() => page.value?.pageSchema?.blocks ?? [])
+
+  // P2 画布布局：全部区块带 layout 时按画布坐标自由摆放，任一缺失回退流式（数组顺序）
+  const isCanvasLayout = computed(
+    () => blocks.value.length > 0 && blocks.value.every((b) => b.layout),
+  )
+
+  const canvasMinHeight = computed(() => {
+    const maxY = Math.max(...blocks.value.map((b) => b.layout?.y ?? 0), 0)
+    return maxY + 320
+  })
+
+  function blockStyle(block: ChatPageBlock) {
+    if (!isCanvasLayout.value || !block.layout) return undefined
+    return {
+      position: 'absolute' as const,
+      left: `${block.layout.x}px`,
+      top: `${block.layout.y}px`,
+      width: `${block.layout.w}px`,
+    }
+  }
 
   const sceneInfo = computed(() => {
     if (!page.value?.sceneUuid) return null
@@ -177,6 +205,10 @@
     display: flex;
     flex-direction: column;
     gap: 20px;
+  }
+  .blocks-canvas {
+    position: relative;
+    display: block;
   }
   .welcome-title {
     font-size: 18px;
