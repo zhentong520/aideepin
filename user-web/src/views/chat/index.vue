@@ -16,6 +16,7 @@ import InputEditor from './InputEditor.vue'
 import RefGraph from './RefGraph.vue'
 import RefMemory from './RefMemory.vue'
 import FeedbackButtons from './components/FeedbackButtons.vue'
+import ChatThinkingBar from './components/ChatThinkingBar.vue'
 import LoginTip from '@/views/user/LoginTip.vue'
 import { useChatSse } from './composables/useChatSse'
 import { useBasicLayout } from '@/hooks/useBasicLayout'
@@ -619,13 +620,11 @@ onDeactivated(() => {
 
               <!-- LLM回复 end -->
 
-              <!-- 状态栏 -->
-              <div
+              <!-- 状态栏：AI 动态等待态（原静态灰条替换，光点呼吸+流光文字+点阵跳动） -->
+              <ChatThinkingBar
                 v-if="qaMessage.state && qaMessage.state.get('remark')"
-                class="my-2 text-sm bg-gray-200 px-2 py-1 rounded-md"
-              >
-                {{ qaMessage.state.get('remark')!.startsWith('state.') ? t(`chat.${qaMessage.state.get('remark')!}`) : qaMessage.state.get('remark') }}
-              </div>
+                :label="qaMessage.state.get('remark')!.startsWith('state.') ? t(`chat.${qaMessage.state.get('remark')!}`) : qaMessage.state.get('remark')!"
+              />
             </div>
           </template>
         </div>

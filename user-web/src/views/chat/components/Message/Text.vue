@@ -73,9 +73,13 @@ defineExpose({ textRef })
   <div class="text-black" :class="wrapClass">
     <div ref="textRef" class="leading-relaxed break-words">
       <div v-if="!inversion" class="flex items-end">
+        <!-- AI 思考点阵：正文尚未吐字时的动态等待态（2026-10-29） -->
+        <span v-if="loading && !text" class="ai-wait-dots" aria-hidden="true">
+          <i /><i /><i />
+        </span>
         <div v-if="!asRawText" class="w-full markdown-body" v-html="text" />
         <div v-else class="w-full whitespace-pre-wrap" v-text="text" />
-        <span v-if="loading" class="dark:text-white w-[4px] h-[20px] block animate-blink" />
+        <span v-if="loading && text" class="dark:text-white w-[4px] h-[20px] block animate-blink" />
       </div>
       <div v-else class="whitespace-pre-wrap" v-text="text" />
     </div>
@@ -84,4 +88,32 @@ defineExpose({ textRef })
 
 <style lang="less">
 @import url(./style.less);
+</style>
+
+<style scoped>
+/* AI 思考点阵：与 ChatThinkingBar 同一视觉语言（渐变主色三点波浪跳动） */
+.ai-wait-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  margin-right: 2px;
+  flex: none;
+}
+.ai-wait-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--adi-primary, #2d8cf0), #8a5cf6);
+  animation: ai-wait-bounce 1.2s ease-in-out infinite;
+}
+.ai-wait-dots i:nth-child(2) { animation-delay: .15s; }
+.ai-wait-dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes ai-wait-bounce {
+  0%, 100% { transform: translateY(0); opacity: .35; }
+  50% { transform: translateY(-5px); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-wait-dots i { animation: none; opacity: .6; }
+}
 </style>
