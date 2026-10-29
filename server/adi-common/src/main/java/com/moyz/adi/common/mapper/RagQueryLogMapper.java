@@ -44,16 +44,16 @@ public interface RagQueryLogMapper extends BaseMapper<RagQueryLog> {
                   AND l.create_time >= #{begin}
                   AND l.create_time < #{end}
             )
-            SELECT COUNT(*)                                                        AS totalQueries,
-                   COUNT(*) FILTER (WHERE hit_count > 0)                           AS hitQueries,
-                   COALESCE(AVG(hit_count), 0)                                     AS avgHitCount,
+            SELECT COUNT(*)                                                        AS "totalQueries",
+                   COUNT(*) FILTER (WHERE hit_count > 0)                           AS "hitQueries",
+                   COALESCE(AVG(hit_count), 0)                                     AS "avgHitCount",
                    COUNT(*) FILTER (WHERE top_score IS NULL
-                                        OR top_score < #{lowScoreThreshold})       AS lowScoreQueries,
-                   AVG(top_score)                                                  AS avgTopScore,
+                                        OR top_score < #{lowScoreThreshold})       AS "lowScoreQueries",
+                   AVG(top_score)                                                  AS "avgTopScore",
                    percentile_cont(0.5) WITHIN GROUP (ORDER BY top_score)
-                       FILTER (WHERE top_score IS NOT NULL)                        AS topScoreP50,
-                   COALESCE(AVG(elapsed_ms), 0)                                    AS avgElapsedMs,
-                   percentile_cont(0.95) WITHIN GROUP (ORDER BY elapsed_ms)        AS elapsedP95
+                       FILTER (WHERE top_score IS NOT NULL)                        AS "topScoreP50",
+                   COALESCE(AVG(elapsed_ms), 0)                                    AS "avgElapsedMs",
+                   percentile_cont(0.95) WITHIN GROUP (ORDER BY elapsed_ms)        AS "elapsedP95"
             FROM q
             """;
 
@@ -77,15 +77,15 @@ public interface RagQueryLogMapper extends BaseMapper<RagQueryLog> {
                   AND l.create_time >= #{begin}
                   AND l.create_time < #{end}
             )
-            SELECT kb_uuid                                                          AS kbUuid,
-                   COUNT(*)                                                         AS queryCount,
-                   COUNT(*) FILTER (WHERE hit_count > 0)                            AS hitQueries,
-                   COALESCE(AVG(hit_count), 0)                                      AS avgHitCount,
-                   AVG(top_score)                                                   AS avgTopScore,
-                   COALESCE(AVG(elapsed_ms), 0)                                     AS avgElapsedMs
+            SELECT kb_uuid                                                          AS "kbUuid",
+                   COUNT(*)                                                         AS "queryCount",
+                   COUNT(*) FILTER (WHERE hit_count > 0)                            AS "hitQueries",
+                   COALESCE(AVG(hit_count), 0)                                      AS "avgHitCount",
+                   AVG(top_score)                                                   AS "avgTopScore",
+                   COALESCE(AVG(elapsed_ms), 0)                                     AS "avgElapsedMs"
             FROM q
             GROUP BY kb_uuid
-            ORDER BY queryCount DESC
+            ORDER BY "queryCount" DESC
             """;
 
     @Select(QUALITY_SUMMARY_SQL)
