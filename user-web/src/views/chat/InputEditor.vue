@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { NAutoComplete, NButton, NCard, NInput, NModal, useMessage } from 'naive-ui'
 import { v4 as uuidv4 } from 'uuid'
 import { useChat } from './hooks/useChat'
@@ -26,6 +27,17 @@ interface Emit {
   (ev: 'isChatting', isChatting: boolean): void
 }
 const prompt = ref<string>('')
+// 配置化聊天页面（P1）：快捷提问点击后跳 /chat/:uuid?prefill=xxx，
+// 挂载时读 query 预填输入框并立即清掉 query，避免刷新/回退时重复预填。
+const route = useRoute()
+const router = useRouter()
+onMounted(() => {
+  const prefill = route.query.prefill
+  if (typeof prefill === 'string' && prefill) {
+    prompt.value = prefill
+    router.replace({ query: { ...route.query, prefill: undefined } })
+  }
+})
 const { isMobile } = useBasicLayout()
 const { addMessage, updateMessageSomeFields, appendChunk } = useChat()
 const appStore = useAppStore()

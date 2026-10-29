@@ -859,3 +859,20 @@ WHERE NOT EXISTS (SELECT 1 FROM adi_scene_agent
                     AND agent_uuid = 'adi_mall_agent_0000000000000000001'
                     AND is_deleted = false);
 
+-- ---------- 2. 种子数据：商城导购示例页（绑定 044 的种子场景） ----------
+INSERT INTO adi_chat_page(uuid, name, icon, page_schema, scene_uuid, agent_uuid, sort, is_enable)
+SELECT 'adi_chatpage_mall_000000000000000001',
+       '商城导购',
+       'ShoppingCartOutlined',
+       '{
+         "blocks": [
+           { "type": "welcome", "title": "欢迎来到商城导购", "subtitle": "我可以帮你找商品、比价格、查优惠、领优惠券" },
+           { "type": "quickPrompts", "items": ["看看手机分类的热销榜", "最近有什么优惠活动？", "有可以领的优惠券吗？"] },
+           { "type": "richText", "content": "咨询售后、配送、退换等问题会优先查阅帮助知识库；解决不了会引导你联系人工客服。" },
+           { "type": "sceneInfo" }
+         ]
+       }'::jsonb,
+       'adi_mall_scene_0000000000000000001',
+       '',
+       99, true
+WHERE NOT EXISTS (SELECT 1 FROM adi_chat_page WHERE uuid = 'adi_chatpage_mall_000000000000000001' AND is_deleted = false);

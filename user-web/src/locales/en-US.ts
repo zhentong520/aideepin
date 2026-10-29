@@ -1143,4 +1143,13 @@ export default {
     empty: 'No skills available',
     emptyMine: 'No skills installed yet',
   },
+  chatpage: {
+    notFound: 'Page Not Found',
+    notFoundDesc: 'This chat page has been deleted or disabled',
+    backHome: 'Back to Home',
+    startChat: 'Start Chat',
+    noSceneBound: 'No scene bound to this page yet. Please contact the administrator.',
+    noAvailableAgent: 'No available agent in this scene. Please contact the administrator.',
+    resolveFailed: 'Failed to create the conversation. Please try again later.',
+  },
 };

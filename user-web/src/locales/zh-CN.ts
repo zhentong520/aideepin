@@ -1142,4 +1142,13 @@ export default {
     empty: '暂无可用技能',
     emptyMine: '还没有安装任何技能',
   },
+  chatpage: {
+    notFound: '页面不存在',
+    notFoundDesc: '该聊天页面已被删除或停用',
+    backHome: '返回首页',
+    startChat: '开始对话',
+    noSceneBound: '该页面尚未绑定场景，请联系管理员配置',
+    noAvailableAgent: '该场景暂无可用智能体，请联系管理员配置',
+    resolveFailed: '会话创建失败，请稍后重试',
+  },
 };

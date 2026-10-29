@@ -2673,3 +2673,41 @@ CREATE TRIGGER trigger_mall_user_coupon_update_time BEFORE UPDATE ON mall_user_c
 DROP TRIGGER IF EXISTS trigger_mall_activity_update_time ON mall_activity;
 CREATE TRIGGER trigger_mall_activity_update_time BEFORE UPDATE ON mall_activity
     FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+
+-- ============ V45_chat_page (045_chat_page.sql) ============
+-- ============================================================
+-- 045_chat_page.sql（二开 P1-1，2026-10-29）
+-- 配置化聊天页面：admin 端配置产出 page_schema（jsonb），
+-- user-web /chat/page/:uuid 按 schema 动态渲染外壳并绑定场景。
+--   · 页面 → 场景 → 智能体：换场景只改 scene_uuid / agent_uuid
+--   · P1 为区块数组（数组顺序即展示顺序），P2 升级拖拽画布时
+--     在 schema 内追加布局坐标，向后兼容
+-- 幂等：全部 IF NOT EXISTS / WHERE NOT EXISTS，可重复执行。
+-- ============================================================
+
+-- ---------- 1. 页面配置表 ----------
+CREATE TABLE IF NOT EXISTS adi_chat_page
+(
+    id          bigserial primary key,
+    uuid        varchar(64)  default ''                not null,
+    name        varchar(100) default ''                not null,
+    icon        varchar(200) default ''                not null,
+    page_schema jsonb        default '{}'::jsonb       not null,
+    scene_uuid  varchar(64)  default ''                not null,
+    agent_uuid  varchar(64)  default ''                not null,
+    sort        int          default 0                 not null,
+    is_enable   boolean      default true              not null,
+    create_time timestamp    default CURRENT_TIMESTAMP not null,
+    update_time timestamp    default CURRENT_TIMESTAMP not null,
+    is_deleted  boolean      default false             not null
+);
+COMMENT ON TABLE adi_chat_page IS 'Configurable chat page | 配置化聊天页面（schema 驱动，绑定场景）';
+COMMENT ON COLUMN adi_chat_page.page_schema IS 'Page schema: blocks array (welcome/quickPrompts/richText/sceneInfo), order = display order | 页面 schema：区块数组，数组顺序即展示顺序';
+COMMENT ON COLUMN adi_chat_page.scene_uuid  IS 'Bound scene uuid | 绑定的场景 uuid';
+COMMENT ON COLUMN adi_chat_page.agent_uuid  IS 'Optional agent override; empty = scene default agent | 可选智能体覆盖，空则用场景默认智能体';
+CREATE UNIQUE INDEX IF NOT EXISTS uk_adi_chat_page_uuid ON adi_chat_page (uuid) WHERE is_deleted = false;
+
+DROP TRIGGER IF EXISTS trigger_adi_chat_page_update_time ON adi_chat_page;
+CREATE TRIGGER trigger_adi_chat_page_update_time BEFORE UPDATE ON adi_chat_page
+    FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+

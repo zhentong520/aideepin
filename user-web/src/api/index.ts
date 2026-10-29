@@ -11,6 +11,7 @@ import workflow from './workflow'
 import mcp from './mcp'
 import skill from './skill'
 import sys from './sys'
+import chatpage from './chatpage'
 
 export default {
   ...auth,
@@ -22,4 +23,5 @@ export default {
   ...mcp,
   ...skill,
   ...sys,
+  ...chatpage,
 }

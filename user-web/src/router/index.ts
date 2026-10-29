@@ -24,6 +24,13 @@ const routes: RouteRecordRaw[] = [
     ],
   },
   {
+    // 配置化聊天页面（二开 P1）：admin 配置 schema 并绑定场景，
+    // 这里按 schema 渲染落地外壳，「开始对话」跳入现有 /chat/:uuid 会话。
+    path: '/chat/page/:uuid',
+    name: 'ChatPage',
+    component: () => import('@/views/chatpage/index.vue'),
+  },
+  {
     path: '/active',
     name: 'Active',
     component: () => import('@/views/user/Active.vue'),
