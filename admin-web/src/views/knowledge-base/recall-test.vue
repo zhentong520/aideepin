@@ -33,61 +33,69 @@
         </n-button>
       </div>
 
-      <!-- 参数区：留空即沿用知识库配置 -->
+      <!-- 参数区：留空即沿用知识库配置。按「基础 / 混合检索 / 重排 / 邻居片段」分组，
+           开关放在分组标题行右侧，重置按钮独立底栏，避免平铺网格显得散乱 -->
       <n-collapse :default-expanded-names="['params']">
         <n-collapse-item :title="t('kbRecall.paramsTitle')" name="params">
           <template #header-extra>
             <n-text depth="3" style="font-size: 12px">{{ t('kbRecall.paramsHint') }}</n-text>
           </template>
-          <n-grid :cols="4" :x-gap="12" :y-gap="8" responsive="screen" item-responsive>
-            <n-form-item-gi :label="t('kbRecall.field.topK')" :span="1">
-              <n-input-number v-model:value="form.topK" :min="0" :placeholder="kbDefault('retrieveMaxResults')" style="width: 100%" />
-            </n-form-item-gi>
-            <n-form-item-gi :label="t('kbRecall.field.minScore')" :span="1">
-              <n-input-number v-model:value="form.minScore" :min="0" :max="1" :step="0.05" :placeholder="kbDefault('retrieveMinScore')" style="width: 100%" />
-            </n-form-item-gi>
-            <n-form-item-gi :span="1">
-              <template #label>
-                <n-space align="center" :size="4">
-                  <span>{{ t('kbRecall.field.hybridEnabled') }}</span>
+          <div class="params-groups">
+            <section class="params-group">
+              <header class="params-group-title">{{ t('kbRecall.group.basic') }}</header>
+              <n-form-item :label="t('kbRecall.field.topK')">
+                <n-input-number v-model:value="form.topK" :min="0" :placeholder="kbDefault('retrieveMaxResults')" style="width: 100%" />
+              </n-form-item>
+              <n-form-item :label="t('kbRecall.field.minScore')">
+                <n-input-number v-model:value="form.minScore" :min="0" :max="1" :step="0.05" :placeholder="kbDefault('retrieveMinScore')" style="width: 100%" />
+              </n-form-item>
+            </section>
+            <section class="params-group">
+              <header class="params-group-title">
+                <span class="params-group-name">
+                  {{ t('kbRecall.group.hybrid') }}
                   <n-tooltip trigger="hover" style="max-width: 360px">
                     <template #trigger><n-icon size="14" :depth="3"><HelpCircleOutline /></n-icon></template>
                     {{ t('kbRecall.tip.hybrid') }}
                   </n-tooltip>
-                </n-space>
-              </template>
-              <n-switch v-model:value="form.hybridEnabled" />
-            </n-form-item-gi>
-            <n-form-item-gi :label="t('kbRecall.field.keywordLimit')" :span="1">
-              <n-input-number v-model:value="form.keywordLimit" :min="1" :placeholder="kbDefault('retrieveKeywordLimit')" style="width: 100%" />
-            </n-form-item-gi>
-            <n-form-item-gi :label="t('kbRecall.field.rrfK')" :span="1">
-              <n-input-number v-model:value="form.rrfK" :min="1" :placeholder="kbDefault('retrieveRrfK')" style="width: 100%" />
-            </n-form-item-gi>
-            <n-form-item-gi :label="t('kbRecall.field.rerankEnabled')" :span="1">
-              <n-switch v-model:value="form.rerankEnabled" />
-            </n-form-item-gi>
-            <n-form-item-gi :label="t('kbRecall.field.rerankTopN')" :span="1">
-              <n-input-number v-model:value="form.rerankTopN" :min="0" :placeholder="kbDefault('retrieveRerankTopN')" style="width: 100%" />
-            </n-form-item-gi>
-            <n-form-item-gi :label="t('kbRecall.field.rerankMinScore')" :span="1">
-              <n-input-number v-model:value="form.rerankMinScore" :min="0" :max="1" :step="0.05" :placeholder="kbDefault('retrieveRerankMinScore')" style="width: 100%" />
-            </n-form-item-gi>
-            <n-form-item-gi :label="t('kbRecall.field.neighborEnabled')" :span="1">
-              <n-switch v-model:value="form.neighborEnabled" />
-            </n-form-item-gi>
-            <n-form-item-gi :label="t('kbRecall.field.neighborWindow')" :span="1">
-              <n-input-number v-model:value="form.neighborWindow" :min="0" :placeholder="kbDefault('retrieveNeighborWindow')" style="width: 100%" />
-            </n-form-item-gi>
-            <n-form-item-gi :span="2">
-              <n-space>
-                <n-button size="small" @click="resetOverrides">{{ t('kbRecall.resetParams') }}</n-button>
-                <n-text depth="3" style="font-size: 12px">
-                  {{ t('kbRecall.overrode', { fields: overrodeLabel }) }}
-                </n-text>
-              </n-space>
-            </n-form-item-gi>
-          </n-grid>
+                </span>
+                <n-switch v-model:value="form.hybridEnabled" size="small" />
+              </header>
+              <n-form-item :label="t('kbRecall.field.keywordLimit')">
+                <n-input-number v-model:value="form.keywordLimit" :min="1" :placeholder="kbDefault('retrieveKeywordLimit')" style="width: 100%" />
+              </n-form-item>
+              <n-form-item :label="t('kbRecall.field.rrfK')">
+                <n-input-number v-model:value="form.rrfK" :min="1" :placeholder="kbDefault('retrieveRrfK')" style="width: 100%" />
+              </n-form-item>
+            </section>
+            <section class="params-group">
+              <header class="params-group-title">
+                <span class="params-group-name">{{ t('kbRecall.group.rerank') }}</span>
+                <n-switch v-model:value="form.rerankEnabled" size="small" />
+              </header>
+              <n-form-item :label="t('kbRecall.field.rerankTopN')">
+                <n-input-number v-model:value="form.rerankTopN" :min="0" :placeholder="kbDefault('retrieveRerankTopN')" style="width: 100%" />
+              </n-form-item>
+              <n-form-item :label="t('kbRecall.field.rerankMinScore')">
+                <n-input-number v-model:value="form.rerankMinScore" :min="0" :max="1" :step="0.05" :placeholder="kbDefault('retrieveRerankMinScore')" style="width: 100%" />
+              </n-form-item>
+            </section>
+            <section class="params-group">
+              <header class="params-group-title">
+                <span class="params-group-name">{{ t('kbRecall.group.neighbor') }}</span>
+                <n-switch v-model:value="form.neighborEnabled" size="small" />
+              </header>
+              <n-form-item :label="t('kbRecall.field.neighborWindow')">
+                <n-input-number v-model:value="form.neighborWindow" :min="0" :placeholder="kbDefault('retrieveNeighborWindow')" style="width: 100%" />
+              </n-form-item>
+            </section>
+          </div>
+          <div class="params-footer">
+            <n-text depth="3" style="font-size: 12px">
+              {{ t('kbRecall.overrode', { fields: overrodeLabel }) }}
+            </n-text>
+            <n-button size="small" @click="resetOverrides">{{ t('kbRecall.resetParams') }}</n-button>
+          </div>
         </n-collapse-item>
       </n-collapse>
     </n-space>
@@ -143,7 +151,6 @@
     NCollapseItem,
     NDataTable,
     NDivider,
-    NFormItemGi,
     NGi,
     NGrid,
     NIcon,
@@ -404,6 +411,52 @@
     .recall-query-input {
       flex: 1 1 auto;
       min-width: 0;
+    }
+
+    /* 参数分组：横向 4 组，窄屏自动换行；开关放组标题行，视觉归拢 */
+    .params-groups {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px 32px;
+      margin-bottom: 4px;
+    }
+
+    .params-group {
+      flex: 1 1 200px;
+      min-width: 200px;
+
+      & + .params-group {
+        padding-left: 32px;
+        border-left: 1px dashed rgba(128, 128, 128, 0.28);
+      }
+    }
+
+    .params-group-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 24px;
+      margin-bottom: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      border-bottom: 1px solid rgba(128, 128, 128, 0.16);
+      padding-bottom: 8px;
+    }
+
+    .params-group-name {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .params-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px dashed rgba(128, 128, 128, 0.28);
     }
 
     :deep(.recall-content) {

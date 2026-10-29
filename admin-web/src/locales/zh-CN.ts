@@ -1129,6 +1129,12 @@ export default {  common: {
       neighborEnabled: '邻居片段扩展',
       neighborWindow: '邻居窗口',
     },
+    group: {
+      basic: '基础召回',
+      hybrid: '混合检索',
+      rerank: '重排',
+      neighbor: '邻居片段',
+    },
     tip: {
       hybrid: '开启后同时执行向量检索与关键词检索，并用 RRF 融合两路结果',
     },

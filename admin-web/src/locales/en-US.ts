@@ -1139,6 +1139,12 @@ export default {
       neighborEnabled: 'Neighbor Chunks',
       neighborWindow: 'Neighbor Window',
     },
+    group: {
+      basic: 'Basic Recall',
+      hybrid: 'Hybrid Retrieval',
+      rerank: 'Rerank',
+      neighbor: 'Neighbor Chunks',
+    },
     tip: {
       hybrid: 'Runs vector and keyword retrieval in parallel, then fuses both result sets with RRF',
     },
