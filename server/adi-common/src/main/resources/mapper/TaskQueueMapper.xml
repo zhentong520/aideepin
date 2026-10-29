@@ -2,10 +2,19 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.moyz.adi.common.mapper.TaskQueueMapper">
 
+    <!-- 二开修复（2026-10-29）：claimNext 是自定义 XML 语句，MyBatis-Plus 的
+         autoResultMap（实体 @TableName autoResultMap=true）只对 MP 内置 CRUD 生效，
+         对自定义 XML 不生效 → payload 列无人映射，handler 拿到 null 触发
+         NullPointerException（"payload" is null），DRAW 任务重试 3 次全 DEAD。
+         显式声明 resultMap 让 payload 走 JsonNodeTypeHandler，其余列自动映射。 -->
+    <resultMap id="taskQueueWithPayload" type="com.moyz.adi.common.entity.TaskQueue" autoMapping="true">
+        <result column="payload" property="payload" typeHandler="com.moyz.adi.common.base.JsonNodeTypeHandler"/>
+    </resultMap>
+
     <!-- S2-01：SKIP LOCKED 原子抢占。子查询锁定一条到期候选（跳过已被其他实例锁住的行），
          外层 UPDATE..RETURNING 一步完成状态翻转与行返回——Postgres JDBC 支持
          UPDATE..RETURNING 以 ResultSet 形式返回，MyBatis 直接映射。 -->
-    <select id="claimNext" resultType="com.moyz.adi.common.entity.TaskQueue">
+    <select id="claimNext" resultMap="taskQueueWithPayload">
         UPDATE task_queue
         SET status         = 'RUNNING',
             owner_instance = #{ownerInstance},

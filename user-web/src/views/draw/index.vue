@@ -4,6 +4,7 @@ import { useLoadingBar, useMessage } from 'naive-ui'
 import DisplayStyleInChat from './components/DisplayStyleInChat.vue'
 import DisplayStyleInGallery from './components/DisplayStyleInGallery.vue'
 import GptImageEditor from './components/gpt-image/GptImageEditor.vue'
+import OpenAiCompatibleEditor from './components/openai-compatible/OpenAiCompatibleEditor.vue'
 import Wanx from './components/wanx/index.vue'
 import Siliconflow from './components/siliconflow/index.vue'
 import Header from './components/Header.vue'
@@ -144,6 +145,11 @@ onUnmounted(() => {
         <GptImageEditor v-show="appStore.selectedImageModel.modelPlatform === 'openai'" @submitted="submitted" />
         <Wanx v-show="appStore.selectedImageModel.modelPlatform === 'dashscope'" @submitted="submitted" />
         <Siliconflow v-show="appStore.selectedImageModel.modelPlatform === 'siliconflow'" @submitted="submitted" />
+        <!-- 二开（2026-10-29）：OpenAI 协议兼容平台（火山方舟等）的图片模型走通用编辑器 -->
+        <OpenAiCompatibleEditor
+          v-show="!['openai', 'dashscope', 'siliconflow'].includes(appStore.selectedImageModel.modelPlatform)
+            && !!appStore.selectedImageModel.modelPlatform" @submitted="submitted"
+        />
       </div>
     </footer>
   </div>

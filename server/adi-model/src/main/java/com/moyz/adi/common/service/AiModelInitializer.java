@@ -118,6 +118,17 @@ public class AiModelInitializer {
         initImageModelService(AdiConstant.ModelPlatform.DASHSCOPE, model -> new DashScopeWanxService(model, nameToPlatform.get(AdiConstant.ModelPlatform.DASHSCOPE)));
         initImageModelService(AdiConstant.ModelPlatform.SILICONFLOW, model -> new SiliconflowImageModelService(model, nameToPlatform.get(AdiConstant.ModelPlatform.SILICONFLOW)));
 
+        // 二开修改（2026-10-29）：OpenAI 协议兼容平台（火山方舟 ARK / 千问 MaaS 等）的图片模型
+        // 同样遵循 /images/generations 协议（seedream 实测可用），按 is_openai_api_compatible
+        // 自动注册，否则绘画页 /model/imageModels 恒为空。放在显式平台注册之后：
+        // initImageModelService 内部先 clearByPlatform 再 add，对 openai 等已注册平台是幂等覆盖。
+        for (String compatiblePlatform : nameToPlatform.values().stream()
+                .filter(ModelPlatform::getIsOpenaiApiCompatible)
+                .map(ModelPlatform::getName)
+                .toList()) {
+            initImageModelService(compatiblePlatform, model -> new OpenAiImageService(model, nameToPlatform.get(compatiblePlatform)).setProxyAddress(proxyAddress));
+        }
+
         //search engine
         // S1-02：RestTemplate 由本 Spring bean 注入后传给搜索引擎（引擎实例非 Spring bean）
         SearchEngineServiceContext.addWebSearcher(AdiConstant.SearchEngineName.GOOGLE, new GoogleSearchEngineService(proxyAddress, restTemplate));

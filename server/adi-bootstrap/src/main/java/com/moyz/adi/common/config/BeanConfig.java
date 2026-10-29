@@ -8,9 +8,11 @@ import com.baomidou.mybatisplus.extension.plugins.inner.DynamicTableNameInnerInt
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
 import com.baomidou.mybatisplus.extension.spring.MybatisSqlSessionFactoryBean;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.moyz.adi.common.base.JsonNodeTypeHandler;
 import com.moyz.adi.common.base.SearchEngineRespTypeHandler;
 import com.moyz.adi.common.base.ThreadContextTaskDecorator;
 import com.moyz.adi.common.base.UUIDTypeHandler;
@@ -226,6 +228,12 @@ public class BeanConfig {
         bean.getConfiguration().getTypeHandlerRegistry().register(PGvector.class, PostgresVectorTypeHandler.class);
         bean.getConfiguration().getTypeHandlerRegistry().register(SearchEngineResp.class, SearchEngineRespTypeHandler.class);
         bean.getConfiguration().getTypeHandlerRegistry().register(UUID.class, UUIDTypeHandler.class);
+        // 二开修复（2026-10-29）：全局注册 JsonNodeTypeHandler。此前只在实体 @TableField 上声明，
+        // 对 MyBatis-Plus 内置 CRUD 生效，但自定义 XML 的 resultType 自动映射找不到 JsonNode 的
+        // handler 会静默跳过该列 → TaskQueue.claimNext 返回 payload=null，DRAW 任务 NPE 全部 DEAD。
+        // 同类隐患：KnowledgeBase / WorkflowNode / WorkflowRuntime / CharacterMemoryEmbedding /
+        // EpisodicMemoryEmbedding 的自定义 XML 查询也在静默丢 jsonb 字段，此处一并修复。
+        bean.getConfiguration().getTypeHandlerRegistry().register(JsonNode.class, JsonNodeTypeHandler.class);
         return bean.getObject();
     }
 

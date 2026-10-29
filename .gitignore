@@ -66,3 +66,6 @@ tools/kb-eval/results-rewrite-cache.tsv
 tools/kb-eval/cp.txt
 tools/acl-eval/acl-eval-state.json
 tools/acl-eval/acl-eval-report.json
+
+# playwright-cli local artifacts
+.playwright-cli/
