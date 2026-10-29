@@ -224,3 +224,23 @@ WHERE NOT EXISTS (SELECT 1 FROM adi_scene_agent
                     AND agent_uuid = 'adi_mall_agent_00000000000000001'
                     AND is_deleted = false);
 
+
+-- ==== 默认模型回填（真实 E2E 暴露：种子留空 model_name 导致用户端发送被拦） ====
+-- 幂等：已绑定模型的部署跳过。与 Flyway V23__mall_agent_model_backfill.sql 保持同步。
+UPDATE adi_agent a
+SET model_platform = sel.pname,
+    model_name     = sel.mname
+FROM (
+    SELECT p.name AS pname, m.name AS mname
+    FROM adi_ai_model m
+    JOIN adi_model_platform p ON m.platform = p.name
+    WHERE m.is_enable = true
+      AND p.is_deleted = false
+      AND p.api_key <> ''
+      AND m.type IN ('text', '')
+    ORDER BY p.id, m.id
+    LIMIT 1
+) sel
+WHERE a.uuid = 'adi_mall_agent_00000000000000001'
+  AND a.is_deleted = false
+  AND (a.model_name = '' OR a.model_name IS NULL);

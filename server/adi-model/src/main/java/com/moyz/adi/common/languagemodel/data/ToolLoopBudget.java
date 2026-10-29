@@ -12,7 +12,7 @@ import java.util.Optional;
  * 三个预算同时生效、任一超限即中止循环；中止时记录具体是哪个预算超限
  * （abortedReason），避免"循环退出但不知道为什么"。
  * <p>
- * 配置：adi.agent.tool-loop-max-depth / -max-seconds / -max-tokens（默认 5 / 300 / 200000，
+ * 配置：adi.agent.tool-loop-max-depth / -max-seconds / -max-tokens（默认 10 / 300 / 200000，
  * 深度默认值与历史硬编码 MAX_TOOL_CALL_DEPTH=5 一致）。
  * 无 Spring 上下文（单测）时按默认值构造。
  * <p>

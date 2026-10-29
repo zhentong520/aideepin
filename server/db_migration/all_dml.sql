@@ -876,3 +876,25 @@ SELECT 'adi_chatpage_mall_00000000000001',
        '',
        99, true
 WHERE NOT EXISTS (SELECT 1 FROM adi_chat_page WHERE uuid = 'adi_chatpage_mall_00000000000001' AND is_deleted = false);
+
+-- ==== V23: 商城导购智能体默认模型回填（真实浏览器 E2E 暴露的数据缺陷） ====
+-- V21 种子时 model_platform/model_name 留空（种子无法预知环境可用模型），
+-- 导致用户端发送消息被前端拦截：「当前场景的智能体未绑定模型，请联系管理员」。
+-- 回填「第一个启用且平台配有 api_key 的文本模型」；幂等：已绑定则跳过。
+UPDATE adi_agent a
+SET model_platform = sel.pname,
+    model_name     = sel.mname
+FROM (
+    SELECT p.name AS pname, m.name AS mname
+    FROM adi_ai_model m
+    JOIN adi_model_platform p ON m.platform = p.name
+    WHERE m.is_enable = true
+      AND p.is_deleted = false
+      AND p.api_key <> ''
+      AND m.type IN ('text', '')
+    ORDER BY p.id, m.id
+    LIMIT 1
+) sel
+WHERE a.uuid = 'adi_mall_agent_00000000000000001'
+  AND a.is_deleted = false
+  AND (a.model_name = '' OR a.model_name IS NULL);

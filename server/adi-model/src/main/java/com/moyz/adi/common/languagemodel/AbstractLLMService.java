@@ -324,7 +324,7 @@ public abstract class AbstractLLMService extends CommonModelService {
      */
     private void innerStreamingChat(InnerStreamChatParam params) {
         // T6-10：工具循环三重预算（深度 + 墙钟时间 + token 累计），任一超限中止。
-        // 原 MAX_TOOL_CALL_DEPTH=5 硬编码由 budget.maxDepth（adi.agent.tool-loop-max-depth，默认 5）接管。
+        // 原 MAX_TOOL_CALL_DEPTH=5 硬编码由 budget.maxDepth（adi.agent.tool-loop-max-depth，默认 10）接管。
         ToolLoopBudget budget = params.getToolLoopBudget();
         if (!budget.consumeDepth()) {
             String reason = budget.checkExceeded().orElse(ToolLoopBudget.REASON_DEPTH);

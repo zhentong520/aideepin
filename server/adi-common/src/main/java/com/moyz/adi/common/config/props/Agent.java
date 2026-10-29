@@ -13,10 +13,16 @@ import lombok.Data;
 public class Agent {
 
     /**
-     * 工具循环最大深度（次）（adi.agent.tool-loop-max-depth，默认 5，与历史硬编码一致）。
+     * 工具循环最大深度（次）（adi.agent.tool-loop-max-depth，默认 10）。
+     * <p>
+     * 2026-10-29 真实 E2E 调整 5 → 10：实测多工具导购流程（列分类 → 查热销 →
+     * 逐个商品详情 → 查活动/优惠券）天然需要 5~6 轮 LLM↔工具往返，5 会在
+     * 最终答案生成前被截断（Tool call loop aborted: budget exceeded (DEPTH)）。
+     * 安全性不降级：墙钟时间（tool-loop-max-seconds）与 token 累计
+     * （tool-loop-max-tokens）两道兜底预算不变，失控循环仍会被先掐断。
      */
     @Min(value = 1, message = "adi.agent.tool-loop-max-depth 必须 >= 1")
-    private int toolLoopMaxDepth = 5;
+    private int toolLoopMaxDepth = 10;
 
     /**
      * 工具循环墙钟时间上限（秒）（adi.agent.tool-loop-max-seconds，默认 300）。
