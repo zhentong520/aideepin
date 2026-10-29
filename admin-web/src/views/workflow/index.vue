@@ -2,6 +2,10 @@
   <n-card :bordered="false" class="proCard">
     <BasicForm @register="register" @submit="handleSubmit" @reset="handleReset" />
 
+    <n-space justify="end" class="mb-2">
+      <n-button type="info" @click="handleCreate">{{ t('common.newAdd') }}</n-button>
+    </n-space>
+
     <BasicTable
       :columns="columns"
       :request="loadDataTable"
@@ -154,6 +158,8 @@
   const dialog = useDialog()
   const showEditModal = ref(false)
   const formBtnLoading = ref(false)
+  // 新建/编辑共用弹窗；新建时走 workflowApi.add，成功后直接进设计器
+  const isCreating = ref(false)
   const editFormParams = reactive({
     label: t('common.edit'),
     uuid: '',
@@ -242,9 +248,30 @@
 
   function confirmEditForm(e: Event) {
     e.preventDefault()
+    if (isCreating.value && !editFormParams.title.trim()) {
+      window['$message'].error(t('common.fillCompleteInfo'))
+      return
+    }
     formBtnLoading.value = true
     formRef.value.validate(async (errors: any) => {
       if (!errors) {
+        if (isCreating.value) {
+          const resp = await workflowApi.add({
+            title: editFormParams.title.trim(),
+            remark: editFormParams.remark,
+            isPublic: editFormParams.isPublic,
+          })
+          window['$message'].success(t('common.operationSuccess'))
+          formBtnLoading.value = false
+          showEditModal.value = false
+          // 创建成功后直接进入设计器开始编排
+          if (resp?.data?.uuid) {
+            router.push(`/workflow/designer/${resp.data.uuid}`)
+          } else {
+            reloadTable()
+          }
+          return
+        }
         await workflowApi.updateBaseInfo(editFormParams)
         window['$message'].success(t('common.editSuccess'))
         setTimeout(() => {
@@ -258,7 +285,18 @@
     })
   }
 
+  function handleCreate() {
+    isCreating.value = true
+    editFormParams.uuid = ''
+    editFormParams.title = ''
+    editFormParams.remark = ''
+    editFormParams.isPublic = false
+    editFormParams.label = t('common.newAdd')
+    showEditModal.value = true
+  }
+
   function handleEdit(record: Recordable) {
+    isCreating.value = false
     showEditModal.value = true
     Object.assign(editFormParams, record)
     editFormParams.label = t('common.edit')

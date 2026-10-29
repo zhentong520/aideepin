@@ -107,10 +107,18 @@ export function useKbStore() {
   }
 }
 
-/** 用户信息桥接 */
+/** 用户信息桥接：uuid 必须来自 admin 真实登录用户。
+ *  硬编码空 uuid 会让 WorkflowDefine 的「仅创建者可保存」判断永远命中，
+ *  设计器保存按钮永久禁用（= 设计器无法保存任何修改）。 */
 export function useUserStore() {
+  const adminUser = useAdminUserStore()
   return {
-    userInfo: { uuid: '', name: 'Administrator', avatar: '' },
+    // 返回类型需带 avatar（wf-shared Avatar.vue 读取 userInfo.avatar），
+    // admin 的 UserInfoType 没有 avatar 字段，这里兜底空串保持类型兼容
+    get userInfo(): { uuid: string; name: string; email?: string; avatar: string } {
+      const info = adminUser.info ?? { uuid: '', name: 'Administrator' }
+      return { ...info, avatar: (info as any).avatar ?? '' }
+    },
     resetUserInfo() {},
   }
 }

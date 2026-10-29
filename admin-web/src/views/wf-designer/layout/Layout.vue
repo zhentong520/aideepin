@@ -12,7 +12,8 @@ import api from '@/wf/api'
 const appStore = useAppStore()
 const wfStore = useWfStore()
 const designerStore = useDesignerStore()
-const { activeUuid } = storeToRefs<any>(wfStore)
+// activeUuid 属于设计器会话状态（T5-10 迁入 useDesignerStore），从 wfStore 解构会是 undefined
+const { activeUuid } = storeToRefs(designerStore)
 const uroute = useRoute()
 const { uuid: currWfUuid } = uroute.params as { uuid: string; viewType: string }
 const { isMobile } = useBasicLayout()

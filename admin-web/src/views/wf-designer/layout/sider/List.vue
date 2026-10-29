@@ -11,7 +11,9 @@ const currentPage = ref<number>(1)
 const pageSize = 20
 const wfStore = useWfStore()
 const designerStore = useDesignerStore()
-const { activeUuid, myWorkflows, publicWorkflows, selectedType } = storeToRefs<any>(wfStore)
+const { myWorkflows, publicWorkflows, selectedType } = storeToRefs<any>(wfStore)
+// activeUuid 属于设计器会话状态（T5-10 迁入 useDesignerStore），从 wfStore 解构会是 undefined
+const { activeUuid } = storeToRefs(designerStore)
 const authStore = useAuthStore()
 const authStoreRef = ref(authStore)
 const innerHeight = window.innerHeight < 800 ? 800 : window.innerHeight - 60

@@ -47,6 +47,14 @@ function search(
   })
 }
 
+function add(data: { title: string; remark?: string; isPublic?: boolean }) {
+  return http.request({
+    url: '/workflow/add',
+    method: 'post',
+    data,
+  })
+}
+
 function updateBaseInfo(data: { uuid: string; title: string; remark: string }) {
   return http.request({
     url: '/workflow/base-info/update',
@@ -83,6 +91,7 @@ export default {
   componentEnable,
   componentDel,
   search,
+  add,
   updateBaseInfo,
   del,
   setPublic,
