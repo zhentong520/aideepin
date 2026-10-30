@@ -2,6 +2,7 @@
 // S2-07#4 下沉：单源实现，依赖统一经 #wf-shared-vendor（禁止裸导入/宿主@别名）
 import { NSelect, ref, useWfStore } from '#wf-shared-vendor'
 import type { SelectGroupOption, SelectOption } from '#wf-shared-vendor'
+import { operatorLabel } from '../utils/operator-i18n'
 
 interface Props {
   selected: string
@@ -21,7 +22,7 @@ const options: Array<SelectOption | SelectGroupOption> = []
 for (let i = 0; i < wfStore.operators.length; i++) {
   const operator = wfStore.operators[i]
   options.push({
-    label: operator.desc,
+    label: operatorLabel(operator.name, operator.desc),
     value: operator.name,
   })
 }

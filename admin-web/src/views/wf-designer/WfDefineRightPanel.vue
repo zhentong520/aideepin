@@ -25,6 +25,9 @@
   const wfStore = useWfStore()
   const nodeTitle = ref<string>(props.wfNode.title)
 
+  // 2026-10-31 用户反馈：属性面板是浮动卡片但没有关闭按钮，右上角加 X
+  const emit = defineEmits<{ (e: 'close'): void }>()
+
   const nodeDesc = computed(() => getWfNodeDescriptor(props.wfNode.wfComponent.name))
 
   /** 组件是否声明了 uiWorkflow prop（Tongyiwanx/Agent/Database/Mcp/Skill 未声明）——
@@ -71,6 +74,12 @@
             :placeholder="t('workflow.nodeNamePlaceholder')"
             class="h-8 border-gray-100"
             style="font-size: 1rem; line-height: 1.5rem; font-weight: 700"
+          />
+          <!-- 右上角关闭按钮 -->
+          <SvgIcon
+            class="ml-2 flex-none cursor-pointer text-gray-400 hover:text-gray-600 text-xl"
+            icon="carbon:close"
+            @click="emit('close')"
           />
         </div>
         <!-- <div class="mb-2">

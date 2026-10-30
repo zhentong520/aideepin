@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { emptyWorkflowInfo } from '@/utils/functions'
 import { router } from '@/router'
+import { operatorLabel } from 'aideepin-wf-shared/src/utils/operator-i18n'
 
 export const useWfStore = defineStore('wf-store', {
   state: (): Workflow.WorkflowState => {
@@ -84,7 +85,8 @@ export const useWfStore = defineStore('wf-store', {
     },
     getOperatorDesc(state: Workflow.WorkflowState) {
       return (name: string) => {
-        return state.operators.find(item => item.name === name)?.desc || ''
+        const operator = state.operators.find(item => item.name === name)
+        return operator ? operatorLabel(operator.name, operator.desc) : ''
       }
     },
     getWfRuntime(state: Workflow.WorkflowState) {

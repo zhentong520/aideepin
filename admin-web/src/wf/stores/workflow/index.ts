@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
+import { operatorLabel } from 'aideepin-wf-shared/src/utils/operator-i18n'
 import { useDesignerStore } from '@/views/wf-designer/useDesignerStore'
 
 // 跨页面共享的工作流数据：列表（我的/公共）、工作流组件、算子。
@@ -60,7 +61,8 @@ export const useWfStore = defineStore('wf-store', () => {
   }
 
   function getOperatorDesc(name: string) {
-    return operators.value.find(item => item.name === name)?.desc || ''
+    const operator = operators.value.find(item => item.name === name)
+    return operator ? operatorLabel(operator.name, operator.desc) : ''
   }
 
   // ---------- actions ----------

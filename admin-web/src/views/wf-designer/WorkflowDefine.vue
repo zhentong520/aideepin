@@ -386,6 +386,7 @@
                   :ui-workflow="uiWorkflow"
                   :hide-property-panel="hidePropertyPanel"
                   :wf-node="selectedWfNode"
+                  @close="hidePropertyPanel = true"
                 />
                 <!-- 流程图设计器 end -->
               </NLayoutContent>

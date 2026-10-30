@@ -129,7 +129,12 @@ async function searchKbs(query: string) {
   })
   const { data: data2 } = await api.knowledgeBaseSearchPublic<KnowledgeBase.InfoListResp>(query, currentPage.value, pageSize)
   if (data2) {
+    // 自己创建且公开的知识库会同时出现在 mine 与 public 两个接口里（2026-10-30 用户反馈下拉重复），
+    // 以 mine 结果为准，public 侧按 uuid 去重
+    const mineUuids = new Set(next.map(kb => kb.value))
     data2.records.forEach((item) => {
+      if (mineUuids.has(item.uuid))
+        return
       next.push({
         value: item.uuid,
         label: item.title,

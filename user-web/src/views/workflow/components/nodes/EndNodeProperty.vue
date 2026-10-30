@@ -19,7 +19,7 @@ if (!nodeConfig.result)
     <NodePropertyInput :workflow="workflow" :wf-node="wfNode" />
     <div class="mt-6">
       <div class="text-xl mb-1">
-        {{ t('workflow.emailContent') }}
+        {{ t('workflow.outputContent') }}
       </div>
       <div class="flex flex-col">
         <ReferComment />

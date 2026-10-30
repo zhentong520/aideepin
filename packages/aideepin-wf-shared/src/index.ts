@@ -23,6 +23,7 @@ export * from './constant/google-languages'
 
 // 防抖工具（两端原文件改为转发出口）
 export * from './utils/debounce'
+export * from './utils/operator-i18n'
 
 // uuid 生成（零外部包依赖：Web Crypto 等价替换 uuid 包 v4 去连字符）
 export * from './utils/uuid'

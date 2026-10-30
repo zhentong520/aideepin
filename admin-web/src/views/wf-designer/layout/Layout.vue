@@ -55,6 +55,10 @@ if (currWfUuid !== 'default' && activeUuid.value === 'default') {
 onMounted(async () => {
   applyViewportHeight()
   window.addEventListener('resize', applyViewportHeight)
+  // 模型注册表：LLM 选择器（Answer/Classifier/KeywordExtractor 等）与图片模型选择器（通义万相）
+  // 都读 appStore.llms/imageModels —— 此前无人调用 fetch 导致下拉恒为空（2026-10-30 用户反馈 #19/#22 根因）
+  appStore.fetchLLMs()
+  appStore.fetchImageModels()
   const { data: operators } = await api.workflowOperators<Workflow.Operator[]>()
   if (operators && operators.length > 0) {
     wfStore.setOperators(operators)

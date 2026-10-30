@@ -7,9 +7,9 @@
  *   2. 数据 × 组件绑定（COMPONENT_BINDINGS）——type → component/propertyComponent；
  *   3. 对外 API（wfNodeDescriptors / getWfNodeDescriptor / 类型重导出）。
  *
- * 与 user-web 薄壳的差异：admin 暂缺 Orchestrator/Loop/Parallel/Code/SubWorkflow
- * 五类节点的端侧组件（任务书本期范围外），故此处采用 fail-soft：无绑定的 type 直接
- * 过滤掉，不像 user 端 fail-fast 抛错导致模块加载即崩。五类组件补齐后应改为 fail-fast。
+ * 与 user-web 薄壳的差异已消除（2026-10-31）：Orchestrator/Loop/Parallel/Code/SubWorkflow
+ * 五类 P3 节点端侧组件已补齐，同为 fail-fast（共享包加了新节点而忘绑定时，模块加载即报错，
+ * 不留运行时悬空组件——否则会出现"侧栏可拖入、属性面板空白"的不一致）。
  */
 import type { Component } from 'vue'
 import { wfNodeDescriptorData } from 'aideepin-wf-shared'
@@ -59,6 +59,11 @@ import AgentNode from './AgentNode.vue'
 import DatabaseNode from './DatabaseNode.vue'
 import McpNode from './McpNode.vue'
 import SkillNode from './SkillNode.vue'
+import OrchestratorNode from './OrchestratorNode.vue'
+import LoopNode from './LoopNode.vue'
+import ParallelNode from './ParallelNode.vue'
+import CodeNode from './CodeNode.vue'
+import SubWorkflowNode from './SubWorkflowNode.vue'
 
 import StartNodeProperty from 'aideepin-wf-shared/src/nodes/StartNodeProperty.vue'
 import AnswerNodeProperty from './AnswerNodeProperty.vue'
@@ -80,6 +85,8 @@ import AgentNodeProperty from 'aideepin-wf-shared/src/components/nodes/AgentNode
 import DatabaseNodeProperty from 'aideepin-wf-shared/src/components/nodes/DatabaseNodeProperty.vue'
 import McpNodeProperty from 'aideepin-wf-shared/src/components/nodes/McpNodeProperty.vue'
 import SkillNodeProperty from 'aideepin-wf-shared/src/components/nodes/SkillNodeProperty.vue'
+import OrchestratorNodeProperty from './OrchestratorNodeProperty.vue'
+import SchemaForm from '../../SchemaForm.vue'
 
 /** 端侧完整节点描述 = 共享包纯数据 + Vue 组件引用 */
 export interface WfNodeDescriptor extends WfNodeDescriptorData {
@@ -120,14 +127,20 @@ const COMPONENT_BINDINGS: Record<string, { component: Component; propertyCompone
   Database: { component: DatabaseNode, propertyComponent: DatabaseNodeProperty },
   Mcp: { component: McpNode, propertyComponent: McpNodeProperty },
   Skill: { component: SkillNode, propertyComponent: SkillNodeProperty },
+  Orchestrator: { component: OrchestratorNode, propertyComponent: OrchestratorNodeProperty },
+  Loop: { component: LoopNode, propertyComponent: SchemaForm },
+  Parallel: { component: ParallelNode, propertyComponent: SchemaForm },
+  Code: { component: CodeNode, propertyComponent: SchemaForm },
+  SubWorkflow: { component: SubWorkflowNode, propertyComponent: SchemaForm },
 }
 
-export const wfNodeDescriptors: WfNodeDescriptor[] = wfNodeDescriptorData.flatMap((desc) => {
+export const wfNodeDescriptors: WfNodeDescriptor[] = wfNodeDescriptorData.map((desc) => {
   const binding = COMPONENT_BINDINGS[desc.type]
-  // fail-soft：admin 暂缺 5 类节点（Orchestrator/Loop/Parallel/Code/SubWorkflow）的端侧组件，
-  // 无绑定即过滤；五类组件补齐后应改回 user 端同款 fail-fast（模块加载即报错）
-  if (!binding) return []
-  return [{ ...desc, ...binding }]
+  // fail-fast：与 user-web 同款。共享包加了新节点而两端忘了绑定时，模块加载即报错，
+  // 避免"侧栏可拖入、属性面板渲染 undefined 空白"的不一致（2026-10-31 用户反馈问题4根因）
+  if (!binding)
+    throw new Error(`[wf-descriptor] missing component binding for node type: ${desc.type}`)
+  return { ...desc, ...binding }
 })
 
 /** 按组件名取节点描述（大小写不敏感；无匹配返回 undefined） */
