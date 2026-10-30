@@ -525,19 +525,19 @@ onDeactivated(() => {
                     >
                       <div class="flex items-center space-x-2 mt-2">
                         <NButton
-                          v-if="!!answer && !answer.loading && answer.isRefMemoryEmbedding" size="tiny" text
+                          v-if="appStore.chatAppearance.showRefEntries && !!answer && !answer.loading && answer.isRefMemoryEmbedding" size="tiny" text
                           type="primary" @click="handleMemoryRefClick(answer.uuid)"
                         >
                           {{ t('chat.memory') }}
                         </NButton>
                         <NButton
-                          v-if="!!answer && !answer.loading && answer.isRefEmbedding" size="tiny" text
+                          v-if="appStore.chatAppearance.showRefEntries && !!answer && !answer.loading && answer.isRefEmbedding" size="tiny" text
                           type="primary" @click="handleEmbeddingRefClick(answer.uuid)"
                         >
                           {{ t('chat.reference') }}
                         </NButton>
                         <NButton
-                          v-if="!!answer && !answer.loading && qaMessage.isRefGraph" size="tiny" text
+                          v-if="appStore.chatAppearance.showRefEntries && !!answer && !answer.loading && qaMessage.isRefGraph" size="tiny" text
                           type="primary" @click="handleGraphClick(answer.uuid)"
                         >
                           {{ t('chat.graph') }}
@@ -560,25 +560,25 @@ onDeactivated(() => {
                 >
                   <div class="flex items-center space-x-2 mt-2">
                     <NButton
-                      v-if="!!qaMessage.children[0] && !qaMessage.children[0].loading && qaMessage.children[0].isRefMemoryEmbedding" size="tiny" text
+                      v-if="appStore.chatAppearance.showRefEntries && !!qaMessage.children[0] && !qaMessage.children[0].loading && qaMessage.children[0].isRefMemoryEmbedding" size="tiny" text
                       type="primary" @click="handleMemoryRefClick(qaMessage.children[0].uuid)"
                     >
                       {{ t('chat.memory') }}
                     </NButton>
                     <NButton
-                      v-if="!!qaMessage.children[0] && !qaMessage.children[0].loading && qaMessage.children[0].isRefEmbedding"
+                      v-if="appStore.chatAppearance.showRefEntries && !!qaMessage.children[0] && !qaMessage.children[0].loading && qaMessage.children[0].isRefEmbedding"
                       size="tiny" text type="primary" @click="handleEmbeddingRefClick(qaMessage.children[0].uuid)"
                     >
                       {{ t('chat.reference') }}
                     </NButton>
                     <NButton
-                      v-if="!!qaMessage.children[0] && !qaMessage.children[0].loading && qaMessage.children[0].isRefGraph"
+                      v-if="appStore.chatAppearance.showRefEntries && !!qaMessage.children[0] && !qaMessage.children[0].loading && qaMessage.children[0].isRefGraph"
                       size="tiny" text type="primary" @click="handleGraphClick(qaMessage.children[0].uuid)"
                     >
                       {{ t('chat.graph') }}
                     </NButton>
                     <FeedbackButtons
-                      v-if="!!qaMessage.children[0] && !qaMessage.children[0].loading && qaMessage.children[0].isRefEmbedding"
+                      v-if="appStore.chatAppearance.showFeedback && !!qaMessage.children[0] && !qaMessage.children[0].loading && qaMessage.children[0].isRefEmbedding"
                       :query-id="answerQueryId(qaMessage.children[0])"
                       :message-uuid="qaMessage.children[0].uuid"
                       :vote="feedbackVotes[answerQueryId(qaMessage.children[0])]"
@@ -600,25 +600,25 @@ onDeactivated(() => {
                 >
                   <div class="flex items-center space-x-4 mt-2">
                     <NButton
-                      v-if="!!qaMessage.children[0] && !qaMessage.children[0].loading && qaMessage.children[0].isRefMemoryEmbedding" size="tiny" text
+                      v-if="appStore.chatAppearance.showRefEntries && !!qaMessage.children[0] && !qaMessage.children[0].loading && qaMessage.children[0].isRefMemoryEmbedding" size="tiny" text
                       type="primary" @click="handleMemoryRefClick(qaMessage.children[0].uuid)"
                     >
                       {{ t('chat.memory') }}
                     </NButton>
                     <NButton
-                      v-if="!!qaMessage.children[0] && !qaMessage.children[0].loading && qaMessage.children[0].isRefEmbedding"
+                      v-if="appStore.chatAppearance.showRefEntries && !!qaMessage.children[0] && !qaMessage.children[0].loading && qaMessage.children[0].isRefEmbedding"
                       size="tiny" text type="primary" @click="handleEmbeddingRefClick(qaMessage.children[0].uuid)"
                     >
                       {{ t('chat.reference') }}
                     </NButton>
                     <NButton
-                      v-if="!!qaMessage.children[0] && !qaMessage.children[0].loading && qaMessage.children[0].isRefGraph"
+                      v-if="appStore.chatAppearance.showRefEntries && !!qaMessage.children[0] && !qaMessage.children[0].loading && qaMessage.children[0].isRefGraph"
                       size="tiny" text type="primary" @click="handleGraphClick(qaMessage.children[0].uuid)"
                     >
                       {{ t('chat.graph') }}
                     </NButton>
                     <FeedbackButtons
-                      v-if="!!qaMessage.children[0] && !qaMessage.children[0].loading && qaMessage.children[0].isRefEmbedding"
+                      v-if="appStore.chatAppearance.showFeedback && !!qaMessage.children[0] && !qaMessage.children[0].loading && qaMessage.children[0].isRefEmbedding"
                       :query-id="answerQueryId(qaMessage.children[0])"
                       :message-uuid="qaMessage.children[0].uuid"
                       :vote="feedbackVotes[answerQueryId(qaMessage.children[0])]"
