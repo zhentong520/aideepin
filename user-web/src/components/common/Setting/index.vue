@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { NModal, NTabPane, NTabs } from 'naive-ui'
 import General from './General.vue'
+import Appearance from './Appearance.vue'
 import Quota from './Quota.vue'
 import ModifyPassword from './ModifyPassword.vue'
 import api from '@/api'
@@ -71,6 +72,15 @@ onMounted(() => {
           </template>
           <div class="min-h-[100px]">
             <General />
+          </div>
+        </NTabPane>
+        <NTabPane name="Appearance" tab="Appearance">
+          <template #tab>
+            <SvgIcon class="text-lg" icon="ri:palette-line" />
+            <span class="ml-2">{{ t('setting.appearance') }}</span>
+          </template>
+          <div class="min-h-[100px]">
+            <Appearance />
           </div>
         </NTabPane>
         <NTabPane name="Quota" tab="Quota">

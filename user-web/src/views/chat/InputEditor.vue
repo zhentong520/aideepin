@@ -41,6 +41,9 @@ onMounted(() => {
 const { isMobile } = useBasicLayout()
 const { addMessage, updateMessageSomeFields, appendChunk } = useChat()
 const appStore = useAppStore()
+// 画面设计（Appearance）：语音按钮显隐与发送按钮位置
+const appearance = computed(() => appStore.chatAppearance)
+const isSendBelow = computed(() => appearance.value.sendButtonPosition === 'below')
 const chatStore = useChatStore()
 const sceneStore = useSceneStore()
 const authStore = useAuthStore()
@@ -408,30 +411,43 @@ defineExpose({
 </script>
 
 <template>
-  <div class="flex items-center space-x-2">
-    <NAutoComplete v-model:value="prompt" class="grow" :options="searchOptions" :get-show="getShow">
-      <template #default="{ handleInput, handleBlur, handleFocus }">
-        <NInput
-          ref="inputRef" v-model:value="prompt" type="textarea" :placeholder="placeholder"
-          :autosize="{ minRows: 1, maxRows: isMobile ? 4 : 8 }" @input="handleInput" @focus="handleFocus"
-          @blur="handleBlur" @keyup.up="handleUp" @keyup.down="handleDown" @keypress="handleEnter"
-        />
-      </template>
-    </NAutoComplete>
-    <NButton class="flex-none" type="primary" :disabled="buttonDisabled" @click="handleSubmit">
-      <template #icon>
-        <span class="dark:text-black">
-          <SvgIcon icon="ri:send-plane-fill" />
-        </span>
-      </template>
-    </NButton>
-    <NButton class="flex-none" type="primary" @click="handleShowAudioRecorderModal">
-      <template #icon>
-        <span class="dark:text-black">
-          <SvgIcon icon="icon-park-outline:voice" />
-        </span>
-      </template>
-    </NButton>
+  <div class="flex flex-col">
+    <div class="flex items-center space-x-2">
+      <NAutoComplete v-model:value="prompt" class="grow" :options="searchOptions" :get-show="getShow">
+        <template #default="{ handleInput, handleBlur, handleFocus }">
+          <NInput
+            ref="inputRef" v-model:value="prompt" type="textarea" :placeholder="placeholder"
+            :autosize="{ minRows: 1, maxRows: isMobile ? 4 : 8 }" @input="handleInput" @focus="handleFocus"
+            @blur="handleBlur" @keyup.up="handleUp" @keyup.down="handleDown" @keypress="handleEnter"
+          />
+        </template>
+      </NAutoComplete>
+      <!-- 发送按钮位置 right：输入框右侧（旧行为，默认） -->
+      <NButton v-if="!isSendBelow" class="flex-none" type="primary" :disabled="buttonDisabled" @click="handleSubmit">
+        <template #icon>
+          <span class="dark:text-black">
+            <SvgIcon icon="ri:send-plane-fill" />
+          </span>
+        </template>
+      </NButton>
+      <NButton v-if="appearance.showVoiceButton" class="flex-none" type="primary" @click="handleShowAudioRecorderModal">
+        <template #icon>
+          <span class="dark:text-black">
+            <SvgIcon icon="icon-park-outline:voice" />
+          </span>
+        </template>
+      </NButton>
+    </div>
+    <!-- 发送按钮位置 below：输入框下方独立一行 -->
+    <div v-if="isSendBelow" class="flex justify-end mt-2">
+      <NButton type="primary" :disabled="buttonDisabled" @click="handleSubmit">
+        <template #icon>
+          <span class="dark:text-black">
+            <SvgIcon icon="ri:send-plane-fill" />
+          </span>
+        </template>
+      </NButton>
+    </div>
     <NModal :show="showAudioRecorderModal">
       <NCard style="max-width: 600px" :title="t('chat.voiceChat')" size="huge" :bordered="false" role="dialog" aria-modal="true">
         <AudioRecorder

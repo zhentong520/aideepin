@@ -6,7 +6,7 @@
  * - 思考过程折叠仅 chat 使用（传 thinkingContent 才渲染）
  * - 图片预览行为（draw 详情跳转）经 imagePreviewDisabled + imageClick 定制
  */
-import { h, ref } from 'vue'
+import { computed, h, ref } from 'vue'
 import { NButton, NCollapse, NCollapseItem, NDropdown, NIcon, NImage, NSpace, NSpin, useDialog } from 'naive-ui'
 import type { DropdownOption, ImageRenderToolbarProps } from 'naive-ui'
 import { Delete24Regular } from '@vicons/fluent'
@@ -48,14 +48,31 @@ interface Props {
   // 侧边下拉菜单（差异全部外置）
   dropdownOptions: DropdownOption[]
   dropdownTrigger?: 'click' | 'hover'
+  // —— 画面设计（Appearance）扩展：均为可选，缺省时保持旧版观感（draw 页不传即不受影响） ——
+  // 气泡卡片 / 平铺文档式
+  bubbleStyle?: 'bubble' | 'flat'
+  // 气泡圆角 px（仅 bubble 模式生效）
+  bubbleRadius?: number
+  // 正文字号 px（画面设计 fontSize，12~18；缺省 14 保持旧观感）
+  fontSize?: number
+  showTimestamp?: boolean
+  showMetaInfo?: boolean
+  // 气泡侧快捷操作列（重新生成 / 更多菜单）
+  showQuickActions?: boolean
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   dateTime: '',
   text: '',
   showAvatar: true,
   asRawText: false,
   dropdownTrigger: 'hover',
+  bubbleStyle: 'flat',
+  bubbleRadius: 10,
+  fontSize: 14,
+  showTimestamp: true,
+  showMetaInfo: true,
+  showQuickActions: true,
 })
 
 const emit = defineEmits<Emit>()
@@ -72,6 +89,26 @@ const { isMobile } = useBasicLayout()
 const dialog = useDialog()
 const authStore = useAuthStore()
 const token = ref<string>(authStore.token)
+
+// —— 画面设计（Appearance）：气泡外观 ——
+// bubble=气泡卡片（内边距 + 底色，深浅色均可读）；flat=平铺（返回 []，完全保持旧观感）
+const bubbleWrapperClass = computed(() => {
+  if (props.bubbleStyle === 'bubble') {
+    return [
+      'px-4 py-3',
+      props.inversion ? 'bg-[#3a7bfd]/90 text-white' : 'bg-[#f4f6f8] dark:bg-[#2b2e33]',
+    ]
+  }
+  return []
+})
+
+// 字号始终内联（默认 14）；borderRadius 仅 bubble 模式写入，flat 时不产生任何 radius 样式
+const bubbleWrapperStyle = computed(() => {
+  const style: Record<string, string> = { fontSize: `${props.fontSize}px` }
+  if (props.bubbleStyle === 'bubble')
+    style.borderRadius = `${props.bubbleRadius}px`
+  return style
+})
 
 const messageRef = ref<HTMLElement>()
 const textRef = ref<HTMLElement>()
@@ -146,17 +183,27 @@ defineExpose({ messageRef })
     >
       <AvatarComponent :name="inversion ? 'user' : aiModelPlatform" />
     </div>
-    <div class="overflow-hidden text-sm " :class="[inversion ? 'items-end' : 'items-start']">
-      <p class="text-xs text-[#b4bbc4]" :class="[inversion ? 'text-right' : 'text-left']">
-        {{ dateTime }}
-        <span v-if="inputTokens != null" class="ml-1">📥 {{ inputTokens }}</span>
-        <span v-if="outputTokens != null" class="ml-1">📤 {{ outputTokens }}</span>
-        <span v-if="duration != null && formatDuration(duration)" class="ml-1">⏱ {{ formatDuration(duration) }}</span>
-        <template v-if="toolCalls?.length">
-          <span class="ml-1">🔧 {{ toolCalls.length }}</span>
-          <span v-for="(tool, idx) in toolCalls" :key="idx" class="ml-1 text-[10px] opacity-70">
-            {{ tool.toolName }}({{ formatDuration(tool.durationMs) }}{{ tool.success ? '' : '✗' }})
-          </span>
+    <div
+      class="overflow-hidden"
+      :class="[inversion ? 'items-end' : 'items-start', bubbleWrapperClass]"
+      :style="bubbleWrapperStyle"
+    >
+      <p
+        v-if="showTimestamp || showMetaInfo"
+        class="text-xs text-[#b4bbc4]"
+        :class="[inversion ? 'text-right' : 'text-left']"
+      >
+        <span v-if="showTimestamp">{{ dateTime }}</span>
+        <template v-if="showMetaInfo">
+          <span v-if="inputTokens != null" class="ml-1">📥 {{ inputTokens }}</span>
+          <span v-if="outputTokens != null" class="ml-1">📤 {{ outputTokens }}</span>
+          <span v-if="duration != null && formatDuration(duration)" class="ml-1">⏱ {{ formatDuration(duration) }}</span>
+          <template v-if="toolCalls?.length">
+            <span class="ml-1">🔧 {{ toolCalls.length }}</span>
+            <span v-for="(tool, idx) in toolCalls" :key="idx" class="ml-1 text-[10px] opacity-70">
+              {{ tool.toolName }}({{ formatDuration(tool.durationMs) }}{{ tool.success ? '' : '✗' }})
+            </span>
+          </template>
         </template>
       </p>
       <div class="flex items-start gap-1 mt-2" :class="[inversion ? 'flex-row-reverse' : 'flex-row']">
@@ -182,7 +229,7 @@ defineExpose({ messageRef })
             v-else ref="textRef" :inversion="inversion" :error="error" :text="text" :loading="loading"
             :as-raw-text="asRawText ?? inversion"
           />
-          <div class="flex flex-col">
+          <div v-if="showQuickActions" class="flex flex-col">
             <button
               v-if="regenerate"
               class="mb-2 transition text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-300"

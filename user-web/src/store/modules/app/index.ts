@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
-import type { AppState, Language, Theme } from './helper'
-import { getLocalSetting, setLocalSetting } from './helper'
+import type { AppState, ChatAppearance, Language, Theme } from './helper'
+import { defaultChatAppearance, getLocalSetting, setLocalSetting } from './helper'
 import { AUDIO_SYNTHESIZER_SIDE } from '@/utils/constant'
 import { emptyAiModel } from '@/utils/functions'
 import { store } from '@/store'
@@ -93,6 +93,16 @@ export const useAppStore = defineStore('app-store', {
 
     setTheme(theme: Theme) {
       this.theme = theme
+      this.recordState()
+    },
+
+    setChatAppearance(patch: Partial<ChatAppearance>) {
+      this.chatAppearance = { ...this.chatAppearance, ...patch }
+      this.recordState()
+    },
+
+    resetChatAppearance() {
+      this.chatAppearance = defaultChatAppearance()
       this.recordState()
     },
 

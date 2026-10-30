@@ -7,6 +7,7 @@ import { UxState } from '@/components/common'
 import { copyText } from '@/utils/format'
 import { useIconRender } from '@/hooks/useIconRender'
 import { t } from '@/locales'
+import { useAppStore } from '@/store'
 
 const props = withDefaults(defineProps<Props>(), {
   showAvatar: true,
@@ -45,6 +46,10 @@ interface Emit {
 // 坑（2026-10-03 修）：复制此前完全无反馈，用户无法确认是否复制成功
 const ms = useMessage()
 const { iconRender } = useIconRender()
+
+// 画面设计（Appearance）：设置面板改的 chatAppearance 实时透传到公共气泡
+const appStore = useAppStore()
+const appearance = computed(() => appStore.chatAppearance)
 
 // 用户消息默认显示原文；切换状态持有在壳层（菜单标签依赖它）
 const asRawText = ref(!!props.inversion)
@@ -108,7 +113,13 @@ function handleSelect(key: string | number) {
     :text="text"
     :image-urls="imageUrls"
     :inversion="inversion"
-    :show-avatar="showAvatar"
+    :show-avatar="appearance.showAvatar && showAvatar"
+    :bubble-style="appearance.msgStyle"
+    :bubble-radius="appearance.bubbleRadius"
+    :show-timestamp="appearance.showTimestamp"
+    :show-meta-info="appearance.showMetaInfo"
+    :show-quick-actions="appearance.showQuickActions"
+    :font-size="appearance.fontSize"
     :error="error"
     :thinking="thinking"
     :thinking-content="thinkingContent"

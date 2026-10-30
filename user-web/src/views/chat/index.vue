@@ -30,7 +30,6 @@ import { debounce } from '@/utils/functions/debounce'
 import { emptyAudioPlayState } from '@/utils/functions'
 const pageSize = 10
 const appStore = useAppStore()
-void appStore
 const route = useRoute()
 const ms = useMessage()
 const dialog = useDialog()
@@ -334,6 +333,17 @@ const footerClass = computed(() => {
   return classes
 })
 
+// 画面设计：消息区内容宽度。wide 保持旧行为（max-w-screen-xl + m-auto），仅 compact/full 时变化
+const contentWidthClass = computed(() => {
+  const width = appStore.chatAppearance.contentWidth
+  if (width === 'compact')
+    return ['max-w-[48rem]', 'mx-auto']
+  if (width === 'full')
+    return []
+  // 'wide'：旧行为原样保留
+  return ['max-w-screen-xl', 'm-auto']
+})
+
 function toggleUsingContext() {
   api.characterToggleUsingContext(currCharacter.value.uuid, !currCharacter.value.understandContextEnable)
   currCharacter.value.understandContextEnable = !currCharacter.value.understandContextEnable
@@ -402,8 +412,8 @@ onDeactivated(() => {
     <main class="relative flex-1 overflow-hidden">
       <div ref="scrollRef" class="h-full overflow-hidden overflow-y-auto" @scroll="handleScroll">
         <div
-          class="w-full max-w-screen-xl m-auto dark:bg-[#101014]"
-          :class="[isMobile ? 'p-2' : 'p-4']"
+          class="w-full dark:bg-[#101014]"
+          :class="[isMobile ? 'p-2' : 'p-4', contentWidthClass]"
         >
           <template v-if="!authStore.token">
             <LoginTip />
@@ -476,25 +486,25 @@ onDeactivated(() => {
                     >
                       <div class="flex items-center space-x-2 mt-2">
                         <NButton
-                          v-if="!!answer && !answer.loading && answer.isRefMemoryEmbedding" size="tiny" text
+                          v-if="appStore.chatAppearance.showRefEntries && !!answer && !answer.loading && answer.isRefMemoryEmbedding" size="tiny" text
                           type="primary" @click="handleMemoryRefClick(answer.uuid)"
                         >
                           {{ t('chat.memory') }}
                         </NButton>
                         <NButton
-                          v-if="!!answer && !answer.loading && answer.isRefEmbedding" size="tiny" text
+                          v-if="appStore.chatAppearance.showRefEntries && !!answer && !answer.loading && answer.isRefEmbedding" size="tiny" text
                           type="primary" @click="handleEmbeddingRefClick(answer.uuid)"
                         >
                           {{ t('chat.reference') }}
                         </NButton>
                         <NButton
-                          v-if="!!answer && !answer.loading && answer.isRefGraph" size="tiny" text type="primary"
+                          v-if="appStore.chatAppearance.showRefEntries && !!answer && !answer.loading && answer.isRefGraph" size="tiny" text type="primary"
                           @click="handleGraphClick(answer.uuid)"
                         >
                           {{ t('chat.graph') }}
                         </NButton>
                         <FeedbackButtons
-                          v-if="!!answer && !answer.loading && answer.isRefEmbedding"
+                          v-if="appStore.chatAppearance.showFeedback && !!answer && !answer.loading && answer.isRefEmbedding"
                           :query-id="answerQueryId(answer)"
                           :message-uuid="answer.uuid"
                           :vote="feedbackVotes[answerQueryId(answer)]"

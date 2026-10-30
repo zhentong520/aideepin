@@ -4,7 +4,7 @@ import { NButton, NCheckbox, NCheckboxGroup, NFlex, NList, NListItem, NModal, NP
 import type { UploadFileInfo } from 'naive-ui'
 import ConvKnowledgeSelector from './ConvKnowledgeSelector.vue'
 import { SvgIcon } from '@/components/common'
-import { useAuthStore, useChatStore, useMcpStore, useSceneStore } from '@/store'
+import { useAppStore, useAuthStore, useChatStore, useMcpStore, useSceneStore } from '@/store'
 import { getDefaultCharacter } from '@/store/modules/chat/helper'
 import { router } from '@/router'
 import { t } from '@/locales'
@@ -15,9 +15,12 @@ interface Emit {
   (e: 'imagesChange', imageUuids: string[]): void
 }
 const authStore = useAuthStore()
+const appStore = useAppStore()
 const chatStore = useChatStore()
 const mcpStore = useMcpStore()
 const sceneStore = useSceneStore()
+// 画面设计（Appearance）：输入区各按钮的显隐开关
+const appearance = computed(() => appStore.chatAppearance)
 const token = ref<string>(authStore.token)
 const ms = useMessage()
 const uploadedFileInfoList = ref<UploadFileInfo[]>([])
@@ -221,6 +224,7 @@ watch(isDeepSeekThinking, async (newVal) => {
       <!-- 2026-10-05：模型选择器已移除。模型由「场景 → 默认智能体」在后台绑定，
            用户端不暴露任何模型/厂商信息，因此这里不再有 LLMSelector。 -->
       <div
+        v-if="appearance.showThinkingSwitch"
         class="rounded border hover:border-green-600 text-green-600 p-1"
         :class="{ 'cursor-pointer': isReasoner && isThinkingClosable, 'cursor-not-allowed': !isReasoner || !isThinkingClosable }"
         @click="toogleThinking"
@@ -253,6 +257,7 @@ watch(isDeepSeekThinking, async (newVal) => {
         </template>
       </div>
       <div
+        v-if="appearance.showWebSearchSwitch"
         class="rounded border hover:border-green-600 text-green-600 p-1"
         :class="{ 'cursor-pointer': modelCapability.isSupportWebSearch, 'cursor-not-allowed': !modelCapability.isSupportWebSearch }"
         @click="toogleWebSearch"
@@ -273,7 +278,7 @@ watch(isDeepSeekThinking, async (newVal) => {
           </NPopover>
         </template>
       </div>
-      <div class="rounded border hover:border-green-600 cursor-pointer p-2" @click="toggleUsingContext">
+      <div v-if="appearance.showContextToggle" class="rounded border hover:border-green-600 cursor-pointer p-2" @click="toggleUsingContext">
         <NPopover trigger="hover">
           <template #trigger>
             <span
@@ -286,7 +291,7 @@ watch(isDeepSeekThinking, async (newVal) => {
             : t('chat.understandContextDisable') }} </span>
         </NPopover>
       </div>
-      <div class="rounded border hover:border-green-600 hover:text-green-600 cursor-pointer pt-2 px-2">
+      <div v-if="appearance.showImageUpload" class="rounded border hover:border-green-600 hover:text-green-600 cursor-pointer pt-2 px-2">
         <NUpload
           :action="`/api/image/upload?token=${token}`" response-type="text" :disabled="!canUploadImage"
           @before-upload="beforeUpload" @finish="handleFinish"
@@ -302,6 +307,7 @@ watch(isDeepSeekThinking, async (newVal) => {
         </NUpload>
       </div>
       <div
+        v-if="appearance.showKnowledgeEntry"
         class="overflow-hidden rounded border hover:border-green-600 p-1 h-8 cursor-pointer"
         @click="handleKnowledgeModalShow"
       >
@@ -311,7 +317,7 @@ watch(isDeepSeekThinking, async (newVal) => {
         </template>
         <span v-if="currCharacter.characterKnowledgeList.length === 0" class="text-xs mr-1">{{ t('common.none') }}</span>
       </div>
-      <div class="flex-1 overflow-hidden rounded border hover:border-green-600 cursor-pointer p-1 h-8" @click="handleMcpModalShow">
+      <div v-if="appearance.showMcpEntry" class="flex-1 overflow-hidden rounded border hover:border-green-600 cursor-pointer p-1 h-8" @click="handleMcpModalShow">
         <span class="text-xs text-green-600">{{ t('chat.toolLabel') }}</span>
         <template v-for="userMcp in mcpStore.myUserMcpList" :key="userMcp.uuid">
           <span v-if="currCharacter.mcpIds.includes(userMcp.mcpInfo.id)" class="text-xs mr-1">{{ userMcp.mcpInfo.title
