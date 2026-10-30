@@ -9,6 +9,13 @@ import { localizedText } from './components/wf-vars'
 
 const wfStore = useWfStore()
 
+// 数据源已收归管理后台（平台级共享），用户端暂不提供 Database 节点（等平台数据源就绪后再放开）
+const USER_HIDDEN_NODE_TYPES = new Set(['Database'])
+
+function userVisible(component: { name: string; isEnable: boolean }) {
+  return component.isEnable && !USER_HIDDEN_NODE_TYPES.has(component.name)
+}
+
 function onDragStart(event: DragEvent, nodeType: string) {
   if (event.dataTransfer) {
     event.dataTransfer.setData('application/vueflow', nodeType)
@@ -30,7 +37,7 @@ function onPresetDragStart(event: DragEvent, presetKey: string) {
     <div class="flex flex-col w-full">
       <template v-for="component in wfStore.wfComponents" :key="component.uuid">
         <div
-          v-if="component.isEnable"
+          v-if="userVisible(component)"
           class="flex mt-2 border border-gray-200 cursor-grab text-base h-10 pl-1.5 rounded" :draggable="true"
           @dragstart="(event: DragEvent) => onDragStart(event, component.name)"
         >

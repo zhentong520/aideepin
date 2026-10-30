@@ -12,8 +12,9 @@ import java.util.Map;
 
 /**
  * 外部数据库数据源接口（Database MCP）：连接管理、元数据浏览、只读查询、同步到知识库。
- * External database datasource APIs — connection management, schema browse,
- * read-only query and knowledge base sync.
+ * 用户端只读：列表/元数据/查询/测试。数据源的新增、修改、删除收归管理后台（/admin/db-datasource）。
+ * External database datasource APIs — read-only for end users (list, schema browse,
+ * read-only query, connection test). Write operations live in the admin controller.
  */
 @RestController
 @RequestMapping("/db-datasource")
@@ -25,26 +26,8 @@ public class DbDatasourceController {
     @Operation(summary = "数据源列表 | Datasource list")
     @GetMapping("/list")
     public List<DbDatasource> list() {
-        return dbDatasourceService.listMine();
-    }
-
-    @Operation(summary = "新增或更新数据源 | Create or update datasource")
-    @PostMapping("/saveOrUpdate")
-    public DbDatasource saveOrUpdate(@RequestBody DbDatasource datasource) {
-        return dbDatasourceService.saveOrUpdateDs(datasource);
-    }
-
-    @Operation(summary = "删除数据源 | Delete datasource")
-    @PostMapping("/delete")
-    public Boolean delete(@RequestParam String uuid) {
-        dbDatasourceService.softDelete(uuid);
-        return true;
-    }
-
-    @Operation(summary = "测试连接(按配置) | Test connection by config")
-    @PostMapping("/test")
-    public Map<String, Object> test(@RequestBody DbDatasource datasource) {
-        return dbDatasourceService.testConnection(datasource);
+        //平台级共享：用户端只读，返回启用中的数据源；增删改走 /admin/db-datasource
+        return dbDatasourceService.listEnabled();
     }
 
     @Operation(summary = "测试连接(按uuid) | Test connection by uuid")

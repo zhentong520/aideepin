@@ -85,13 +85,29 @@ public class DbDatasourceService extends ServiceImpl<DbDatasourceMapper, DbDatas
     @Resource
     private KnowledgeBaseService knowledgeBaseService;
 
-    public List<DbDatasource> listMine() {
-        Long userId = ThreadContext.getExistCurrentUser().getId();
+    /**
+     * 平台级共享：数据源由管理员在管理后台统一维护，用户端仅能列出「启用中」的数据源用于选择。
+     * Platform-level sharing — datasources are maintained by admins; users may only list
+     * enabled ones for selection (Database node / knowledge base sync).
+     */
+    public List<DbDatasource> listEnabled() {
         List<DbDatasource> list = list(new LambdaQueryWrapper<DbDatasource>()
-                .eq(DbDatasource::getUserId, userId)
+                .eq(DbDatasource::getIsEnable, true)
                 .eq(DbDatasource::getIsDeleted, false)
                 .orderByDesc(DbDatasource::getId));
         //Never expose the password to the client
+        list.forEach(item -> item.setPassword(""));
+        return list;
+    }
+
+    /**
+     * 管理后台：全量列表（含停用），密码不下发。
+     * Admin: full list (including disabled), password never exposed.
+     */
+    public List<DbDatasource> listAllForAdmin() {
+        List<DbDatasource> list = list(new LambdaQueryWrapper<DbDatasource>()
+                .eq(DbDatasource::getIsDeleted, false)
+                .orderByDesc(DbDatasource::getId));
         list.forEach(item -> item.setPassword(""));
         return list;
     }
@@ -107,12 +123,13 @@ public class DbDatasourceService extends ServiceImpl<DbDatasourceMapper, DbDatas
     }
 
     /**
-     * 取当前用户自己的数据源，防止越权读写他人数据。
-     * Load a datasource owned by the current user to prevent cross-user access.
+     * 平台级共享：数据源不再归属个人，任何登录用户都可使用「启用中」的数据源。
+     * Load an enabled datasource. Platform sharing — ownership checks are gone; a datasource
+     * only needs to exist and be enabled to be usable.
      */
-    private DbDatasource getMine(String uuid) {
+    private DbDatasource getUsable(String uuid) {
         DbDatasource ds = getByUuid(uuid);
-        if (!ThreadContext.getExistCurrentUser().getId().equals(ds.getUserId())) {
+        if (Boolean.FALSE.equals(ds.getIsEnable())) {
             throw new BaseException(ErrorEnum.A_DATA_NOT_FOUND);
         }
         return ds;
@@ -120,8 +137,12 @@ public class DbDatasourceService extends ServiceImpl<DbDatasourceMapper, DbDatas
 
     private static final List<String> SUPPORTED_DB_TYPES = List.of("postgresql", "mysql");
 
+    /**
+     * 仅管理后台调用（AdminDbDatasourceController）。user_id 保留列但不再作为归属语义，平台数据源写 0。
+     * Admin-only management. user_id stays as a column for compatibility but is no longer an
+     * ownership semantic — platform datasources are stored with user_id = 0.
+     */
     public DbDatasource saveOrUpdateDs(DbDatasource ds) {
-        Long userId = ThreadContext.getExistCurrentUser().getId();
         if (StringUtils.isBlank(ds.getTitle())) {
             throw new BaseException(ErrorEnum.A_PARAMS_ERROR);
         }
@@ -147,14 +168,15 @@ public class DbDatasourceService extends ServiceImpl<DbDatasourceMapper, DbDatas
                 ds.setPort(defaultPort(dbType));
             }
             ds.setUuid(UUID.randomUUID().toString().replace("-", ""));
-            ds.setUserId(userId);
-            ds.setIsEnable(true);
+            //平台数据源不属于任何个人用户（user_id=0）；旧的个人数据源迁移后同样视为平台资产
+            ds.setUserId(0L);
+            ds.setIsEnable(null == ds.getIsEnable() || ds.getIsEnable());
             save(ds);
         } else {
             //Partial update semantics: a field left out of the payload keeps its stored value,
             //so saving a datasource from a form that only posts the title cannot blank out the
             //host / db name / user, and a missing dbType cannot silently turn mysql into postgres.
-            DbDatasource exist = getMine(ds.getUuid());
+            DbDatasource exist = getByUuid(ds.getUuid());
             exist.setTitle(ds.getTitle());
             if (StringUtils.isNotBlank(dbType)) {
                 exist.setDbType(dbType);
@@ -190,7 +212,7 @@ public class DbDatasourceService extends ServiceImpl<DbDatasourceMapper, DbDatas
 
     @Transactional(rollbackFor = Exception.class)
     public void softDelete(String uuid) {
-        DbDatasource exist = getMine(uuid);
+        DbDatasource exist = getByUuid(uuid);
         exist.setIsDeleted(true);
         updateById(exist);
         //Sync tasks of a deleted datasource can never run again, drop them too
@@ -222,7 +244,15 @@ public class DbDatasourceService extends ServiceImpl<DbDatasourceMapper, DbDatas
     }
 
     public Map<String, Object> testByUuid(String uuid) {
-        return testConnection(getMine(uuid));
+        return testConnection(getUsable(uuid));
+    }
+
+    /**
+     * 管理后台：按 uuid 测试连接（含停用数据源，便于启用前先验证）。
+     * Admin: test by uuid even for a disabled datasource.
+     */
+    public Map<String, Object> testByUuidForAdmin(String uuid) {
+        return testConnection(getByUuid(uuid));
     }
 
     /**
@@ -230,7 +260,18 @@ public class DbDatasourceService extends ServiceImpl<DbDatasourceMapper, DbDatas
      * List tables of the datasource.
      */
     public List<Map<String, Object>> listTables(String uuid) {
-        DbDatasource ds = getMine(uuid);
+        return fetchTables(getUsable(uuid));
+    }
+
+    /**
+     * 管理后台：按 uuid 取表清单（含停用数据源，便于启用前先核对连接）。
+     * Admin: list tables even for a disabled datasource (verify the connection before enabling).
+     */
+    public List<Map<String, Object>> listTablesForAdmin(String uuid) {
+        return fetchTables(getByUuid(uuid));
+    }
+
+    private List<Map<String, Object>> fetchTables(DbDatasource ds) {
         List<Map<String, Object>> tables = new ArrayList<>();
         acquireDbPermit();
         try (Connection connection = openConnection(ds)) {
@@ -250,7 +291,7 @@ public class DbDatasourceService extends ServiceImpl<DbDatasourceMapper, DbDatas
                 }
             }
         } catch (Exception e) {
-            log.error("list tables failed, ds:{}", uuid, e);
+            log.error("list tables failed, ds:{}", ds.getUuid(), e);
             throw new BaseException(ErrorEnum.A_PARAMS_INVALID_BY_, e.getMessage());
         } finally {
             dbOpPermit.release();
@@ -263,7 +304,18 @@ public class DbDatasourceService extends ServiceImpl<DbDatasourceMapper, DbDatas
      * List columns of a table.
      */
     public List<Map<String, Object>> listColumns(String uuid, String table) {
-        DbDatasource ds = getMine(uuid);
+        return fetchColumns(getUsable(uuid), table);
+    }
+
+    /**
+     * 管理后台：按 uuid 取字段清单（含停用数据源）。
+     * Admin: list columns even for a disabled datasource.
+     */
+    public List<Map<String, Object>> listColumnsForAdmin(String uuid, String table) {
+        return fetchColumns(getByUuid(uuid), table);
+    }
+
+    private List<Map<String, Object>> fetchColumns(DbDatasource ds, String table) {
         if (StringUtils.isBlank(table)) {
             throw new BaseException(ErrorEnum.A_PARAMS_ERROR);
         }
@@ -281,7 +333,7 @@ public class DbDatasourceService extends ServiceImpl<DbDatasourceMapper, DbDatas
                 }
             }
         } catch (Exception e) {
-            log.error("list columns failed, ds:{}, table:{}", uuid, table, e);
+            log.error("list columns failed, ds:{}, table:{}", ds.getUuid(), table, e);
             throw new BaseException(ErrorEnum.A_PARAMS_INVALID_BY_, e.getMessage());
         } finally {
             dbOpPermit.release();
@@ -302,15 +354,14 @@ public class DbDatasourceService extends ServiceImpl<DbDatasourceMapper, DbDatas
      * </p>
      */
     public Map<String, Object> queryForUser(String uuid, String sql, Integer limit, Long userId) {
-        DbDatasource ds = getByUuid(uuid);
-        if (null == userId || !userId.equals(ds.getUserId())) {
-            throw new BaseException(ErrorEnum.A_DATA_NOT_FOUND);
-        }
+        //平台级共享：数据源不再按 userId 归属校验，只要存在且启用即可用。
+        //Platform sharing — ownership check removed; the datasource only needs to exist and be enabled.
+        DbDatasource ds = getUsable(uuid);
         return doQuery(ds, sql, limit);
     }
 
     public Map<String, Object> query(String uuid, String sql, Integer limit) {
-        DbDatasource ds = getMine(uuid);
+        DbDatasource ds = getUsable(uuid);
         return doQuery(ds, sql, limit);
     }
 

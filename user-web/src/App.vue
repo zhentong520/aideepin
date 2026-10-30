@@ -5,7 +5,7 @@ import type { Component } from 'vue'
 import { defineAsyncComponent, h, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { AppsOutline, ChatboxEllipsesOutline, ColorPaletteOutline, ImagesOutline, LibraryOutline, PersonCircleOutline, SettingsOutline } from '@vicons/ionicons5'
-import { DataBase as DatabaseIcon, ToolKit } from '@vicons/carbon'
+import { ToolKit } from '@vicons/carbon'
 import { Puzzle as SkillsIcon } from '@vicons/tabler'
 import { Prompt as PromptIcon } from '@vicons/tabler'
 import { NaiveProvider, PromptStore } from '@/components/common'
@@ -41,7 +41,6 @@ const menuKeyToRouteNames = new Map<string, string[]>(
     ['workflow', ['WfIndex', 'WfDetail']],
     ['mcp', ['Mcp']],
     ['skill', ['Skill']],
-    ['datasource', ['Datasource']],
   ])
 
 menuKeyToRouteNames.forEach((val, key) => {
@@ -150,20 +149,6 @@ const menuOptions: MenuOption[] = [
           },
         },
         { default: () => t('menu.skill') },
-      ),
-  },
-  {
-    key: 'menu-datasource',
-    icon: renderIcon(DatabaseIcon),
-    label: () =>
-      h(
-        RouterLink,
-        {
-          to: {
-            name: 'Datasource',
-          },
-        },
-        { default: () => t('menu.datasource') },
       ),
   },
 ]

@@ -35,36 +35,10 @@ function mcpTools<T>(mcpIds?: Array<string | number>) {
 }
 
 // 外部数据库数据源（Database MCP / Database 节点）
+// 注意：数据源的新增/修改/删除已收归管理后台（/admin/db-datasource），用户端只保留只读接口
 function datasourceList<T>() {
   return get<T>({
     url: '/db-datasource/list',
-  })
-}
-
-function datasourceSaveOrUpdate<T>(data: Workflow.DbDatasource) {
-  return post<T>({
-    url: '/db-datasource/saveOrUpdate',
-    data,
-  })
-}
-
-function datasourceDelete<T>(uuid: string) {
-  return post<T>({
-    url: `/db-datasource/delete?uuid=${uuid}`,
-  })
-}
-
-function datasourceTest<T>(data: Workflow.DbDatasource) {
-  return post<T>({
-    url: '/db-datasource/test',
-    data,
-  })
-}
-
-// 按已保存的 uuid 测试连接（用库里存的密码，前端拿不到明文密码）
-function datasourceTestByUuid<T>(uuid: string) {
-  return get<T>({
-    url: `/db-datasource/test?uuid=${uuid}`,
   })
 }
 
@@ -95,10 +69,6 @@ export default {
   userMcpEnabled,
   mcpTools,
   datasourceList,
-  datasourceSaveOrUpdate,
-  datasourceDelete,
-  datasourceTest,
-  datasourceTestByUuid,
   datasourceTables,
   datasourceColumns,
   datasourceQuery,

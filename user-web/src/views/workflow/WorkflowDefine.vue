@@ -736,6 +736,10 @@ const quickAddOptions = computed(() => {
     if (component.name === 'Start')
       return false
 
+    // 数据源管理收归后台，用户端暂时隐藏 Database 节点（与 WfDefineSiderbar 保持一致）
+    if (component.name === 'Database')
+      return false
+
     if (!keyword)
       return true
 

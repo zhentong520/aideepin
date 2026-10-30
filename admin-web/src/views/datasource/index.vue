@@ -17,11 +17,12 @@ import {
   useMessage,
 } from 'naive-ui'
 import { t } from '@/locales'
-import { UxState } from '@/components/common'
-import { requiredRule } from '@/utils/formRules'
+import UxState from '@/components/UxState.vue'
 import type { FormInst } from 'naive-ui'
-import api from '@/api'
+import api from '@/api/datasource'
 
+// 数据源管理（管理后台）：数据源是平台级共享资源，由管理员统一录入/维护；
+// 用户端工作流 Database 节点仅可选择使用，不再提供任何管理入口。
 const ms = useMessage()
 const dialog = useDialog()
 
@@ -55,13 +56,17 @@ function emptyForm(): Workflow.DbDatasource {
 
 const form = ref<Workflow.DbDatasource>(emptyForm())
 const isEdit = computed(() => !!form.value.uuid)
-// 连接信息校验（T5-08）：名称/主机/库名/用户名必填（与后端保存与测试语义一致）
 const dsFormRef = ref<FormInst | null>(null)
+const required = (label: string) => ({
+  required: true,
+  trigger: ['blur', 'input'],
+  message: label,
+})
 const dsRules = {
-  title: [requiredRule(t('datasource.nameLabel'))],
-  host: [requiredRule(t('datasource.hostLabel'))],
-  dbName: [requiredRule(t('datasource.dbNameLabel'))],
-  username: [requiredRule(t('datasource.usernameLabel'))],
+  title: [required(t('datasource.nameLabel'))],
+  host: [required(t('datasource.hostLabel'))],
+  dbName: [required(t('datasource.dbNameLabel'))],
+  username: [required(t('datasource.usernameLabel'))],
 }
 
 const count = computed(() => list.value.length)
@@ -78,8 +83,10 @@ function onDbTypeChanged(value: string) {
 async function loadList() {
   loading.value = true
   try {
-    const { data } = await api.datasourceList<Workflow.DbDatasource[]>()
-    list.value = Array.isArray(data) ? data : []
+    // admin 的 http.request 已解包：返回值即数据本身；兼容残留的 {data} 包装
+    const res: any = await api.datasourceList<Workflow.DbDatasource[]>()
+    const rows = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : [])
+    list.value = rows
   } catch (e: any) {
     ms.error(e?.message || t('common.failed'))
   } finally {
@@ -102,10 +109,10 @@ async function onTestFromForm() {
   testing.value = true
   try {
     // 编辑态且未重新输入密码时，用库里的密码测试，避免因为前端拿不到明文而必然失败
-    const res = isEdit.value && !form.value.password
+    const res: any = isEdit.value && !form.value.password
       ? await api.datasourceTestByUuid<any>(form.value.uuid)
       : await api.datasourceTest<any>(form.value)
-    const result = res.data || {}
+    const result = (res && res.success !== undefined) ? res : (res?.data || {})
     if (result.success)
       ms.success(`${t('datasource.testSuccess')} ${result.product || ''} ${result.version || ''}`.trim())
     else
@@ -187,6 +194,7 @@ onMounted(loadList)
             <th>{{ t('datasource.hostLabel') }}</th>
             <th>{{ t('datasource.dbNameLabel') }}</th>
             <th>{{ t('datasource.usernameLabel') }}</th>
+            <th>{{ t('datasource.enableLabel') }}</th>
             <th>{{ t('common.operate') }}</th>
           </tr>
         </thead>
@@ -199,6 +207,11 @@ onMounted(loadList)
             <td>{{ row.host }}:{{ row.port }}</td>
             <td>{{ row.dbName }}</td>
             <td>{{ row.username }}</td>
+            <td>
+              <NTag size="small" round :type="row.isEnable ? 'success' : 'default'">
+                {{ row.isEnable ? t('common.enable') : t('common.disable') }}
+              </NTag>
+            </td>
             <td>
               <NSpace>
                 <NButton size="tiny" text type="primary" @click="openEdit(row)">

@@ -126,11 +126,6 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/skill/index.vue'),
   },
   {
-    path: '/datasource',
-    name: 'Datasource',
-    component: () => import('@/views/datasource/index.vue'),
-  },
-  {
     path: '/404',
     name: '404',
     component: () => import('@/views/exception/404/index.vue'),
