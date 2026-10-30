@@ -23,7 +23,6 @@ export * from './constant/google-languages'
 
 // 防抖工具（两端原文件改为转发出口）
 export * from './utils/debounce'
-export * from './utils/operator-i18n'
 
 // uuid 生成（零外部包依赖：Web Crypto 等价替换 uuid 包 v4 去连字符）
 export * from './utils/uuid'
@@ -46,3 +45,11 @@ export * from './descriptor/data'
 
 // S2-07（ADR-005）步骤②：画布编排 composable（注入式：vue 原语/vue-flow 实例/双端差异语义由宿主传入）
 export * from './canvas/use-workflow-canvas'
+
+// 操作符本地化（#18）。⭐ 必须放在 descriptor/data 之后：
+// 本模块 import '#wf-shared-vendor'（取 t），vendor → 宿主 workflow-util →
+// 端内 descriptor 薄壳 → 回到本 barrel；若本导出位于 descriptor/data 之前，
+// 端薄壳顶层访问 wfNodeDescriptorData 时 barrel 尚未初始化到 data，ESM TDZ 直接
+// ReferenceError（2026-10-30 user-web 白屏实测）。后续新增「牵 vendor 的工具模块」
+// 一律追加在本文件末尾，不得插到 descriptor/data 之前。
+export * from './utils/operator-i18n'
