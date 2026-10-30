@@ -57,6 +57,11 @@ export class VAxios {
    */
   request<T = any>(config: AxiosRequestConfig, options?: RequestOptions): Promise<T> {
     let conf: AxiosRequestConfig = cloneDeep(config)
+    // cloneDeep 会把 FormData 克隆成空壳（其字段不可被 lodash 枚举复制），文件内容整体丢失，
+    // 后端表现为 MultipartException: Current request is not a multipart request。还原原始引用。
+    if (config?.data instanceof window.FormData) {
+      conf.data = config.data
+    }
     const transform = this.getTransform()
 
     const { requestOptions } = this.options

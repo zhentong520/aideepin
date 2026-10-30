@@ -847,7 +847,13 @@
       if (importPackTitle.value.trim()) {
         fd.append('title', importPackTitle.value.trim())
       }
-      await api.importPack(fd)
+      // 封装层在 errorMessageMode:'none' 下对 success:false 也 resolve（如 B0003），
+      // 必须显式判断 success，否则后端失败时也会误报「操作成功」
+      const resp = await api.importPack(fd)
+      if (!resp?.success) {
+        window['$message'].error(t('knowledgeBase.packImportFailed'))
+        return
+      }
       window['$message'].success(t('common.operationSuccess'))
       importPackVisible.value = false
       importPackFile.value = null

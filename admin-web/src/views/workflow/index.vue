@@ -343,6 +343,12 @@
     credentialBackfillLoading.value = true
     try {
       const resp = await workflowApi.credentialBackfill()
+      // 封装层在 errorMessageMode:'none' 下对 success:false 也 resolve（如 vault 开关未开时
+      // 后端拒绝返回 B0003），必须显式判断 success，否则会误报「回填完成」
+      if (!resp?.success) {
+        window['$message'].error(resp?.message || t('common.operationFailed'))
+        return
+      }
       window['$message'].success(t('workflow.credentialBackfillDone', { count: resp?.data ?? 0 }))
     } finally {
       credentialBackfillLoading.value = false

@@ -108,7 +108,16 @@ const transform: AxiosTransform = {
         config.params = undefined
       }
     } else {
-      if (!isString(params)) {
+      // FormData（文件上传）：其字段不可被 Object.keys 枚举，下方 length > 0 判断恒为假，
+      // 会走 else 用空 params 覆盖 config.data，导致文件整体丢失（后端报 MultipartException：
+      // Current request is not a multipart request）。FormData 时 body 已就绪，直接放行。
+      // 同时必须显式声明 multipart：axios 1.x 的 transformRequest 在 Content-Type 为
+      // application/json（本实例默认头）时会把 FormData 序列化成 JSON（formDataToJSON），
+      // 文件就变成了 {"file":{}} 的空对象。
+      if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+        config.headers = { ...(config.headers || {}), 'Content-Type': 'multipart/form-data' }
+        config.params = params && Object.keys(params).length > 0 ? params : undefined
+      } else if (!isString(params)) {
         formatDate && formatRequestDate(params)
         if (Reflect.has(config, 'data') && config.data && Object.keys(config.data).length > 0) {
           config.data = data
