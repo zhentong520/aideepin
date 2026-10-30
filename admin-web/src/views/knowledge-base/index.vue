@@ -11,6 +11,9 @@
         </template>
         {{ t('knowledgeBase.aclBackfillConfirm') }}
       </n-popconfirm>
+      <n-button secondary @click="importPackVisible = true">
+        {{ t('knowledgeBase.importPack') }}
+      </n-button>
       <n-button secondary @click="openCatModal">
         {{ t('knowledgeBase.categoryManage') }}
       </n-button>
@@ -324,6 +327,33 @@
         </n-space>
       </div>
     </n-modal>
+
+    <!-- 配置包导入弹窗（T7-06）：zip 内只含配置与引用清单，导入后新建知识库 -->
+    <n-modal
+      v-model:show="importPackVisible"
+      preset="dialog"
+      :title="t('knowledgeBase.importPack')"
+      style="width: 520px"
+    >
+      <n-upload :max="1" accept=".zip" :default-upload="false" @before-upload="beforeImportPackUpload">
+        <n-button>{{ t('knowledgeBase.clickOrDragToUpload') }}</n-button>
+      </n-upload>
+      <n-form-item :label="t('common.title')" path="importPackTitle" class="mt-3">
+        <n-input
+          :placeholder="t('knowledgeBase.titlePlaceholder')"
+          v-model:value="importPackTitle"
+        />
+      </n-form-item>
+      <n-alert type="info" :show-icon="false" style="margin-top: 12px">
+        {{ t('knowledgeBase.packImportHint') }}
+      </n-alert>
+      <template #action>
+        <n-button @click="importPackVisible = false">{{ t('common.cancel') }}</n-button>
+        <n-button type="primary" :loading="importPackLoading" :disabled="!importPackFile" @click="handleImportPack">
+          {{ t('common.confirm') }}
+        </n-button>
+      </template>
+    </n-modal>
   </n-card>
 </template>
 
@@ -595,6 +625,10 @@
         ],
         dropDownActions: [
           {
+            label: t('knowledgeBase.exportPack'),
+            key: 'exportPack',
+          },
+          {
             label: t('knowledgeBase.rebuildKeywordIndex'),
             key: 'rebuildKeywordIndex',
           },
@@ -608,7 +642,9 @@
           },
         ],
         select: (key: string) => {
-          if (key === 'rebuildKeywordIndex') {
+          if (key === 'exportPack') {
+            handleExportPack(record)
+          } else if (key === 'rebuildKeywordIndex') {
             handleRebuildKeywordIndex(record)
           } else if (key === 'rebuildEmbedding') {
             handleRebuildEmbedding(record)
@@ -753,6 +789,77 @@
     const resp: any = await api.rebuildEmbedding(record.uuid)
     window['$message'].success(`${t('knowledgeBase.rebuildEmbedding')}: ${resp?.docCount ?? 0}`)
   }
+
+  // ===== 配置包导出/导入（T7-06 二开新增）=====
+
+  const importPackVisible = ref(false)
+  const importPackLoading = ref(false)
+  const importPackFile = ref<File | null>(null)
+  const importPackTitle = ref('')
+
+  function beforeImportPackUpload({ file }: { file: { file: File | null } }) {
+    importPackFile.value = file.file
+    return false
+  }
+
+  /**
+   * 导出配置包：原生响应拿 Blob，出错时后端返回的是 JSON，需先识别再提示
+   */
+  async function handleExportPack(record: Recordable) {
+    try {
+      const resp: any = await api.exportPack(record.uuid)
+      const blob: Blob = resp && resp.data
+      if (!blob || !blob.size) {
+        window['$message'].error(t('knowledgeBase.packExportFailed'))
+        return
+      }
+      if (blob.type && blob.type.indexOf('json') >= 0) {
+        const text = await blob.text()
+        let msg = t('knowledgeBase.packExportFailed')
+        try {
+          msg = JSON.parse(text).message || msg
+        } catch (e) {
+          // 保底用默认提示
+        }
+        window['$message'].error(msg)
+        return
+      }
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'kb-pack.zip'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+      window['$message'].success(t('common.operationSuccess'))
+    } catch (e) {
+      window['$message'].error(t('knowledgeBase.packExportFailed'))
+    }
+  }
+
+  async function handleImportPack() {
+    if (!importPackFile.value) return
+    importPackLoading.value = true
+    try {
+      const fd = new FormData()
+      fd.append('file', importPackFile.value)
+      if (importPackTitle.value.trim()) {
+        fd.append('title', importPackTitle.value.trim())
+      }
+      await api.importPack(fd)
+      window['$message'].success(t('common.operationSuccess'))
+      importPackVisible.value = false
+      importPackFile.value = null
+      importPackTitle.value = ''
+      reloadTable()
+    } catch (e) {
+      window['$message'].error(t('knowledgeBase.packImportFailed'))
+    } finally {
+      importPackLoading.value = false
+    }
+  }
+  // ===== 配置包导出/导入结束 =====
 
   async function handleDelete(record: Recordable) {
     await api.deleteOne(record.uuid)

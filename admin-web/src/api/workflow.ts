@@ -85,6 +85,17 @@ function setEnable(params: { uuid: string; isEnable: boolean }) {
   })
 }
 
+/**
+ * 存量凭据回填（S-05 配套运维）：扫描工作流节点配置 jsonb 中的敏感键值，
+ * 加密写入 adi_credential，原字段置空 + 写 credential_uuid；幂等，返回迁移节点数。
+ */
+function credentialBackfill() {
+  return http.request({
+    url: '/admin/credential/backfill',
+    method: 'post',
+  })
+}
+
 export default {
   componentSearch,
   componentAddOrUpdate,
@@ -96,4 +107,5 @@ export default {
   del,
   setPublic,
   setEnable,
+  credentialBackfill,
 }

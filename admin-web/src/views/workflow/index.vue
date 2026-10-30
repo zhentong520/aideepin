@@ -3,6 +3,14 @@
     <BasicForm @register="register" @submit="handleSubmit" @reset="handleReset" />
 
     <n-space justify="end" class="mb-2">
+      <n-popconfirm @positive-click="handleCredentialBackfill">
+        <template #trigger>
+          <n-button secondary type="warning" :loading="credentialBackfillLoading">
+            {{ t('workflow.credentialBackfill') }}
+          </n-button>
+        </template>
+        {{ t('workflow.credentialBackfillConfirm') }}
+      </n-popconfirm>
       <n-button type="info" @click="handleCreate">{{ t('common.newAdd') }}</n-button>
     </n-space>
 
@@ -326,6 +334,18 @@
     if (success) {
       window['$message'].success(t('common.operationSuccess'))
       reloadTable()
+    }
+  }
+
+  // ===== 存量凭据回填（S-05 配套运维，二开新增）：幂等，返回迁移节点数 =====
+  const credentialBackfillLoading = ref(false)
+  async function handleCredentialBackfill() {
+    credentialBackfillLoading.value = true
+    try {
+      const resp = await workflowApi.credentialBackfill()
+      window['$message'].success(t('workflow.credentialBackfillDone', { count: resp?.data ?? 0 }))
+    } finally {
+      credentialBackfillLoading.value = false
     }
   }
 </script>

@@ -76,6 +76,33 @@ function aclBackfill() {
   })
 }
 
+// ===== 二开新增（T7-06）：知识库技能配置包导出/导入 =====
+
+/**
+ * 导出配置包 zip。
+ * 走原生响应（isReturnNativeResponse）以拿到 Blob；默认的 transformRequestData
+ * 会按 {code,success,data} 解析，对二进制响应不适用。
+ */
+function exportPack(uuid: string) {
+  return http.request(
+    {
+      url: `/admin/kb/pack/export/${uuid}`,
+      method: 'get',
+      responseType: 'blob',
+    },
+    { isReturnNativeResponse: true, isShowMessage: false }
+  )
+}
+
+/** 导入配置包：解析 zip 后以当前用户为 owner 新建知识库 */
+function importPack(formData: FormData) {
+  return http.request({
+    url: '/admin/kb/pack/import',
+    method: 'post',
+    data: formData,
+  })
+}
+
 // ===== 二开新增（2026-10-09）：知识库分类字典 =====
 
 function categoryList() {
@@ -109,6 +136,8 @@ export default {
   rebuildEmbedding,
   recallTest,
   aclBackfill,
+  exportPack,
+  importPack,
   categoryList,
   categorySave,
   categoryDelete,
