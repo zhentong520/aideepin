@@ -45,29 +45,29 @@ function resetDefaults() {
       {{ t('setting.appearanceLayoutGroup') }}
     </NDivider>
     <div class="flex items-center space-x-4 mb-4">
-      <span class="flex-shrink-0 w-[100px]">{{ t('setting.msgStyle') }}</span>
+      <span class="flex-shrink-0 w-[170px] leading-snug">{{ t('setting.msgStyle') }}</span>
       <NSelect
         style="width: 160px" :value="appearance.msgStyle" :options="msgStyleOptions"
         @update-value="(v: ChatMsgStyle) => patch('msgStyle', v)"
       />
     </div>
     <div class="flex items-center space-x-4 mb-4">
-      <span class="flex-shrink-0 w-[100px]">{{ t('setting.contentWidth') }}</span>
+      <span class="flex-shrink-0 w-[170px] leading-snug">{{ t('setting.contentWidth') }}</span>
       <NSelect
         style="width: 160px" :value="appearance.contentWidth" :options="contentWidthOptions"
         @update-value="(v: ChatContentWidth) => patch('contentWidth', v)"
       />
     </div>
     <div class="flex items-center space-x-4 mb-4">
-      <span class="flex-shrink-0 w-[100px]">{{ t('setting.showAvatar') }}</span>
+      <span class="flex-shrink-0 w-[170px] leading-snug">{{ t('setting.showAvatar') }}</span>
       <NSwitch :value="appearance.showAvatar" @update:value="(v: boolean) => patch('showAvatar', v)" />
     </div>
     <div class="flex items-center space-x-4 mb-4">
-      <span class="flex-shrink-0 w-[100px]">{{ t('setting.showTimestamp') }}</span>
+      <span class="flex-shrink-0 w-[170px] leading-snug">{{ t('setting.showTimestamp') }}</span>
       <NSwitch :value="appearance.showTimestamp" @update:value="(v: boolean) => patch('showTimestamp', v)" />
     </div>
     <div class="flex items-center space-x-4 mb-4">
-      <span class="flex-shrink-0 w-[100px]">{{ t('setting.showMetaInfo') }}</span>
+      <span class="flex-shrink-0 w-[170px] leading-snug">{{ t('setting.showMetaInfo') }}</span>
       <NSwitch :value="appearance.showMetaInfo" @update:value="(v: boolean) => patch('showMetaInfo', v)" />
     </div>
 
@@ -76,14 +76,14 @@ function resetDefaults() {
       {{ t('setting.fontSize') }} / {{ t('setting.bubbleRadius') }}
     </NDivider>
     <div class="flex items-center space-x-4 mb-4">
-      <span class="flex-shrink-0 w-[100px]">{{ t('setting.fontSize') }}</span>
+      <span class="flex-shrink-0 w-[170px] leading-snug">{{ t('setting.fontSize') }}</span>
       <NSlider
         class="flex-1" :min="12" :max="18" :step="1" :format-tooltip="(v: number) => `${v}px`"
         :value="appearance.fontSize" @update:value="(v: number) => patch('fontSize', v)"
       />
     </div>
     <div class="flex items-center space-x-4 mb-4">
-      <span class="flex-shrink-0 w-[100px]">{{ t('setting.bubbleRadius') }}</span>
+      <span class="flex-shrink-0 w-[170px] leading-snug">{{ t('setting.bubbleRadius') }}</span>
       <NSlider
         class="flex-1" :min="0" :max="24" :step="2" :disabled="appearance.msgStyle !== 'bubble'"
         :format-tooltip="(v: number) => `${v}px`"
@@ -96,38 +96,38 @@ function resetDefaults() {
       {{ t('setting.appearanceInputGroup') }}
     </NDivider>
     <div class="flex items-center space-x-4 mb-4">
-      <span class="flex-shrink-0 w-[100px]">{{ t('setting.sendButtonPosition') }}</span>
+      <span class="flex-shrink-0 w-[170px] leading-snug">{{ t('setting.sendButtonPosition') }}</span>
       <NSelect
         style="width: 160px" :value="appearance.sendButtonPosition" :options="sendPositionOptions"
         @update-value="(v: ChatSendButtonPosition) => patch('sendButtonPosition', v)"
       />
     </div>
     <div class="flex items-center space-x-4 mb-4">
-      <span class="flex-shrink-0 w-[100px]">{{ t('setting.showThinkingSwitch') }}</span>
+      <span class="flex-shrink-0 w-[170px] leading-snug">{{ t('setting.showThinkingSwitch') }}</span>
       <NSwitch :value="appearance.showThinkingSwitch" @update:value="(v: boolean) => patch('showThinkingSwitch', v)" />
     </div>
     <div class="flex items-center space-x-4 mb-4">
-      <span class="flex-shrink-0 w-[100px]">{{ t('setting.showWebSearchSwitch') }}</span>
+      <span class="flex-shrink-0 w-[170px] leading-snug">{{ t('setting.showWebSearchSwitch') }}</span>
       <NSwitch :value="appearance.showWebSearchSwitch" @update:value="(v: boolean) => patch('showWebSearchSwitch', v)" />
     </div>
     <div class="flex items-center space-x-4 mb-4">
-      <span class="flex-shrink-0 w-[100px]">{{ t('setting.showContextToggle') }}</span>
+      <span class="flex-shrink-0 w-[170px] leading-snug">{{ t('setting.showContextToggle') }}</span>
       <NSwitch :value="appearance.showContextToggle" @update:value="(v: boolean) => patch('showContextToggle', v)" />
     </div>
     <div class="flex items-center space-x-4 mb-4">
-      <span class="flex-shrink-0 w-[100px]">{{ t('setting.showImageUpload') }}</span>
+      <span class="flex-shrink-0 w-[170px] leading-snug">{{ t('setting.showImageUpload') }}</span>
       <NSwitch :value="appearance.showImageUpload" @update:value="(v: boolean) => patch('showImageUpload', v)" />
     </div>
     <div class="flex items-center space-x-4 mb-4">
-      <span class="flex-shrink-0 w-[100px]">{{ t('setting.showKnowledgeEntry') }}</span>
+      <span class="flex-shrink-0 w-[170px] leading-snug">{{ t('setting.showKnowledgeEntry') }}</span>
       <NSwitch :value="appearance.showKnowledgeEntry" @update:value="(v: boolean) => patch('showKnowledgeEntry', v)" />
     </div>
     <div class="flex items-center space-x-4 mb-4">
-      <span class="flex-shrink-0 w-[100px]">{{ t('setting.showMcpEntry') }}</span>
+      <span class="flex-shrink-0 w-[170px] leading-snug">{{ t('setting.showMcpEntry') }}</span>
       <NSwitch :value="appearance.showMcpEntry" @update:value="(v: boolean) => patch('showMcpEntry', v)" />
     </div>
     <div class="flex items-center space-x-4 mb-4">
-      <span class="flex-shrink-0 w-[100px]">{{ t('setting.showVoiceButton') }}</span>
+      <span class="flex-shrink-0 w-[170px] leading-snug">{{ t('setting.showVoiceButton') }}</span>
       <NSwitch :value="appearance.showVoiceButton" @update:value="(v: boolean) => patch('showVoiceButton', v)" />
     </div>
 
@@ -136,15 +136,15 @@ function resetDefaults() {
       {{ t('setting.appearanceMsgActionGroup') }}
     </NDivider>
     <div class="flex items-center space-x-4 mb-4">
-      <span class="flex-shrink-0 w-[100px]">{{ t('setting.showFeedback') }}</span>
+      <span class="flex-shrink-0 w-[170px] leading-snug">{{ t('setting.showFeedback') }}</span>
       <NSwitch :value="appearance.showFeedback" @update:value="(v: boolean) => patch('showFeedback', v)" />
     </div>
     <div class="flex items-center space-x-4 mb-4">
-      <span class="flex-shrink-0 w-[100px]">{{ t('setting.showRefEntries') }}</span>
+      <span class="flex-shrink-0 w-[170px] leading-snug">{{ t('setting.showRefEntries') }}</span>
       <NSwitch :value="appearance.showRefEntries" @update:value="(v: boolean) => patch('showRefEntries', v)" />
     </div>
     <div class="flex items-center space-x-4 mb-4">
-      <span class="flex-shrink-0 w-[100px]">{{ t('setting.showQuickActions') }}</span>
+      <span class="flex-shrink-0 w-[170px] leading-snug">{{ t('setting.showQuickActions') }}</span>
       <NSwitch :value="appearance.showQuickActions" @update:value="(v: boolean) => patch('showQuickActions', v)" />
     </div>
 
