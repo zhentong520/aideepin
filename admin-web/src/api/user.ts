@@ -35,22 +35,6 @@ function getUserInfo(uuid: string) {
   })
 }
 
-/**
- * @description: 用户修改密码
- */
-function changePassword(params: Record<string, string | number>, uid: number) {
-  return http.request(
-    {
-      url: `/admin/user/u${uid}/changepw`,
-      method: 'POST',
-      params,
-    },
-    {
-      isTransformResponse: false,
-    }
-  )
-}
-
 function active(uuid: string) {
   return http.request({
     url: `/admin/user/active/${uuid}`,
@@ -99,6 +83,5 @@ export default {
   addOne,
   edit,
   getUserInfo,
-  changePassword,
   logout,
 }

@@ -239,6 +239,7 @@ export default {
     imageFormatError: 'Only PNG/JPG format images are allowed, please re-upload',
     fileSizeExceed: 'Cannot exceed 4MB',
     operationFailed: 'Operation failed',
+    operationSuccess: 'Operation succeeded',
     voiceChat: 'Voice Chat',
     editCharacter: 'Edit',
     memory: 'Memory',
@@ -428,6 +429,7 @@ export default {
   },
   store: {
     siderButton: 'Prompt Store',
+    example: 'Example',
     local: 'Local',
     online: 'Online',
     title: 'Title',

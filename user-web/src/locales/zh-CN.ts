@@ -239,6 +239,7 @@ export default {
     imageFormatError: '只能上传PNG/JPG格式的图片文件，请重新上传',
     fileSizeExceed: '不能超过4MB',
     operationFailed: '操作失败',
+    operationSuccess: '操作成功',
     voiceChat: '语音对话',
     editCharacter: '编辑',
     memory: '记忆',
@@ -428,6 +429,7 @@ export default {
   },
   store: {
     siderButton: '提示词商店',
+    example: '示例',
     local: '本地',
     online: '在线',
     title: '标题',

@@ -2,6 +2,10 @@
   <n-card :bordered="false" class="proCard">
     <BasicForm @register="register" @submit="handleSubmit" @reset="handleReset" />
 
+    <div class="flex justify-end mb-2">
+      <n-button type="primary" @click="handleAdd">{{ t('common.newAdd') }}</n-button>
+    </div>
+
     <BasicTable
       :columns="columns"
       :request="loadDataTable"
@@ -499,7 +503,11 @@
     formRef.value.validate(async (errors: any) => {
       try {
         if (!errors) {
-          await mcpApi.mcpEdit(editFormParams)
+          if (editFormParams.uuid) {
+            await mcpApi.mcpEdit(editFormParams)
+          } else {
+            await mcpApi.mcpAdd(editFormParams)
+          }
           window['$message'].success(t('common.editSuccess'))
           setTimeout(() => {
             showEditModal.value = false
@@ -513,6 +521,27 @@
       } finally {
         formBtnLoading.value = false
       }
+    })
+  }
+
+  function handleAdd() {
+    showEditModal.value = true
+    Object.assign(editFormParams, {
+      label: t('common.newAdd'),
+      uuid: '',
+      title: '',
+      transportType: 'streamable_http',
+      installType: 'remote',
+      remark: '',
+      isEnable: true,
+      sseUrl: '',
+      sseTimeout: 30,
+      stdioCommand: '',
+      stdioArg: '',
+      website: '',
+      presetParams: [],
+      customizedParamDefinitions: [],
+      repoUrl: '',
     })
   }
 

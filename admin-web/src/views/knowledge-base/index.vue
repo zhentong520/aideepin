@@ -599,6 +599,10 @@
             key: 'rebuildKeywordIndex',
           },
           {
+            label: t('knowledgeBase.rebuildEmbedding'),
+            key: 'rebuildEmbedding',
+          },
+          {
             label: t('common.delete'),
             key: 'delete',
           },
@@ -606,6 +610,8 @@
         select: (key: string) => {
           if (key === 'rebuildKeywordIndex') {
             handleRebuildKeywordIndex(record)
+          } else if (key === 'rebuildEmbedding') {
+            handleRebuildEmbedding(record)
           } else if (key === 'delete') {
             dialog.warning({
               title: t('common.tip'),
@@ -741,6 +747,11 @@
   async function handleRebuildKeywordIndex(record: Recordable) {
     const count = await api.rebuildKeywordIndex(record.uuid)
     window['$message'].success(`${t('knowledgeBase.rebuildKeywordIndex')}: ${count}`)
+  }
+
+  async function handleRebuildEmbedding(record: Recordable) {
+    const resp: any = await api.rebuildEmbedding(record.uuid)
+    window['$message'].success(`${t('knowledgeBase.rebuildEmbedding')}: ${resp?.docCount ?? 0}`)
   }
 
   async function handleDelete(record: Recordable) {

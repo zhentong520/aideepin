@@ -44,6 +44,16 @@ function rebuildKeywordIndex(uuid: string) {
 }
 
 /**
+ * @description: 重建向量索引（ embedding ）
+ */
+function rebuildEmbedding(uuid: string) {
+  return http.request({
+    url: `/admin/kb/rebuildEmbedding/${uuid}`,
+    method: 'post',
+  })
+}
+
+/**
  * @description: 召回测试。只传本次要临时覆盖的参数，null/缺省表示沿用知识库配置，不落库。
  */
 function recallTest(data: any) {
@@ -96,6 +106,7 @@ export default {
   edit,
   deleteOne,
   rebuildKeywordIndex,
+  rebuildEmbedding,
   recallTest,
   aclBackfill,
   categoryList,
