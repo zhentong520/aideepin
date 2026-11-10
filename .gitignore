@@ -69,3 +69,7 @@ tools/acl-eval/acl-eval-report.json
 
 # playwright-cli local artifacts
 .playwright-cli/
+
+# test artifacts
+test-results/
+admin-web/e2e/.tmp.sql

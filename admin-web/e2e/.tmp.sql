@@ -1,1 +1,0 @@
-DELETE FROM adi_sys_config WHERE name IN ('__test_ui_xss__','__test_ui_long__');
