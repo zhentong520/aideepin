@@ -221,7 +221,15 @@ public enum ErrorEnum {
      * T9-06：模板 id 不存在（内置模板清单中无匹配）。参数：模板 id
      */
     A_WF_TEMPLATE_NOT_FOUND("A0096", "A_WF_TEMPLATE_NOT_FOUND"),
-    A_FILE_IN_USE("A0097", "A_FILE_IN_USE");
+    A_FILE_IN_USE("A0097", "A_FILE_IN_USE"),
+    /**
+     * 二开（批次 A，2026-11-05）：上传了压缩包但 adi.parse.archive.enabled=false
+     */
+    A_PARSE_ARCHIVE_DISABLED("A0098", "A_PARSE_ARCHIVE_DISABLED"),
+    /**
+     * 二开（批次 A，2026-11-05）：压缩包解压后没有任何可导入的条目
+     */
+    A_ARCHIVE_EMPTY("A0099", "A_ARCHIVE_EMPTY");
 
     private final String code;
     private final String info;

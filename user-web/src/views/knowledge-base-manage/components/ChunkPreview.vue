@@ -46,6 +46,7 @@ const form = reactive({
 const strategyOptions = computed(() => [
   { label: 'recursive（递归，默认）', value: 'recursive' },
   { label: 'sentence_cn（中文按句）', value: 'sentence_cn' },
+  { label: 'markdown（标题层级）', value: 'markdown' },
   { label: 'paragraph（段落）', value: 'paragraph' },
   { label: 'line（行）', value: 'line' },
   { label: 'sentence（英文按句）', value: 'sentence' },

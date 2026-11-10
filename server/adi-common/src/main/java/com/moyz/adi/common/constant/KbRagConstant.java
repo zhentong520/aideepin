@@ -36,6 +36,11 @@ public interface KbRagConstant {
          * line breaks, then packs whole sentences into segments. See {@code CjkSentenceSplitter}.
          */
         public static final String SENTENCE_CN = "sentence_cn";
+        /**
+         * Markdown 标题层级切分：按 ATX 标题（# ~ ######）边界切节，祖先标题路径注入每块前缀。
+         * MinerU 解析输出即此格式；无标题文本退化为 recursive。见 {@code MarkdownHeadingSplitter}。
+         */
+        public static final String MARKDOWN = "markdown";
     }
 
     /**

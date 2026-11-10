@@ -30,11 +30,13 @@ import com.moyz.adi.common.rag.*;
 import com.moyz.adi.common.service.embedding.EmbeddingProviderInfo;
 import com.moyz.adi.common.service.embedding.EmbeddingProviderService;
 import com.moyz.adi.common.service.embedding.IKnowledgeEmbeddingService;
+import com.moyz.adi.common.service.parse.ArchiveExtractionService;
+import com.moyz.adi.common.service.parse.DocumentParseService;
+import com.moyz.adi.common.service.parse.ImageCaptionService;
+import com.moyz.adi.common.service.parse.ParseResult;
 import com.moyz.adi.common.util.*;
 import com.moyz.adi.common.util.NumberUtil;
 import com.moyz.adi.common.vo.*;
-import dev.langchain4j.data.document.BlankDocumentException;
-import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.model.TokenCountEstimator;
 import dev.langchain4j.model.chat.ChatModel;
@@ -59,6 +61,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
 import java.text.MessageFormat;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -148,6 +151,27 @@ public class KnowledgeBaseService extends ServiceImpl<KnowledgeBaseMapper, Knowl
 
     @Resource
     private AdiProperties adiProperties;
+
+    /**
+     * 二开新增（P1，2026-11-05，调研报告）：文档解析降级链（langchain4j → MinerU sidecar）。
+     * adi.parse.enabled=false（默认）时退化为旧版单层 langchain4j 解析，行为完全一致。
+     */
+    @Resource
+    private DocumentParseService documentParseService;
+
+    /**
+     * 二开新增（批次 A，2026-11-05）：压缩包解包。adi.parse.archive.enabled=false（默认）
+     * 时不启用，压缩包维持旧行为（saveFile 黑名单拒绝）。
+     */
+    @Resource
+    private ArchiveExtractionService archiveExtractionService;
+
+    /**
+     * 二开新增（P2，2026-11-05）：文档内嵌图片 vision caption（caption-and-index 范式）。
+     * 开关关闭时 caption() 直接返回 null，图片退回通用 alt 文本，不产生任何 LLM 调用。
+     */
+    @Resource
+    private ImageCaptionService imageCaptionService;
 
     public KnowledgeBase saveOrUpdate(KbEditReq kbEditReq) {
         Long editId = resolveEditId(kbEditReq);
@@ -335,33 +359,37 @@ public class KnowledgeBaseService extends ServiceImpl<KnowledgeBaseMapper, Knowl
                         "file=" + (fileName == null ? "qa_import" : fileName));
                 return null;
             }
+            // 压缩包（批次 A，2026-11-05）：adi.parse.archive.enabled=true 时解包为 N 个
+            // 子文件，逐个走既有 uploadDoc 全链路（解析/清洗/caption/切分/向量化自动复用）；
+            // 未开启时落到下方 saveFile 黑名单拒绝（与旧版行为一致）。rar 等未放行格式
+            // 在这里给「明确不支持该压缩格式」而不是笼统的类型不支持。
+            if (archiveExtractionService.isKnownArchiveExt(fileName)) {
+                if (!archiveExtractionService.isEnabled()) {
+                    throw new BaseException(A_PARSE_ARCHIVE_DISABLED);
+                }
+                if (!archiveExtractionService.isAllowedArchiveExt(fileName)) {
+                    throw new BaseException(A_UPLOAD_FAIL_BY_, fileName + " - 暂不支持该压缩格式，支持: "
+                            + archiveExtractionService.cfg().getAllowedExts());
+                }
+                return uploadArchive(knowledgeBase, doc, indexAfterUpload, indexTypes, segmentMode, childMaxChunkSize);
+            }
             AdiFile adiFile = fileService.saveFile(doc, false);
 
-            //解析文档
-            // Parse the document. A scanned / image-only PDF (or a blank txt) gives the parser
-            // nothing to work with and langchain4j throws BlankDocumentException outright — which
-            // used to surface as a bare "upload failed" with no clue. Catch it here and let the
-            // document land as FAILED with a readable reason instead.
-            Document document = null;
-            // blankParse: a parser exists for this type but found no text (scanned PDF, blank txt).
+            //解析文档：降级链（langchain4j → MinerU sidecar → 下方 OCR 兜底）
+            // Parse via the fallback chain. A scanned / image-only PDF (or a blank txt) gives
+            // langchain4j nothing to work with — that lands here as blank text and the chain
+            // escalates: MinerU sidecar first (when enabled), then the OCR fallback below.
+            // With adi.parse.enabled=false (default) the chain reduces to the old single-pass
+            // langchain4j behaviour; the blank/unsupported semantics below are unchanged.
+            ParseResult parseResult = documentParseService.parse(adiFile);
             // unsupportedType: no parser handles this type at all (images, archives, ...).
-            boolean blankParse = false;
-            boolean unsupportedType = false;
-            try {
-                document = FileOperatorContext.loadDocument(adiFile);
-            } catch (BlankDocumentException e) {
-                log.warn("Parser found no text in uploaded file {} ({})", fileName, adiFile.getExt());
-                blankParse = true;
-            }
-            if (null == document && !blankParse) {
-                unsupportedType = true;
-            }
+            boolean unsupportedType = parseResult.isUnsupported();
+            List<ParseResult.ExtractedImage> parsedImages = parseResult.getImages();
 //Create knowledge base item
             //创建知识库条目
             String uuid = UuidUtil.createShort();
-//PostgreSQL does not support \u0000
-            //postgresql不支持\u0000
-            String content = null == document ? "" : document.text().replace("\u0000", "");
+//PostgreSQL does not support \u0000 — already stripped inside the parse chain
+            String content = parseResult.textOrEmpty();
             // Scanned / image-only PDFs (and screenshots, which no parser handles at all) carry no
             // text layer. Uploading one used to be a silent trap: the document was stored, an index
             // task ran and reported success, yet nothing was ever retrievable and nothing told the
@@ -377,6 +405,13 @@ public class KnowledgeBaseService extends ServiceImpl<KnowledgeBaseMapper, Knowl
                     unsupportedType = false;
                     log.info("OCR recovered {} chars from file {} ({})", content.length(), fileName, adiFile.getExt());
                 }
+            }
+            // P2 图片入库（caption-and-index）：MinerU 返回的内嵌图片落盘，并把 markdown 里的
+            // 图片占位符改写为 ![caption](/file/uuid.ext)。images 非空即代表 sidecar 参与了
+            // 解析（开关默认关，关时恒为空列表，此处不会触发）。best-effort：单图失败只降级
+            // 该图的 alt 文本，绝不影响文档本身入库。
+            if (CollectionUtils.isNotEmpty(parsedImages)) {
+                content = ingestParsedImages(adiFile, fileName, parsedImages, content);
             }
             // Types nobody can parse (images with OCR off, archives that slipped past the upload
             // blacklist, unknown extensions) used to be dropped here: one warn line, no document
@@ -447,6 +482,129 @@ public class KnowledgeBaseService extends ServiceImpl<KnowledgeBaseMapper, Knowl
             log.error("upload error", e);
             throw new BaseException(A_UPLOAD_FAIL);
         }
+    }
+
+    /**
+     * 压缩包上传（二开批次 A，2026-11-05）：解包 → 每个条目递归走完整 uploadDoc 链路。
+     * <ul>
+     *   <li>子文档标题带包内路径前缀（如 {@code report-v2/第三章.pdf}），便于溯源与去重；
+     *       落盘路径恒为 uuid，包内路径永不参与磁盘路径（Zip Slip 消毒在解包服务内）；</li>
+     *   <li>部分失败不整包回滚：成功的照常入库+向量化，失败清单聚合进错误信息
+     *       （与 {@link #uploadDocs} 的批量报告同一口径）；</li>
+     *   <li>空包/全不可解析包 → 明确报错，绝不静默；</li>
+     *   <li>嵌套压缩包是否展开由 adi.parse.archive.max-depth 控制（默认只开一层）。</li>
+     * </ul>
+     */
+    private AdiFile uploadArchive(KnowledgeBase knowledgeBase, MultipartFile doc, Boolean indexAfterUpload,
+                                  List<String> indexTypes, SegmentModeEnum segmentMode, Integer childMaxChunkSize) {
+        String fileName = doc.getOriginalFilename();
+        byte[] bytes;
+        try {
+            bytes = doc.getBytes();
+        } catch (IOException e) {
+            log.error("uploadArchive read bytes failed, file:{}", fileName, e);
+            throw new BaseException(A_UPLOAD_FAIL);
+        }
+        ArchiveExtractionService.ArchiveExtractResult extracted =
+                archiveExtractionService.extract(fileName, bytes, 1);
+        if (extracted.entries().isEmpty()) {
+            if (!extracted.failures().isEmpty()) {
+                throw new BaseException(A_UPLOAD_FAIL_BY_, fileName + " - " + String.join("；", extracted.failures()));
+            }
+            throw new BaseException(A_ARCHIVE_EMPTY);
+        }
+        List<String> failures = new ArrayList<>(extracted.failures());
+        AdiFile firstFile = null;
+        int succeeded = 0;
+        for (ArchiveExtractionService.ExtractedEntry entry : extracted.entries()) {
+            try {
+                MultipartFile entryFile = new ArchiveExtractionService.EntryMultipartFile(entry.path(), entry.data());
+                AdiFile f = uploadDoc(knowledgeBase, entryFile, indexAfterUpload, indexTypes, segmentMode, childMaxChunkSize);
+                if (null == firstFile) {
+                    firstFile = f;
+                }
+                succeeded++;
+            } catch (BaseException e) {
+                log.warn("uploadArchive entry rejected, archive:{}, entry:{}, reason:{}", fileName, entry.path(), e.getInfo());
+                failures.add(entry.path() + " - " + e.getInfo());
+            } catch (Exception e) {
+                log.warn("uploadArchive entry failed, archive:{}, entry:{}", fileName, entry.path(), e);
+                failures.add(entry.path() + " - " + SpringUtil.getMessage(A_UPLOAD_FAIL.getInfo()));
+            }
+        }
+        log.info("Archive uploaded, file:{}, entries:{}, succeeded:{}, failures:{}",
+                fileName, extracted.entries().size(), succeeded, failures.size());
+        if (!failures.isEmpty()) {
+            // 与 uploadDocs 同一口径：成功条目已入库，失败条目显式列明，绝不静默
+            throw new BaseException(A_UPLOAD_FAIL_BY_, fileName + "（成功 " + succeeded + " 个）: "
+                    + String.join("；", failures));
+        }
+        return firstFile;
+    }
+
+    /**
+     * 二开新增（P2，2026-11-05，调研报告 caption-and-index 范式）：文档内嵌图片入库。
+     * <ol>
+     *   <li>每张图经 sha256 去重落盘（{@link FileService#saveImageBytes}），可被多文档复用；</li>
+     *   <li>{@code adi.parse.image-caption-enabled=true} 时用 vision 模型生成「结论式描述」
+     *       作为 markdown alt 文本，使图文一起向量化、检索可命中图表所在段落；</li>
+     *   <li>把解析文本里的 {@code ![](引用名)} 占位符改写为 {@code ![caption](/file/uuid.ext)}，
+     *       前端展示段落时可携带原图链接。</li>
+     * </ol>
+     * best-effort：任何单图失败（落盘异常、caption 失败、占位符没匹配上）只影响该图，
+     * 返回的文本始终可用——绝不让图片处理阻断文档上传。
+     *
+     * @return 改写图片占位符后的文本（可能与入参相同）
+     */
+    private String ingestParsedImages(AdiFile sourceFile, String fileName,
+                                      List<ParseResult.ExtractedImage> images, String content) {
+        User user = null;
+        try {
+            user = ThreadContext.getCurrentUser();
+        } catch (Exception e) {
+            // 无用户上下文（系统导入等）时跳过 caption，图片仍以通用 alt 入库
+            log.warn("No user context for image caption, doc:{}, {}", fileName, e.getMessage());
+        }
+        String genericAlt = "文档图片";
+        for (ParseResult.ExtractedImage image : images) {
+            try {
+                AdiFile imageFile = fileService.saveImageBytes(image.fileName(), image.data());
+                if (null == imageFile) {
+                    continue;
+                }
+                String alt = genericAlt;
+                if (null != user) {
+                    String caption = imageCaptionService.caption(user, imageFile);
+                    if (StringUtils.isNotBlank(caption)) {
+                        alt = caption;
+                    }
+                }
+                String markdown = "![" + alt + "](" + FileOperatorContext.getFileUrl(imageFile) + ")";
+                // 引用名可能带目录前缀（images/xxx.jpg），refKey 与去前缀的 baseName 都试一遍
+                content = replaceImagePlaceholder(content, image.refKey(), markdown);
+                content = replaceImagePlaceholder(content, image.fileName(), markdown);
+                log.info("KB doc image ingested, doc:{}, ref:{}, fileId:{}, sourceUuid:{}",
+                        fileName, image.refKey(), imageFile.getUuid(),
+                        null == sourceFile ? "" : sourceFile.getUuid());
+            } catch (Exception e) {
+                log.warn("KB doc image ingest failed, doc:{}, ref:{}, {}",
+                        fileName, image.refKey(), e.getMessage());
+            }
+        }
+        return content;
+    }
+
+    /**
+     * 把 {@code ![](引用名)} 形式的空 alt 图片占位符改写为带 caption 与可访问 URL 的 markdown。
+     * 只做字面替换（String.replace，非正则），只匹配 alt 恰好为空的占位符，
+     * 不会误伤正文里恰好同名的普通文本；没匹配上则原样返回（占位符留在文本里无害，
+     * 向量化后只是普通 token）。同一引用名出现多次时全部替换。
+     */
+    private String replaceImagePlaceholder(String content, String refKey, String markdown) {
+        if (StringUtils.isBlank(content) || StringUtils.isBlank(refKey)) {
+            return content;
+        }
+        return content.replace("![](" + refKey + ")", markdown);
     }
 
     /**

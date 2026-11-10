@@ -430,6 +430,7 @@
   const splitStrategyOpts = [
     { label: t('knowledgeBase.splitStrategyRecursive'), value: 'recursive' },
     { label: t('knowledgeBase.splitStrategySentenceCn'), value: 'sentence_cn' },
+    { label: t('knowledgeBase.splitStrategyMarkdown'), value: 'markdown' },
     { label: t('knowledgeBase.splitStrategyParagraph'), value: 'paragraph' },
     { label: t('knowledgeBase.splitStrategyLine'), value: 'line' },
     { label: t('knowledgeBase.splitStrategySentence'), value: 'sentence' },

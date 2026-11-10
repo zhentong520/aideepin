@@ -41,6 +41,7 @@ import java.util.Optional;
 import static com.moyz.adi.common.enums.ErrorEnum.A_AI_IMAGE_NO_AUTH;
 import static com.moyz.adi.common.enums.ErrorEnum.A_FILE_NOT_EXIST;
 import static com.moyz.adi.common.enums.ErrorEnum.A_FILE_IN_USE;
+import static com.moyz.adi.common.enums.ErrorEnum.A_UPLOAD_FAIL;
 import static com.moyz.adi.common.enums.ErrorEnum.A_UPLOAD_FILE_TYPE_NOT_ALLOWED;
 import static com.moyz.adi.common.enums.ErrorEnum.A_UPLOAD_IMAGE_TYPE_NOT_ALLOWED;
 
@@ -122,6 +123,53 @@ public class FileService extends ServiceImpl<FileMapper, AdiFile> {
         adiFile.setSha256(sha256);
         adiFile.setPath(originalFile.getLeft());
         adiFile.setExt(originalFile.getRight());
+        adiFile.setUserId(ThreadContext.getCurrentUserId());
+        adiFile.setStorageLocation(FileOperatorContext.getStorageLocation());
+        this.getBaseMapper().insert(adiFile);
+        return adiFile;
+    }
+
+    /**
+     * 二开新增（2026-11-05）：解析层（MinerU sidecar）产出的文档内嵌图片入库。
+     * 与 saveFile 同一套去重语义（sha256 命中且物理文件存在则直接复用记录）。
+     * 失败直接抛出，由调用方决定跳过单张图片还是放弃整份文档。
+     *
+     * @param fileName 展示名（需带扩展名，如 figure-1.png）
+     * @param bytes    图片字节
+     */
+    public AdiFile saveImageBytes(String fileName, byte[] bytes) {
+        if (null == bytes || bytes.length == 0) {
+            throw new BaseException(A_UPLOAD_FAIL);
+        }
+        String sha256 = HashUtil.sha256(bytes);
+        Optional<AdiFile> existFile = this.lambdaQuery()
+                .eq(AdiFile::getSha256, sha256)
+                .eq(AdiFile::getIsDeleted, false)
+                .last("limit 1")
+                .oneOpt();
+        if (existFile.isPresent()) {
+            AdiFile adiFile = existFile.get();
+            boolean exist = FileOperatorContext.checkIfExist(adiFile);
+            if (exist) {
+                return adiFile;
+            }
+            log.warn("Image not found, deleting record for regeneration, fileId:{}, uuid:{}, sha256:{}",
+                    adiFile.getId(), adiFile.getUuid(), adiFile.getSha256());
+            this.lambdaUpdate().eq(AdiFile::getId, adiFile.getId()).set(AdiFile::getIsDeleted, true).update();
+        }
+        String uuid = UuidUtil.createShort();
+        // LocalFileUtil.saveToLocal(byte[]) 的文件名参数必须自带扩展名（ext 由它推导）
+        String ext = com.moyz.adi.common.file.LocalFileUtil.getFileExtension(StringUtils.defaultString(fileName));
+        if (StringUtils.isBlank(ext) || !AdiConstant.IMAGE_EXTENSIONS.contains(ext)) {
+            ext = "png";
+        }
+        Pair<String, String> saved = new FileOperatorContext().save(bytes, true, uuid + "." + ext);
+        AdiFile adiFile = new AdiFile();
+        adiFile.setName(fileName);
+        adiFile.setUuid(uuid);
+        adiFile.setSha256(sha256);
+        adiFile.setPath(saved.getLeft());
+        adiFile.setExt(saved.getRight());
         adiFile.setUserId(ThreadContext.getCurrentUserId());
         adiFile.setStorageLocation(FileOperatorContext.getStorageLocation());
         this.getBaseMapper().insert(adiFile);

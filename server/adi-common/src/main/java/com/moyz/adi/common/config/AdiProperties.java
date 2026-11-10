@@ -15,6 +15,7 @@ import com.moyz.adi.common.config.props.Llm;
 import com.moyz.adi.common.config.props.Mail;
 import com.moyz.adi.common.config.props.Memory;
 import com.moyz.adi.common.config.props.Ocr;
+import com.moyz.adi.common.config.props.Parse;
 import com.moyz.adi.common.config.props.Proxy;
 import com.moyz.adi.common.config.props.Rag;
 import com.moyz.adi.common.config.props.Register;
@@ -99,6 +100,12 @@ public class AdiProperties {
      */
     @Valid
     private Ocr ocr = new Ocr();
+
+    /**
+     * 二开新增（2026-11-05）：文档解析 sidecar（MinerU）配置。降级链 langchain4j → sidecar → OCR。
+     */
+    @Valid
+    private Parse parse = new Parse();
 
     /**
      * 入库（解析 / 清洗 / 切分）相关配置 | Ingest (parse / clean / split) settings.

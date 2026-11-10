@@ -38,10 +38,10 @@ const props = defineProps<{
   docUuid: string
   segmentMode?: string
   kbConfig?: {
-    strategy?: string
-    maxSegmentSize?: number
-    overlap?: number
-    separator?: string
+    strategy?: string | null
+    maxSegmentSize?: number | null
+    overlap?: number | null
+    separator?: string | null
     childMaxChunkSize?: number | null
   }
 }>()

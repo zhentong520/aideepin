@@ -32,16 +32,18 @@ public class HashUtil {
     }
 
     public static String sha256(String str) {
+        return sha256(str.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * 二开新增（2026-11-05）：字节数组 sha256，供解析出的文档内嵌图片入库去重使用。
+     */
+    public static String sha256(byte[] data) {
         try {
             MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
-            byte[] hash = sha256.digest(str.getBytes(StandardCharsets.UTF_8));
-            // 将哈希值转换为十六进制字符串
-            return getHashStr(hash);
+            return getHashStr(sha256.digest(data));
         } catch (NoSuchAlgorithmException e) {
-            log.error("Calculate string sha256 NoSuchAlgorithmException", e);
-            throw new BaseException(ErrorEnum.B_SERVER_EXCEPTION);
-        } catch (Exception e) {
-            log.error("Calculate string sha256 error", e);
+            log.error("Calculate byte[] sha256 NoSuchAlgorithmException", e);
             throw new BaseException(ErrorEnum.B_SERVER_EXCEPTION);
         }
     }

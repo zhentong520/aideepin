@@ -28,7 +28,9 @@ export function useDocUpload(options: {
 
   // 上传白名单：与后端解析能力对齐（txt / md / markdown / pdf / Office）。图片只有开启 OCR 时才
   // 能入库，没开 OCR 时服务端会明确报错，而不是像以前那样静默丢掉。
-  const DOC_FILE_ACCEPT = '.txt,.md,.markdown,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.png,.jpg,.jpeg,.bmp,.webp'
+  // 压缩包（zip/tar/gz/bz2/7z）：服务端 adi.parse.archive.enabled 开启时自动解包逐个入库，
+  // 未开启时服务端会明确报「未开启压缩包上传」；accept 只是文件选择器提示，最终以后端为准。
+  const DOC_FILE_ACCEPT = '.txt,.md,.markdown,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.png,.jpg,.jpeg,.bmp,.webp,.zip,.tar,.gz,.bz2,.7z'
 
   // Upload-modal segment mode: in qa mode files are parsed as Q&A pair data (Dify format),
   // one Q&A document per file, vectorized immediately

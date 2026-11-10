@@ -60,7 +60,7 @@ public class RagStaticConfigInitializer {
         KbAclFilterBuilder.initConfig(adiProperties, knowledgeBaseService);
         AdiEmbeddingStoreContentRetriever.initStatics(adiProperties, ragQueryLogService);
         CompositeRag.initStatics(sseManager);
-        EmbeddingRag.initStatics(knowledgeBaseService, segmentExpandProcessor);
+        EmbeddingRag.initStatics(knowledgeBaseService, segmentExpandProcessor, adiProperties);
         GraphRag.initStatics(quotaHelper, userDayCostService, llmCallRecordService);
         GraphStoreIngestor.initStatics(documentGraphProvenanceService);
         log.info("Rag static config pushed: kbAclEnabled={}", KbAclFilterBuilder.enabled());

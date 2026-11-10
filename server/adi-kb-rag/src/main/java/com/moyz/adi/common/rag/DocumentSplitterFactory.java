@@ -61,6 +61,7 @@ public class DocumentSplitterFactory {
             case SENTENCE -> new DocumentBySentenceSplitter(maxSegmentSize, overlap, estimator);
             case CUSTOM -> new CustomSeparatorSplitter(maxSegmentSize, overlap, customSeparator, estimator);
             case SENTENCE_CN -> new CjkSentenceSplitter(maxSegmentSize, overlap, estimator);
+            case MARKDOWN -> new MarkdownHeadingSplitter(maxSegmentSize, overlap, estimator);
             default -> DocumentSplitters.recursive(maxSegmentSize, overlap, estimator);
         };
     }
@@ -191,7 +192,7 @@ public class DocumentSplitterFactory {
         }
         String normalized = strategy.trim().toLowerCase(java.util.Locale.ROOT);
         return switch (normalized) {
-            case PARAGRAPH, LINE, SENTENCE, CUSTOM, SENTENCE_CN, RECURSIVE -> normalized;
+            case PARAGRAPH, LINE, SENTENCE, CUSTOM, SENTENCE_CN, MARKDOWN, RECURSIVE -> normalized;
             default -> {
                 log.warn("Unknown split strategy '{}', falling back to recursive", strategy);
                 yield RECURSIVE;

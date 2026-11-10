@@ -267,6 +267,10 @@ import { useKbSegments } from './composables/useKbSegments'
 import { useKbDocuments } from './composables/useKbDocuments'
 import { useKbAuditShare } from './composables/useKbAuditShare'
 import { useKbUpload } from './composables/useKbUpload'
+// 模板内使用的局部组件必须显式引入：unplugin-vue-components 只扫 src/components，
+// views 下的局部组件不会被自动注册（T5-06 死代码清理曾误删这两行导致抽屉空白/图标不渲染）。
+import DocContentPreview from './components/DocContentPreview.vue'
+import { ArchiveOutline } from '@vicons/ionicons5'
 
 const route = useRoute()
 const router = useRouter()

@@ -18,7 +18,7 @@ export function useKbUpload({ kbUuid, userToken, onUploadSuccess }: UseKbUploadO
   const showUploadModal = ref(false)
 
   // 上传白名单：与后端解析能力对齐（txt/md/pdf/Office；图片需开启 OCR）
-  const DOC_FILE_ACCEPT = '.txt,.md,.markdown,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.png,.jpg,.jpeg,.bmp,.webp'
+  const DOC_FILE_ACCEPT = '.txt,.md,.markdown,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.png,.jpg,.jpeg,.bmp,.webp,.zip,.tar,.gz,.bz2,.7z'
   const uploadSegmentMode = ref<string>('text')
   const uploadChildMaxChunkSize = ref<number | null>(200)
   const segmentModeOptions = [

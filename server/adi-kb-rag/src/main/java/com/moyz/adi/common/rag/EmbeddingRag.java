@@ -1,6 +1,8 @@
 package com.moyz.adi.common.rag;
 
 import com.moyz.adi.common.constant.AdiConstant;
+import com.moyz.adi.common.config.AdiProperties;
+import com.moyz.adi.common.constant.KbRagConstant;
 import com.moyz.adi.common.entity.KnowledgeBase;
 import com.moyz.adi.common.interfaces.IRAGService;
 import com.moyz.adi.common.service.KnowledgeBaseService;
@@ -33,10 +35,15 @@ public class EmbeddingRag implements IRAGService {
     /** 启动期推送（同上）：召回后置处理器（原懒加载 getBean 的替代） */
     private static volatile RetrievedContentProcessor staticSegmentExpandProcessor;
 
+    /** 启动期推送（同上）：全局配置——ingest 自动升级 Markdown 切分须以 adi.parse.enabled 为总开关 */
+    private static volatile AdiProperties staticAdiProperties;
+
     /** RagStaticConfigInitializer 启动期调用 */
-    public static void initStatics(KnowledgeBaseService kbService, RetrievedContentProcessor segmentExpandProcessor) {
+    public static void initStatics(KnowledgeBaseService kbService, RetrievedContentProcessor segmentExpandProcessor,
+                                   AdiProperties adiProperties) {
         staticKbService = kbService;
         staticSegmentExpandProcessor = segmentExpandProcessor;
+        staticAdiProperties = adiProperties;
     }
 
     /**
@@ -78,15 +85,35 @@ public class EmbeddingRag implements IRAGService {
     public void ingest(Document document, EmbeddingIngestParam params) {
         log.info("EmbeddingRag ingest, strategy:{}, maxSegmentSize:{}, TokenCountEstimator:{}",
                 params.getStrategy(), params.getMaxSegmentSize(), params.getTokenEstimator());
-        DocumentSplitter documentSplitter = DocumentSplitterFactory.create(
-                params.getStrategy(), params.getMaxSegmentSize(), params.getOverlap(),
-                params.getCustomSeparator(), TokenEstimatorFactory.create(params.getTokenEstimator()));
+        DocumentSplitter documentSplitter = resolveSplitter(document, params);
         EmbeddingStoreIngestor embeddingStoreIngestor = EmbeddingStoreIngestor.builder()
                 .documentSplitter(documentSplitter)
                 .embeddingModel(embeddingModel)
                 .embeddingStore(embeddingStore)
                 .build();
         embeddingStoreIngestor.ingest(document);
+    }
+
+    /**
+     * 解析升级配套（2026-11-05）：解析链开启（adi.parse.enabled）时，MinerU 输出的是带标题层级的
+     * Markdown；知识库若仍停在默认 recursive 策略，会把整个章节拦腰截断。此处对「recursive 默认策略
+     * + 正文含 ≥2 个 Markdown 标题」的文档自动升级为 MarkdownHeadingSplitter（标题边界切节 + 祖先
+     * 标题路径前缀），用户显式选了其他策略时不干预。总开关关闭时恒走原逻辑，行为与旧版一致。
+     */
+    private DocumentSplitter resolveSplitter(Document document, EmbeddingIngestParam params) {
+        AdiProperties props = staticAdiProperties;
+        boolean parseEnabled = null != props && null != props.getParse() && props.getParse().isEnabled();
+        if (parseEnabled
+                && (StringUtils.isBlank(params.getStrategy()) || KbRagConstant.SplitStrategy.RECURSIVE.equals(params.getStrategy()))
+                && MarkdownHeadingSplitter.countHeadings(document.text()) >= 2) {
+            int size = DocumentSplitterFactory.resolveSegmentSize(params.getMaxSegmentSize());
+            int overlap = DocumentSplitterFactory.resolveOverlap(size, params.getOverlap());
+            log.info("Markdown headings detected and parse chain enabled, auto-upgrade to markdown splitting, size:{}, overlap:{}", size, overlap);
+            return new MarkdownHeadingSplitter(size, overlap, TokenEstimatorFactory.create(params.getTokenEstimator()));
+        }
+        return DocumentSplitterFactory.create(
+                params.getStrategy(), params.getMaxSegmentSize(), params.getOverlap(),
+                params.getCustomSeparator(), TokenEstimatorFactory.create(params.getTokenEstimator()));
     }
 
     /**
