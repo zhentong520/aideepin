@@ -64,6 +64,20 @@ function workflowRuntimeResume<T>(params: {
   })
 }
 
+// M1 业务编排：对话触发的运行在执行中可被当前用户中止（仅 READY/DOING/WAITING_INPUT 可迁到 FAIL）
+function workflowRuntimeCancel<T>(runtimeUuid: string) {
+  return post<T>({
+    url: `/workflow/runtime/cancel/${runtimeUuid}`,
+  })
+}
+
+// M1 业务编排：单个运行详情（含状态/输出/指标），对话页工作流卡片轮询用
+function workflowRuntimeInfo<T>(runtimeUuid: string) {
+  return get<T>({
+    url: `/workflow/runtime/info/${runtimeUuid}`,
+  })
+}
+
 function workflowComponents<T>() {
   return get<T>({
     url: '/workflow/public/component/list',
@@ -218,6 +232,8 @@ export default {
   workflowOperators,
   workflowRuntimeDelete,
   workflowRuntimeResume,
+  workflowRuntimeCancel,
+  workflowRuntimeInfo,
   workflowAvailableVars,
   workflowValidateTemplate,
   workflowExport,

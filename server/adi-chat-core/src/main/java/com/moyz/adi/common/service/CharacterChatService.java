@@ -6,6 +6,7 @@ import com.moyz.adi.common.dto.AskReq;
 import com.moyz.adi.common.dto.KbInfoResp;
 import com.moyz.adi.common.dto.RefEmbeddingDto;
 import com.moyz.adi.common.dto.RefGraphDto;
+import com.moyz.adi.common.interfaces.WorkflowToolSpi;
 import com.moyz.adi.common.entity.KbDocument;
 import com.moyz.adi.common.entity.AdiFile;
 import com.moyz.adi.common.entity.AgentTraceSpan;
@@ -28,6 +29,7 @@ import com.moyz.adi.common.helper.SseManager;
 import com.moyz.adi.common.languagemodel.AbstractLLMService;
 import com.moyz.adi.common.languagemodel.data.LLMResponseContent;
 import com.moyz.adi.common.memory.longterm.LongTermMemoryService;
+import com.moyz.adi.common.memory.longterm.UserProfileService;
 import com.moyz.adi.common.memory.shortterm.AdiChatMemoryStore;
 import com.moyz.adi.common.memory.shortterm.ChatMemoryStores;
 import com.moyz.adi.common.memory.vo.MemoryAddParam;
@@ -88,6 +90,13 @@ public class CharacterChatService {
     @Resource
     private CharacterMessageService characterMessageService;
 
+    /**
+     * 业务编排 Harness M1（2026-10-30）：场景绑定工作流触发工具，aiAnswer 保存后兜底回填
+     * wf_runtime_uuid（实现在 adi-workflow，此处只依赖 adi-common 接口）。
+     */
+    @Resource
+    private WorkflowToolSpi workflowToolService;
+
     @Resource
     private AgentService agentService;
 
@@ -108,6 +117,9 @@ public class CharacterChatService {
 
     @Resource
     private LongTermMemoryService longTermMemoryService;
+
+    @Resource
+    private UserProfileService userProfileService;
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
@@ -370,6 +382,20 @@ public class CharacterChatService {
                 ? user.getLocale()
                 : Objects.toString(SysConfigService.getByKey(AdiConstant.SysConfigKey.DEFAULT_LOCALE), "zh-CN");
         Pair<String, String> memoryAndKnowledge = CharacterChatHelper.buildMemoryAndKnowledge(retrieverWrappers);
+        String memoryText = memoryAndKnowledge.getLeft();
+        // P0-1（2026-11-03）：注入结构化用户画像——纯 SQL 读取（零 embedding、零向量检索），
+        // 「用户是做什么的」类稳定属性问题直接命中画像字段。放在记忆段最前：
+        // 位置越靠前模型越信任，且画像行数极少（<300 字符）不挤占 P0-3 注入预算。
+        // 开关关闭或无画像时保持历史行为。
+        String profileText = userProfileService.getProfileText(user.getId());
+        if (StringUtils.isNotBlank(profileText)) {
+            String noneMarker = "None\n";
+            if (noneMarker.equals(memoryText)) {
+                memoryText = "";
+            }
+            memoryText = "[User profile]\n" + profileText + "\n" + memoryText;
+        }
+        memoryAndKnowledge = Pair.of(memoryText, memoryAndKnowledge.getRight());
         String audioExtra = answerToAudio ? (effectiveLocale.startsWith("zh") ? PROMPT_EXTRA_AUDIO : PROMPT_EXTRA_AUDIO_EN) : "";
         String processedPrompt = PromptUtil.createPrompt(askReq.getPrompt(), memoryAndKnowledge.getLeft(), memoryAndKnowledge.getRight(), audioExtra, effectiveLocale);
         if (!Objects.equals(askReq.getPrompt(), processedPrompt)) {
@@ -390,7 +416,7 @@ public class CharacterChatService {
             sseAskParam.setVoice(character.getAudioConfig().getVoice().getParamName());
         }
 
-        ChatModelRequest chatRequestParams = CharacterChatHelper.buildChatRequestParams(character, askReq.getProcessedPrompt() != null ? askReq.getProcessedPrompt() : askReq.getPrompt(), user, llmService, true, Boolean.TRUE.equals(character.getIsEnableWebSearch()), askReq.getImageUrls());
+        ChatModelRequest chatRequestParams = CharacterChatHelper.buildChatRequestParams(character, askReq.getProcessedPrompt() != null ? askReq.getProcessedPrompt() : askReq.getPrompt(), user, llmService, true, Boolean.TRUE.equals(character.getIsEnableWebSearch()), askReq.getImageUrls(), askReq.getSceneUuid(), questionUuid);
         sseAskParam.setHttpRequestParams(chatRequestParams);
 
         sseAskParam.setModelProperties(
@@ -455,7 +481,25 @@ public class CharacterChatService {
                 answerMeta.setIsRefGraph(isRefGraph);
                 answerMeta.setIsRefMemoryEmbedding(isRefMemoryEmbedding);
                 answerMeta.setRefs(kbRefs);
-                sseManager.sendComplete(user.getId(), sseUuid, questionMeta, answerMeta, audioInfo);
+                // 业务编排 Harness M1（2026-10-30）：场景对话若在流式期间经 wf_ 工具触发了工作流，
+                // question 消息已被 backfillMessageLink 写入 wf_runtime_uuid——随 [META] 下发，
+                // 前端在本会话内即时渲染工作流卡片。仅场景对话多一次按 uuid 查询，普通聊天零开销。
+                String wfRuntimeUuid = null;
+                if (StringUtils.isNotBlank(askReq.getSceneUuid())) {
+                    try {
+                        CharacterMessage questionMsg = characterMessageService.lambdaQuery()
+                                .eq(CharacterMessage::getUuid, questionUuid)
+                                .eq(CharacterMessage::getIsDeleted, false)
+                                .last("limit 1")
+                                .one();
+                        if (null != questionMsg) {
+                            wfRuntimeUuid = questionMsg.getWfRuntimeUuid();
+                        }
+                    } catch (Exception e) {
+                        log.warn("resolve question wfRuntimeUuid failed, questionUuid:{}", questionUuid, e);
+                    }
+                }
+                sseManager.sendComplete(user.getId(), sseUuid, questionMeta, answerMeta, audioInfo, wfRuntimeUuid);
                 self.saveAfterAiResponse(user, askReq, retrieverWrappers, response, questionMeta, answerMeta, audioInfo);
             });
         } catch (Exception e) {
@@ -606,6 +650,18 @@ public class CharacterChatService {
         int answerContentType = getAnswerContentType(character, askReq);
         aiAnswer.setContentType(answerContentType);
         characterMessageService.save(aiAnswer);
+
+        //业务编排 Harness M1（2026-10-30）：兜底回填 wf_runtime_uuid。工具回调线程执行
+        //launch_workflow 时消息尚未落库，回调期回填通常影响 0 行；本方法在 aiAnswer 保存后
+        //按 conversation_uuid + message_uuid 反查 runtime 表补齐。回填失败只记日志不影响主流程。
+        if (StringUtils.isNotBlank(askReq.getSceneUuid())) {
+            try {
+                workflowToolService.backfillMessageLink(characterUuid, questionMeta.getUuid());
+            } catch (Exception e) {
+                log.warn("backfill wf_runtime_uuid failed, characterUuid:{}, questionUuid:{}",
+                        characterUuid, questionMeta.getUuid(), e);
+            }
+        }
 
         //Aggregate token usage across all LLM calls in this request (streaming chat may
         //recurse through multiple tool calls, each cached under the same uuid in Redis).

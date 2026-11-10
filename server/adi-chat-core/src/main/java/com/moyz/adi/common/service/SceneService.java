@@ -7,6 +7,7 @@ import com.moyz.adi.common.entity.Agent;
 import com.moyz.adi.common.entity.Character;
 import com.moyz.adi.common.entity.Scene;
 import com.moyz.adi.common.entity.SceneAgent;
+import com.moyz.adi.common.entity.SceneWorkflow;
 import com.moyz.adi.common.entity.UserAgentConv;
 import com.moyz.adi.common.enums.ErrorEnum;
 import com.moyz.adi.common.exception.BaseException;
@@ -14,6 +15,7 @@ import com.moyz.adi.common.mapper.AgentMapper;
 import com.moyz.adi.common.mapper.CharacterMapper;
 import com.moyz.adi.common.mapper.SceneAgentMapper;
 import com.moyz.adi.common.mapper.SceneMapper;
+import com.moyz.adi.common.mapper.SceneWorkflowMapper;
 import com.moyz.adi.common.mapper.UserAgentConvMapper;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +49,9 @@ public class SceneService extends ServiceImpl<SceneMapper, Scene> {
 
     @Resource
     private SceneAgentMapper sceneAgentMapper;
+
+    @Resource
+    private SceneWorkflowMapper sceneWorkflowMapper;
 
     @Resource
     private UserAgentConvMapper userAgentConvMapper;
@@ -194,6 +199,11 @@ public class SceneService extends ServiceImpl<SceneMapper, Scene> {
      */
     @Transactional(rollbackFor = Exception.class)
     public void bindAgents(String sceneUuid, List<String> agentUuids) {
+        //去重保序：同一请求内重复 uuid 规约为一次绑定——否则第二个重复项走 insert 分支撞
+        //场景-Agent 绑定唯一约束，整个事务回滚且用户只看到「全局异常」（同 bindWorkflows）
+        if (null != agentUuids) {
+            agentUuids = agentUuids.stream().distinct().collect(java.util.stream.Collectors.toList());
+        }
         //Existence check only: scenes and agents are globally shared, so the old
         //"agent must belong to the scene owner" rule no longer applies (and would make it
         //impossible to bind an agent created by a different admin account).
@@ -241,6 +251,69 @@ public class SceneService extends ServiceImpl<SceneMapper, Scene> {
             if (!Boolean.TRUE.equals(stale.getIsDeleted())) {
                 stale.setIsDeleted(true);
                 sceneAgentMapper.updateById(stale);
+            }
+        }
+    }
+
+    /**
+     * 业务编排 Harness M1（2026-10-30）：场景绑定的工作流（启用顺序即 sort）。
+     * Workflows bound to a scene (chat assembly layer uses this to build launch_workflow tools).
+     */
+    public List<SceneWorkflow> listWorkflows(String sceneUuid) {
+        return sceneWorkflowMapper.selectList(new LambdaQueryWrapper<SceneWorkflow>()
+                .eq(SceneWorkflow::getSceneUuid, sceneUuid)
+                .eq(SceneWorkflow::getIsDeleted, false)
+                .orderByAsc(SceneWorkflow::getSort));
+    }
+
+    /**
+     * 业务编排 Harness M1（2026-10-30）：绑定工作流（全量覆盖，同 bindAgents 模式：
+     * 复用既有行软删/恢复，保证幂等与并发安全）。工作流存在性校验由调用方完成
+     * （WorkflowService 在 adi-workflow，本模块不依赖）。
+     * Bind workflows to a scene (full replace, same idempotent upsert as bindAgents).
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void bindWorkflows(String sceneUuid, List<String> workflowUuids) {
+        //去重保序：同一请求内重复 uuid 规约为一次绑定——否则第二个重复项走 insert 分支撞
+        //uk_adi_scene_workflow 唯一约束，整个事务回滚且用户只看到「全局异常」
+        if (null != workflowUuids) {
+            workflowUuids = workflowUuids.stream().distinct().collect(java.util.stream.Collectors.toList());
+        }
+        getByUuid(sceneUuid);
+        Map<String, SceneWorkflow> existing = new HashMap<>();
+        for (SceneWorkflow bind : sceneWorkflowMapper.selectList(new LambdaQueryWrapper<SceneWorkflow>()
+                .eq(SceneWorkflow::getSceneUuid, sceneUuid))) {
+            existing.put(bind.getWorkflowUuid(), bind);
+        }
+        if (null != workflowUuids && !workflowUuids.isEmpty()) {
+            int sort = 0;
+            for (String workflowUuid : workflowUuids) {
+                if (StringUtils.isBlank(workflowUuid)) {
+                    continue;
+                }
+                SceneWorkflow bind = existing.remove(workflowUuid);
+                if (null == bind) {
+                    bind = new SceneWorkflow();
+                    bind.setUuid(UUID.randomUUID().toString().replace("-", ""));
+                    bind.setSceneUuid(sceneUuid);
+                    bind.setWorkflowUuid(workflowUuid);
+                    bind.setSort(sort++);
+                    bind.setIsDeleted(false);
+                    sceneWorkflowMapper.insert(bind);
+                } else if (Boolean.TRUE.equals(bind.getIsDeleted()) || !Objects.equals(bind.getSort(), sort)) {
+                    bind.setIsDeleted(false);
+                    bind.setSort(sort);
+                    sort++;
+                    sceneWorkflowMapper.updateById(bind);
+                } else {
+                    sort++;
+                }
+            }
+        }
+        for (SceneWorkflow stale : existing.values()) {
+            if (!Boolean.TRUE.equals(stale.getIsDeleted())) {
+                stale.setIsDeleted(true);
+                sceneWorkflowMapper.updateById(stale);
             }
         }
     }

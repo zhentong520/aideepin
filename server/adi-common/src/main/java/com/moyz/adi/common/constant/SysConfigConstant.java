@@ -105,5 +105,16 @@ public interface SysConfigConstant {
          * always aborts the workflow (legacy fail-fast behavior).
          */
         public static final String WF_ERROR_BRANCH_ENABLED = "wf_error_branch_enabled";
+
+        /**
+         * 业务编排 Harness M1（灰度开关）：对话中「launch_workflow」工具总开关，缺省关。
+         * 关闭时对话装配层完全不注入工作流工具（不进 manifest、不进 toolSpecifications），
+         * 行为与上线前完全一致；灰度时按 sys_config 热启停。
+         * <p>
+         * Business orchestration harness M1 master switch for the launch_workflow tool
+         * (default OFF). When off, workflow tools are not injected into chat requests at
+         * all — identical to pre-launch behavior.
+         */
+        public static final String WF_LAUNCH_ENABLED = "wf_launch_enabled";
     }
 }

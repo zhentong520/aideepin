@@ -5,7 +5,7 @@ import { useRoute } from 'vue-router'
 import { NButton, NCollapse, NCollapseItem, NIcon, NModal, NTabPane, NTabs, useDialog, useLoadingBar, useMessage } from 'naive-ui'
 import { Cat } from '@vicons/fa'
 import { v4 as uuidv4 } from 'uuid'
-import { AudioMessage, Message } from './components'
+import { AudioMessage, Message, WorkflowCard } from './components'
 import { useScroll } from './hooks/useScroll'
 import { useChat } from './hooks/useChat'
 import { useCopyCode } from './hooks/useCopyCode'
@@ -23,7 +23,7 @@ import { useBasicLayout } from '@/hooks/useBasicLayout'
 import { useAppStore, useAuthStore, useChatStore, useSceneStore } from '@/store'
 import { CHAT_MESSAGE_CONTENT_TYPE } from '@/utils/constant'
 import { getDefaultCharacter } from '@/store/modules/chat/helper'
-import { SvgIcon } from '@/components/common'
+import { SvgIcon, RefSegmentContent } from '@/components/common'
 import api from '@/api'
 import { t } from '@/locales'
 import { debounce } from '@/utils/functions/debounce'
@@ -466,6 +466,9 @@ onDeactivated(() => {
 
               <!-- 用户消息 end -->
 
+              <!-- M1 业务编排：本次提问触发了业务工作流时渲染卡片（3s 轮询运行状态） -->
+              <WorkflowCard v-if="qaMessage.wfRuntimeUuid" :runtime-uuids="qaMessage.wfRuntimeUuid" />
+
               <!-- LLM回复 start -->
               <!-- LLM的多条回复消息 -->
               <template v-if="qaMessage.children.length > 1">
@@ -687,16 +690,23 @@ onDeactivated(() => {
           :name="`refer_${idx}`"
         >
           <!-- 按分段模式展示：qa=命中问题+答案，parent_child=命中子块+父段，text=段文本 -->
+          <!-- 引用正文走 Markdown 渲染（RefSegmentContent）：MinerU 解析的段含图片占位，需图文一起展示 -->
           <div v-if="reference.segmentMode === 'qa'" class="flex flex-col gap-1">
             <div><span style="font-size: 12px; opacity: 0.65;">{{ t('knowledgeBase.refHitQuestion') }}:</span> {{ reference.matchedText }}</div>
-            <div><span style="font-size: 12px; opacity: 0.65;">{{ t('knowledgeBase.qaAnswer') }}:</span> {{ reference.text }}</div>
+            <div>
+              <span style="font-size: 12px; opacity: 0.65;">{{ t('knowledgeBase.qaAnswer') }}:</span>
+              <RefSegmentContent :text="reference.text" />
+            </div>
           </div>
           <div v-else-if="reference.segmentMode === 'parent_child'" class="flex flex-col gap-1">
             <div><span style="font-size: 12px; opacity: 0.65;">{{ t('knowledgeBase.refHitChunk') }}:</span> {{ reference.matchedText }}</div>
-            <div><span style="font-size: 12px; opacity: 0.65;">{{ t('knowledgeBase.refParent') }}:</span> {{ reference.text }}</div>
+            <div>
+              <span style="font-size: 12px; opacity: 0.65;">{{ t('knowledgeBase.refParent') }}:</span>
+              <RefSegmentContent :text="reference.text" />
+            </div>
           </div>
           <template v-else>
-            {{ reference.text }}
+            <RefSegmentContent :text="reference.text" />
           </template>
         </NCollapseItem>
       </NCollapse>

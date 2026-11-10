@@ -136,7 +136,7 @@ export function useChatSse(options: {
         if (chunk.includes('[META]')) {
           const meta = chunk.replace('[META]', '')
           const metaData: Chat.MetaData = JSON.parse(meta)
-          updateMessageSomeFields(characterUuid, question.uuid, { ...metaData.question, inputTokens: metaData.question.inputTokens, loading: false, state: new Map<string, string>() })
+          updateMessageSomeFields(characterUuid, question.uuid, { ...metaData.question, inputTokens: metaData.question.inputTokens, wfRuntimeUuid: metaData.wfRuntimeUuid, loading: false, state: new Map<string, string>() })
           // inputTokens/outputTokens 由 AnswerMeta 直接提供 | inputTokens/outputTokens provided directly by AnswerMeta
           updateMessageSomeFields(characterUuid, answer.uuid, { ...metaData.answer, inputTokens: metaData.answer.inputTokens, outputTokens: metaData.answer.outputTokens, duration: metaData.answer.duration, uuid: answer.uuid, loading: false })
           if (metaData.audioInfo) {

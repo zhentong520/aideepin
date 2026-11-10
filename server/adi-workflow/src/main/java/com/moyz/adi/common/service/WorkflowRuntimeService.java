@@ -38,7 +38,10 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static com.moyz.adi.common.workflow.WfConstant.WORKFLOW_PROCESS_STATUS_DOING;
+import static com.moyz.adi.common.workflow.WfConstant.WORKFLOW_PROCESS_STATUS_FAIL;
+import static com.moyz.adi.common.workflow.WfConstant.WORKFLOW_PROCESS_STATUS_READY;
 import static com.moyz.adi.common.workflow.WfConstant.WORKFLOW_PROCESS_STATUS_SUCCESS;
+import static com.moyz.adi.common.workflow.WfConstant.WORKFLOW_PROCESS_STATUS_WAITING_INPUT;
 
 @Slf4j
 @Service
@@ -71,12 +74,26 @@ public class WorkflowRuntimeService extends ServiceImpl<WorkflowRunMapper, Workf
      * 参数=input，结果=output+status。
      */
     public WfRuntimeResp create(User user, Long workflowId, boolean isTest, String triggerSource) {
+        return create(user, workflowId, isTest, triggerSource, null, null, null);
+    }
+
+    /**
+     * 业务编排 Harness M1（2026-10-30）：对话触发（trigger_source=chat）创建运行记录，
+     * 同步落会话/提问/场景三列关联。conversationUuid=characterUuid（aideepin 中会话即
+     * Character），messageUuid=发起提问的 questionUuid，sceneUuid=发起时所在场景（可空）。
+     * 其余触发路径走 {@link #create(User, Long, boolean, String)}，三列为空串，行为不变。
+     */
+    public WfRuntimeResp create(User user, Long workflowId, boolean isTest, String triggerSource,
+                                String conversationUuid, String messageUuid, String sceneUuid) {
         WorkflowRuntime one = new WorkflowRuntime();
         one.setUuid(UuidUtil.createShort());
         one.setUserId(user.getId());
         one.setWorkflowId(workflowId);
         one.setIsTest(isTest);
         one.setTriggerSource(StringUtils.isBlank(triggerSource) ? "manual" : triggerSource);
+        one.setConversationUuid(StringUtils.defaultString(conversationUuid));
+        one.setMessageUuid(StringUtils.defaultString(messageUuid));
+        one.setSceneUuid(StringUtils.defaultString(sceneUuid));
         baseMapper.insert(one);
 
         one = baseMapper.selectById(one.getId());
@@ -159,6 +176,31 @@ public class WorkflowRuntimeService extends ServiceImpl<WorkflowRunMapper, Workf
                 .one();
     }
 
+    /**
+     * 业务编排 Harness M1（2026-10-30）：按 uuid 取单个运行详情（含状态/输出/指标），
+     * 供对话页工作流卡片轮询。越权防护与 listByRuntimeUuid 一致（PrivilegeUtil）。
+     */
+    public WfRuntimeResp getRespByUuid(String runtimeUuid) {
+        WorkflowRuntime runtime = PrivilegeUtil.checkAndGetByUuid(runtimeUuid, this.query(), ErrorEnum.A_WF_RUNTIME_NOT_FOUND);
+        WfRuntimeResp resp = new WfRuntimeResp();
+        resp.setId(runtime.getId());
+        resp.setUuid(runtime.getUuid());
+        resp.setWorkflowId(runtime.getWorkflowId());
+        resp.setInput(runtime.getInput());
+        resp.setOutput(runtime.getOutput());
+        resp.setStatus(runtime.getStatus());
+        resp.setStatusRemark(runtime.getStatusRemark());
+        resp.setCreateTime(runtime.getCreateTime());
+        resp.setTriggerSource(runtime.getTriggerSource());
+        fillInputOutput(resp);
+        fillMetricsFromEntity(runtime, resp);
+        Workflow workflow = workflowService.getById(runtime.getWorkflowId());
+        if (null != workflow) {
+            resp.setWorkflowUuid(workflow.getUuid());
+        }
+        return resp;
+    }
+
     public Page<WfRuntimeResp> page(String wfUuid, Integer currentPage, Integer pageSize) {
         Workflow workflow = workflowService.getOrThrow(wfUuid);
         User user = ThreadContext.getCurrentUser();
@@ -236,6 +278,28 @@ public class WorkflowRuntimeService extends ServiceImpl<WorkflowRunMapper, Workf
         return ChainWrappers.lambdaUpdateChain(baseMapper)
                 .eq(WorkflowRuntime::getId, workflowRuntime.getId())
                 .set(WorkflowRuntime::getIsDeleted, true)
+                .update();
+    }
+
+    /**
+     * 业务编排 Harness M1（2026-10-30）：对话端中止一次运行（WorkflowCard「中止」按钮后端入口）。
+     * 仅当前用户自己的 runtime 可中止；READY/DOING/WAITING_INPUT 状态标记 FAIL + 备注，
+     * 引擎异步线程里的后续节点以状态非 DOING 为准自然不再推进（M1 最小实现，不做线程强杀）。
+     * Returns true if the runtime was transitioned to a cancelled state.
+     */
+    public boolean cancelFromChat(String runtimeUuid) {
+        WorkflowRuntime runtime = PrivilegeUtil.checkAndGetByUuid(runtimeUuid, this.query(), ErrorEnum.A_WF_NOT_FOUND);
+        int status = null == runtime.getStatus() ? 0 : runtime.getStatus();
+        if (status != WORKFLOW_PROCESS_STATUS_READY
+                && status != WORKFLOW_PROCESS_STATUS_DOING
+                && status != WORKFLOW_PROCESS_STATUS_WAITING_INPUT) {
+            return false;
+        }
+        return ChainWrappers.lambdaUpdateChain(baseMapper)
+                .eq(WorkflowRuntime::getId, runtime.getId())
+                .eq(WorkflowRuntime::getStatus, status)
+                .set(WorkflowRuntime::getStatus, WORKFLOW_PROCESS_STATUS_FAIL)
+                .set(WorkflowRuntime::getStatusRemark, "用户中止（对话触发取消）")
                 .update();
     }
 

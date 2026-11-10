@@ -337,6 +337,7 @@ export default {
     sourceUrlAddress: 'URL',
     sourceUrlRequired: 'URL is required',
     splitStrategySentenceCn: 'Chinese sentence split',
+    splitStrategyMarkdown: 'Markdown heading split',
     strictModeDescShort: "Strict mode: strictly match the knowledge base, return no answer if no search result found;",
     supportedFileFormats: 'Supported formats',
     tiny: 'Tiny',
@@ -756,6 +757,17 @@ export default {
     ttsExplanation2:
       "2. Server: Uses the server's speech synthesis function, which actually uses large language models like cosyvoice-v2, FunAudioLLM/CosyVoice2-0.5B, etc. Usually requires payment",
     synthesizerSide: 'Synthesizer Location',
+  },
+  sysConfig: {
+    editTip:
+      'System parameter key-value table (gray-release switches, global configs, etc.). Changes take effect immediately after saving (no backend restart required). Confirm the meaning of a parameter before editing; wrong values may break features.',
+    name: 'Parameter Name',
+    value: 'Value',
+    keyword: 'Keyword',
+    keywordPlaceholder: 'Fuzzy search by name, e.g. wf_',
+    edit: 'Edit',
+    editSuccess: 'Saved and effective immediately',
+    valuePlaceholder: 'Enter the parameter value',
   },
   dashboard: {
     title: 'Dashboard',
@@ -1229,6 +1241,7 @@ export default {
     ttsConfig: 'TTS (Speech Synthesis)',
     quotaConfig: 'Quota Configuration',
     rateLimit: 'Rate Limiting',
+    sysConfig: 'System Parameters',
     workflow: 'Workflow Editor',
     workflowComponent: 'Basic Components',
     workflowList: 'Workflow List',
@@ -1632,6 +1645,8 @@ export default {
   scene: {
     bindAgents: 'Bind agents',
     bindTip: 'The scene only applies to the selected agents',
+    bindWorkflows: 'Bind workflows',
+    bindWorkflowTip: 'Workflows bound here can be triggered in chats under this scene; selection order defines priority',
     createScene: 'New Scene',
     deleteConfirm: 'Delete scene "{name}"?',
     deleteScene: 'Delete Scene',
@@ -1642,6 +1657,7 @@ export default {
     loadFailed: 'Load failed',
     nameRequired: 'Scene name is required',
     noAgent: 'No agent bound',
+    noWorkflow: 'No workflow available',
     remark: 'Remark',
     remarkPlaceholder: 'Enter remark',
     saveFailed: 'Save failed',

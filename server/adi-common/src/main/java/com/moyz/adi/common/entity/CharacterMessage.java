@@ -80,4 +80,11 @@ public class CharacterMessage extends BaseEntity {
     @TableField(value = "is_ref_memory_embedding")
     private Boolean isRefMemoryEmbedding;
 
+    /**
+     * 业务编排 Harness M1（2026-10-30）：本条消息触发的运行时 uuid（逗号分隔，可空）。
+     * 前端 WorkflowCard 据此渲染对话内嵌运行卡片并轮询节点状态。
+     */
+    @Schema(title = "触发的运行时 uuid 列表 | Launched workflow runtime uuids (comma separated)")
+    @TableField("wf_runtime_uuid")
+    private String wfRuntimeUuid;
 }

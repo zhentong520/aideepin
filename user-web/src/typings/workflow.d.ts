@@ -113,6 +113,24 @@ declare namespace Workflow {
     nodes: WfRuntimeNode[]
   }
 
+  // M1 业务编排（2026-10-30）：单个运行详情（对话页工作流卡片 3s 轮询 /workflow/runtime/info）
+  interface WfRuntimeInfo {
+    id: string
+    uuid: string
+    workflowId: string
+    workflowUuid?: string
+    input: any
+    output: any
+    // 1=READY 2=DOING 3=SUCCESS 4=FAIL 5=WAITING_INPUT（对齐后端 WfConstant.WorkflowProcessStatus）
+    status: number
+    statusRemark: string
+    createTime: string
+    triggerSource?: string
+    inputTokens?: number
+    outputTokens?: number
+    duration?: number
+  }
+
   interface WfRuntimeNode {
     id: string
     uuid: string

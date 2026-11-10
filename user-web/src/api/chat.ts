@@ -112,7 +112,7 @@ function resolveAgentConv<T>(agentUuid: string) {
 }
 
 function sseProcess(params: {
-  options: { prompt?: string; characterUuid?: string; parentMessageId?: string; regenerateQuestionUuid?: string; modelName?: String; modelPlatform?: string; imageUrls?: string[]; audioUuid?: string; audioDuration?: number }
+  options: { prompt?: string; characterUuid?: string; parentMessageId?: string; regenerateQuestionUuid?: string; modelName?: String; modelPlatform?: string; imageUrls?: string[]; audioUuid?: string; audioDuration?: number; sceneUuid?: string }
   signal?: AbortSignal
   startCallback: (chunk: string) => void
   messageReceived: (chunk: string, eventName?: string) => void

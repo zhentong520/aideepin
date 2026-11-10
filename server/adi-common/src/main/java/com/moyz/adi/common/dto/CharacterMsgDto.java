@@ -72,4 +72,7 @@ public class CharacterMsgDto {
 
     @Schema(title = "是否引用了记忆 | Whether Memory is Referenced")
     private Boolean isRefMemoryEmbedding;
+
+    @Schema(title = "关联的工作流运行uuid（逗号分隔多值） | Related Workflow Runtime UUIDs (comma separated)")
+    private String wfRuntimeUuid;
 }

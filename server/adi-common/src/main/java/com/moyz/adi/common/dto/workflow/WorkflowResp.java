@@ -12,6 +12,8 @@ public class WorkflowResp {
     private String title;
     private String remark;
     private Boolean isPublic;
+    /** 是否启用（MPPageUtil BeanUtils 同名自动拷贝；场景绑定抽屉据此显示停用标记） */
+    private Boolean isEnable;
     private Long userId;
     private String userUuid;
     private String userName;

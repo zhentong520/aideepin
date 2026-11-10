@@ -32,6 +32,12 @@ public class WorkflowRuntimeController {
         workflowStarter.resumeFlow(runtimeUuid, resumeReq.getFeedbackContent());
     }
 
+    @Operation(summary = "中止运行（业务编排 Harness M1：对话触发的工作流卡片「中止」） | Cancel a running workflow")
+    @PostMapping(value = "/cancel/{runtimeUuid}")
+    public boolean cancel(@PathVariable String runtimeUuid) {
+        return workflowRuntimeService.cancelFromChat(runtimeUuid);
+    }
+
     @GetMapping("/page")
     public Page<WfRuntimeResp> search(@RequestParam String wfUuid,
                                       @NotNull @Min(1) Integer currentPage,
@@ -42,6 +48,12 @@ public class WorkflowRuntimeController {
     @GetMapping("/nodes/{runtimeUuid}")
     public List<WfRuntimeNodeDto> listByRuntimeId(@PathVariable String runtimeUuid) {
         return workflowRuntimeService.listByRuntimeUuid(runtimeUuid);
+    }
+
+    @Operation(summary = "单个运行详情（业务编排 Harness M1：对话页工作流卡片 3s 轮询） | Runtime detail by uuid")
+    @GetMapping("/info/{runtimeUuid}")
+    public WfRuntimeResp info(@PathVariable String runtimeUuid) {
+        return workflowRuntimeService.getRespByUuid(runtimeUuid);
     }
 
     @PostMapping("/clear")

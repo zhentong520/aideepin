@@ -39,6 +39,13 @@ public class AskReq {
     private String modelPlatform;
     private String modelName;
 
+    /**
+     * 业务编排 Harness M1（2026-10-30）：本次对话所在场景 uuid（可选）。
+     * 场景页（ChatPage）发起对话时由前端携带；非空且灰度开关开启时，注入该场景绑定的
+     * launch_workflow 工具。普通聊天为 null，行为与上线前完全一致。
+     */
+    private String sceneUuid;
+
 //Backend temporary variable
     //后端用的临时变量
     private String processedPrompt;

@@ -3,6 +3,7 @@ package com.moyz.adi.common.service;
 import com.moyz.adi.common.config.AdiProperties;
 import com.moyz.adi.common.interfaces.BizToolSpi;
 import com.moyz.adi.common.interfaces.SkillToolSpi;
+import com.moyz.adi.common.interfaces.WorkflowToolSpi;
 import com.moyz.adi.common.util.CharacterChatHelper;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
@@ -38,9 +39,12 @@ public class ChatCoreStaticConfigInitializer {
     @Resource
     private BizToolSpi bizToolService;
 
+    @Resource
+    private WorkflowToolSpi workflowToolService;
+
     @PostConstruct
     public void pushStaticConfig() {
-        CharacterChatHelper.initConfig(adiProperties, userMcpService, skillToolService, skillService, bizToolService);
+        CharacterChatHelper.initConfig(adiProperties, userMcpService, skillToolService, skillService, bizToolService, workflowToolService);
         log.info("ChatCore static config pushed: memoryUserDimensionEnabled={}",
                 null != adiProperties && adiProperties.getMemory().isUserDimensionEnabled());
     }

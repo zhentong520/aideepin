@@ -354,7 +354,15 @@ public class SseManager {
     }
 
     public void sendComplete(long userId, String sseUuid, PromptMeta questionMeta, AnswerMeta answerMeta, AudioInfo audioInfo) {
-        ChatMeta chatMeta = new ChatMeta(questionMeta, answerMeta, audioInfo);
+        this.sendComplete(userId, sseUuid, questionMeta, answerMeta, audioInfo, null);
+    }
+
+    /**
+     * 业务编排 Harness M1（2026-10-30）：携带 wfRuntimeUuid 的完成事件，
+     * 供前端在本会话内即时渲染对话触发的工作流卡片。
+     */
+    public void sendComplete(long userId, String sseUuid, PromptMeta questionMeta, AnswerMeta answerMeta, AudioInfo audioInfo, String wfRuntimeUuid) {
+        ChatMeta chatMeta = new ChatMeta(questionMeta, answerMeta, audioInfo, wfRuntimeUuid);
         String meta = JsonUtil.toJson(chatMeta).replace("\r\n", "");
         this.sendComplete(userId, sseUuid, " " + AdiConstant.SSEEventName.META + meta);
     }

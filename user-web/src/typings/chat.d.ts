@@ -36,6 +36,9 @@ declare namespace Chat {
 
 		//MCP tool call observability
 		toolCalls?: { toolName: string; durationMs: number; success: boolean }[]
+
+		// M1 业务编排（2026-10-30）：本条提问关联的工作流运行 uuid（逗号分隔多值），有值时渲染工作流卡片
+		wfRuntimeUuid?: string
 	}
 
 	interface CharacterPreset {
@@ -186,7 +189,9 @@ declare namespace Chat {
 			uuid: string,
 			duration?: number
 		},
-		audioInfo: AudioInfo
+		audioInfo: AudioInfo,
+		// M1 业务编排：本次提问触发的工作流运行 uuid（逗号分隔多值，未触发时为 null）
+		wfRuntimeUuid?: string
 	}
 
 	interface CharacterMsgListResp {

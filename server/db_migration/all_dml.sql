@@ -747,6 +747,9 @@ INSERT INTO adi_sys_config (name, value) SELECT 'wf_sub_workflow_enabled', 'true
 WHERE NOT EXISTS (SELECT 1 FROM adi_sys_config WHERE name = 'wf_sub_workflow_enabled' AND is_deleted = false);
 INSERT INTO adi_sys_config (name, value) SELECT 'wf_error_branch_enabled', 'true'
 WHERE NOT EXISTS (SELECT 1 FROM adi_sys_config WHERE name = 'wf_error_branch_enabled' AND is_deleted = false);
+-- 业务编排 Harness M1 灰度总开关（V29 同款；缺省关，显式 true 开启触发链路）
+INSERT INTO adi_sys_config (name, value) SELECT 'wf_launch_enabled', 'true'
+WHERE NOT EXISTS (SELECT 1 FROM adi_sys_config WHERE name = 'wf_launch_enabled' AND is_deleted = false);
 
 -- =====================================================================
 -- V44__mall_plugin.sql（二开 T9-M1，2026-10-29）种子数据

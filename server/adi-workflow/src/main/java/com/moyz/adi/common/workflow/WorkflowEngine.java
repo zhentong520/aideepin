@@ -111,6 +111,17 @@ public class WorkflowEngine {
         }
     }
 
+    /**
+     * 业务编排 Harness M1（2026-10-30）：外部预建 runtime。对话触发（launchFromChat）时
+     * 同步阶段已 create（带 conversation/message/scene 关联列）并需要立即向 LLM 返回
+     * runtime_uuid，异步阶段复用该 runtime 而不再 create。
+     */
+    private WfRuntimeResp externalRuntime;
+
+    public void setExternalRuntime(WfRuntimeResp externalRuntime) {
+        this.externalRuntime = externalRuntime;
+    }
+
     public void run(User user, List<ObjectNode> userInputs, String sseUuid) {
         run(user, userInputs, sseUuid, null, null, false);
     }
@@ -140,7 +151,12 @@ public class WorkflowEngine {
         }
 
         Long workflowId = this.workflow.getId();
-        this.wfRuntimeResp = workflowRuntimeService.create(user, workflowId, isTest, triggerSource);
+        if (null != externalRuntime) {
+            //业务编排 Harness M1：对话触发时 launchFromChat 已同步建 runtime（含关联列），直接复用
+            this.wfRuntimeResp = externalRuntime;
+        } else {
+            this.wfRuntimeResp = workflowRuntimeService.create(user, workflowId, isTest, triggerSource);
+        }
         //试跑同样发送 START 事件（携带 runtime uuid），前端需要它查询试跑明细/结果
         this.sseManager.startSse(user, sseUuid, JsonUtil.toJson(wfRuntimeResp));
 

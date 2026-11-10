@@ -72,4 +72,24 @@ public class WorkflowRuntime extends BaseEntity {
      */
     @TableField("trigger_source")
     private String triggerSource;
+
+    /**
+     * 业务编排 Harness M1（2026-10-30）：发起会话 uuid（= adi_character.uuid）。
+     * 对话触发（trigger_source=chat）时落列，前端 WorkflowCard 与消息关联靠它检索。
+     */
+    @TableField("conversation_uuid")
+    private String conversationUuid;
+
+    /**
+     * 业务编排 Harness M1：发起提问的 questionUuid（LLM 调用前生成，早于消息落库）。
+     * 与 conversation_uuid 一起唯一定位「哪次提问触发了哪次运行」。
+     */
+    @TableField("message_uuid")
+    private String messageUuid;
+
+    /**
+     * 业务编排 Harness M1：发起时所在场景 uuid（普通聊天为空串）。
+     */
+    @TableField("scene_uuid")
+    private String sceneUuid;
 }

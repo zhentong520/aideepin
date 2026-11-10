@@ -29,6 +29,9 @@ interface Emit {
 const prompt = ref<string>('')
 // 配置化聊天页面（P1）：快捷提问点击后跳 /chat/:uuid?prefill=xxx，
 // 挂载时读 query 预填输入框并立即清掉 query，避免刷新/回退时重复预填。
+// M1 业务编排（2026-10-30）：场景页跳转携带 sceneUuid，读取后保留在本地（不清 query），
+// 每次发送都带给后端，用于注入该场景绑定的 launch_workflow 工具。
+const sceneUuidFromQuery = ref<string>('')
 const route = useRoute()
 const router = useRouter()
 onMounted(() => {
@@ -36,6 +39,10 @@ onMounted(() => {
   if (typeof prefill === 'string' && prefill) {
     prompt.value = prefill
     router.replace({ query: { ...route.query, prefill: undefined } })
+  }
+  const sceneUuid = route.query.sceneUuid
+  if (typeof sceneUuid === 'string' && sceneUuid) {
+    sceneUuidFromQuery.value = sceneUuid
   }
 })
 const { isMobile } = useBasicLayout()
@@ -180,6 +187,7 @@ const fetchChatAPIOnce = async (message: string, userAudioUuid: string, userAudi
       imageUrls: props.imageUuids,
       audioUuid: userAudioUuid,
       audioDuration: userAudioDuration,
+      sceneUuid: sceneUuidFromQuery.value || undefined,
     },
     signal: controller.signal,
     startCallback(chunk) {
@@ -252,7 +260,7 @@ const fetchChatAPIOnce = async (message: string, userAudioUuid: string, userAudi
       if (chunk.includes('[META]')) {
         const meta = chunk.replace('[META]', '')
         const metaData: Chat.MetaData = JSON.parse(meta)
-        updateMessageSomeFields(props.characterUuid, chattingMsg.value.uuid, { ...metaData.question, thinking: false, loading: false })
+        updateMessageSomeFields(props.characterUuid, chattingMsg.value.uuid, { ...metaData.question, thinking: false, loading: false, wfRuntimeUuid: metaData.wfRuntimeUuid })
         updateMessageSomeFields(props.characterUuid, answer.uuid, { ...metaData.answer, thinking: false, loading: false })
         if (metaData.audioInfo) {
           answer.audioPlayState.audioUrl = metaData.audioInfo.url

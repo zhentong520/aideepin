@@ -26,6 +26,16 @@ function fetchSceneAgents(sceneUuid: string) {
   return http.request({ url: `/admin/scene/agents?sceneUuid=${sceneUuid}`, method: 'get' })
 }
 
+/** 查询场景已绑定的工作流（SceneWorkflow：uuid/workflowUuid/title/remark/isEnable/displayOrder）。 */
+function fetchSceneWorkflows(sceneUuid: string) {
+  return http.request({ url: `/admin/scene/workflows?sceneUuid=${sceneUuid}`, method: 'get' })
+}
+
+/** 全量覆盖绑定工作流。业务编排 harness M1：用户端对话中按场景触发绑定的首个工作流。 */
+function bindSceneWorkflows(sceneUuid: string, workflowUuids: string[]) {
+  return http.request({ url: `/admin/scene/bindWorkflows?sceneUuid=${sceneUuid}`, method: 'post', data: workflowUuids })
+}
+
 /** 全量覆盖绑定。数组顺序即优先级：第一个是默认智能体，用户端实际用它对话。 */
 function bindSceneAgents(sceneUuid: string, agentUuids: string[]) {
   return http.request({ url: `/admin/scene/bindAgents?sceneUuid=${sceneUuid}`, method: 'post', data: agentUuids })
@@ -43,5 +53,7 @@ export default {
   deleteScene,
   fetchSceneAgents,
   bindSceneAgents,
+  fetchSceneWorkflows,
+  bindSceneWorkflows,
   fetchLlmList,
 }

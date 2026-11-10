@@ -164,7 +164,11 @@
         message.warning(t('chatpage.noAvailableAgent'))
         return
       }
-      router.push({ path: `/chat/${convUuid}`, query: prefill ? { prefill } : undefined })
+      // M1 业务编排：场景 uuid 经 route query 透传到聊天页，聊天页发送消息时带给后端（触发工作流工具注入）
+      const query: Record<string, string> = {}
+      if (prefill) query.prefill = prefill
+      if (page.value.sceneUuid) query.sceneUuid = page.value.sceneUuid
+      router.push({ path: `/chat/${convUuid}`, query: Object.keys(query).length ? query : undefined })
     } catch (e) {
       message.error(t('chatpage.resolveFailed'))
     } finally {

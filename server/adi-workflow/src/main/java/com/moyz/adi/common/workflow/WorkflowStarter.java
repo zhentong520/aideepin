@@ -3,6 +3,7 @@ package com.moyz.adi.common.workflow;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.moyz.adi.common.config.AdiProperties;
 import com.moyz.adi.common.dto.workflow.WorkflowTestRunReq;
+import com.moyz.adi.common.dto.workflow.WfRuntimeResp;
 import com.moyz.adi.common.entity.*;
 import com.moyz.adi.common.exception.BaseException;
 import com.moyz.adi.common.helper.SseManager;
@@ -175,6 +176,80 @@ public class WorkflowStarter {
             workflowEngine.resume(userInput);
         } catch (Throwable e) {
             log.error("resumeFlow execution exception, runtimeUuid:{}", runtimeUuid, e);
+        }
+    }
+
+    /**
+     * 业务编排 Harness M1（2026-10-30）：对话触发的工作流启动（launch_workflow 工具后端入口）。
+     * <p>
+     * 同步阶段（LLM 工具回调线程）：校验工作流 → 建 runtime（落 conversation_uuid/message_uuid/
+     * scene_uuid 关联列）→ 立即返回 runtime_uuid（LLM 拿到后向用户简述"已启动"，不等执行完）。
+     * 异步阶段（{@code workflowExecutor} 线程池）：引擎复用预建 runtime 执行全流程。
+     * <p>
+     * 注意：本方法可能运行在工具回调线程（ThreadContext 不可达），所有上下文必须随参数显式传入，
+     * 内部不得依赖 ThreadContext 的服务（WorkflowStarter 自身只用 @Resource 注入，安全）。
+     *
+     * @param conversationUuid 发起会话 uuid（= characterUuid）
+     * @param messageUuid      发起提问的 questionUuid（落 runtime.message_uuid）
+     * @param sceneUuid        发起时所在场景 uuid（可空）
+     * @return runtime uuid（立即返回，不等待执行完成）
+     */
+    public String launchFromChat(User user, String workflowUuid, List<ObjectNode> userInputs,
+                                 String conversationUuid, String messageUuid, String sceneUuid) {
+        Workflow workflow = workflowService.getByUuid(workflowUuid);
+        if (null == workflow) {
+            throw new BaseException(A_WF_NOT_FOUND);
+        } else if (Boolean.FALSE.equals(workflow.getIsEnable())) {
+            throw new BaseException(A_WF_DISABLED);
+        }
+        //同步建 runtime：关联列随 create 落库；trigger_source=chat 标记对话触发
+        WfRuntimeResp runtime = workflowRuntimeService.create(user, workflow.getId(), false, "chat",
+                conversationUuid, messageUuid, sceneUuid);
+        try {
+            self.asyncRunFromChat(user, workflow, userInputs, runtime);
+        } catch (RejectedExecutionException e) {
+            log.warn("workflow launch from chat rejected, too many running workflows, workflowUuid:{}", workflowUuid);
+            throw new BaseException(A_WF_TOO_MANY_RUNNING);
+        }
+        return runtime.getUuid();
+    }
+
+    /**
+     * 业务编排 Harness M1：异步执行对话触发的工作流（复用预建 runtime）。
+     * SSE 通道缺省：对话触发不向前端推 SSE（前端经 WorkflowCard 轮询节点状态），
+     * 仿 blockingRun(:304-309) 用 dummy emitter 兜底引擎内的全部 SSE 发送调用。
+     */
+    @Async("workflowExecutor")
+    public void asyncRunFromChat(User user, Workflow workflow, List<ObjectNode> userInputs, WfRuntimeResp runtime) {
+        log.info("WorkflowEngine run from chat,userId:{},workflowUuid:{},runtimeUuid:{}",
+                user.getId(), workflow.getUuid(), runtime.getUuid());
+        try {
+            List<WorkflowComponent> components = workflowComponentService.getAllEnable();
+            List<WorkflowNode> nodes = workflowNodeService.lambdaQuery()
+                    .eq(WorkflowNode::getWorkflowId, workflow.getId())
+                    .eq(WorkflowNode::getIsDeleted, false)
+                    .list();
+            List<WorkflowEdge> edges = workflowEdgeService.lambdaQuery()
+                    .eq(WorkflowEdge::getWorkflowId, workflow.getId())
+                    .eq(WorkflowEdge::getIsDeleted, false)
+                    .list();
+            WorkflowEngine workflowEngine = new WorkflowEngine(workflow,
+                    sseManager,
+                    components,
+                    nodes,
+                    edges,
+                    workflowRuntimeService,
+                    workflowRuntimeNodeService,
+                    nodeProvider);
+            workflowEngine.setExternalRuntime(runtime);
+            //对话触发不推 SSE：dummy emitter 兜底引擎内部发送（与 blockingRun 同款）
+            String dummySseUuid = "chat-" + com.moyz.adi.common.util.UuidUtil.createShort();
+            SseEmitter dummyEmitter = new SseEmitter(SSE_TIMEOUT);
+            sseManager.register(dummySseUuid, dummyEmitter);
+            workflowEngine.run(user, userInputs, dummySseUuid);
+        } catch (Throwable e) {
+            log.error("asyncRunFromChat execution exception, workflowUuid:{}, runtimeUuid:{}",
+                    workflow.getUuid(), runtime.getUuid(), e);
         }
     }
 

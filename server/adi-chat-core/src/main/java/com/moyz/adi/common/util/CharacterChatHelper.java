@@ -10,6 +10,7 @@ import com.moyz.adi.common.entity.Skill;
 import com.moyz.adi.common.entity.User;
 import com.moyz.adi.common.enums.MemoryType;
 import com.moyz.adi.common.languagemodel.AbstractLLMService;
+import com.moyz.adi.common.memory.longterm.SemanticMemoryService;
 import com.moyz.adi.common.rag.AdiEmbeddingStoreContentRetriever;
 import com.moyz.adi.common.rag.CompositeRag;
 import com.moyz.adi.common.rag.EmbeddingRag;
@@ -19,6 +20,7 @@ import com.moyz.adi.common.service.SkillService;
 import com.moyz.adi.common.service.UserMcpService;
 import com.moyz.adi.common.interfaces.BizToolSpi;
 import com.moyz.adi.common.interfaces.SkillToolSpi;
+import com.moyz.adi.common.interfaces.WorkflowToolSpi;
 import com.moyz.adi.common.util.AdiStringUtil;
 import com.moyz.adi.common.vo.ChatModelBuilderProperties;
 import com.moyz.adi.common.vo.ChatModelRequest;
@@ -52,6 +54,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.CHARACTER_ID;
 import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.KB_UUID;
 import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.MEMORY_TYPE;
+import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.MEMORY_VALID;
 import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.USER_ID;
 import static com.moyz.adi.common.constant.KbRagConstant.RAG_RETRIEVE_MIN_SCORE_DEFAULT;
 
@@ -81,15 +84,19 @@ public class CharacterChatHelper {
     /** T9-M2（2026-10-28）：业务工具插件（拔插式业务能力，如商城导购）；未启用插件时 prepare 返回空包 */
     private static volatile BizToolSpi bizToolService;
 
+    /** 业务编排 Harness M1（2026-10-30）：场景绑定工作流触发工具；灰度关闭时 isEnabled=false 不注入 */
+    private static volatile WorkflowToolSpi workflowToolService;
+
     /** ChatCoreStaticConfigInitializer 启动期调用 */
     public static void initConfig(AdiProperties props, UserMcpService userMcpSvc,
                                   SkillToolSpi skillToolSvc, SkillService skillSvc,
-                                  BizToolSpi bizToolSvc) {
+                                  BizToolSpi bizToolSvc, WorkflowToolSpi workflowToolSvc) {
         adiProperties = props;
         userMcpService = userMcpSvc;
         skillToolService = skillToolSvc;
         skillService = skillSvc;
         bizToolService = bizToolSvc;
+        workflowToolService = workflowToolSvc;
     }
 
     private CharacterChatHelper() {
@@ -177,8 +184,12 @@ public class CharacterChatHelper {
         //创建 SEMANTIC 通道的记忆 retriever。
         //排除显式标记为 episodic 的记录；缺失 memory_type 字段的历史记录视为 semantic（pgvector 的
         //IsNotEqualTo 在键缺失时返回 true，符合预期）。
+        // P0-2（2026-11-03）：bi-temporal 活跃行过滤——排除已被软关闭
+        // （memory_valid="false"）的旧事实；缺键的存量行照常通过（历史兼容）。
+        // 与合并候选检索共用 SemanticMemoryService.activeMemoryFilter 组装。
         Filter semanticFilter = memorySemanticFilter(characterId, memoryUserId,
-                new IsNotEqualTo(MEMORY_TYPE, MemoryType.EPISODIC.getDesc()));
+                SemanticMemoryService.activeMemoryFilter(
+                        new IsNotEqualTo(MEMORY_TYPE, MemoryType.EPISODIC.getDesc())));
         RetrieverCreateParam memoryRetrieveParam = RetrieverCreateParam.builder()
                 .chatModel(chatModel)
                 .filter(semanticFilter)
@@ -311,15 +322,35 @@ public class CharacterChatHelper {
             }
         });
 
+        // P0-3（2026-11-03）：注入预算——语义 + 情景记忆合并进 prompt 的总字符上限
+        // （中文 1 token≈2~3 字符，默认 1200 字符 ≈ 400~600 token）。预算内优先保
+        // 语义记忆（稳定属性最值钱），剩余给情景记忆；按行边界截断避免半句话。
+        // 0/负数 = 不限（历史行为）；静态配置未初始化（单测/早期启动）同样不限。
+        int budget = adiProperties != null && adiProperties.getMemory() != null
+                ? adiProperties.getMemory().getInjectBudgetChars() : 0;
+        String semanticText = semanticMemory.toString();
+        String episodicText = episodicMemory.toString();
+        if (budget > 0 && semanticText.length() + episodicText.length() > budget) {
+            int semanticBudget = Math.min(budget, semanticText.length());
+            int episodicBudget = Math.max(0, budget - semanticBudget);
+            String truncatedSemantic = truncateAtLine(semanticText, semanticBudget);
+            String truncatedEpisodic = truncateAtLine(episodicText, episodicBudget);
+            log.warn("Memory injection budget exceeded, truncated. semantic:{}/{}, episodic:{}/{}",
+                    truncatedSemantic.length(), semanticText.length(),
+                    truncatedEpisodic.length(), episodicText.length());
+            semanticText = truncatedSemantic;
+            episodicText = truncatedEpisodic;
+        }
+
         StringBuilder memory = new StringBuilder();
-        if (semanticMemory.isEmpty() && episodicMemory.isEmpty()) {
+        if (semanticText.isEmpty() && episodicText.isEmpty()) {
             memory.append("None\n");
         } else {
-            if (!semanticMemory.isEmpty()) {
-                memory.append("[Stable knowledge about the user]\n").append(semanticMemory).append("\n");
+            if (!semanticText.isEmpty()) {
+                memory.append("[Stable knowledge about the user]\n").append(semanticText).append("\n");
             }
-            if (!episodicMemory.isEmpty()) {
-                memory.append("[Past events you recall]\n").append(episodicMemory).append("\n");
+            if (!episodicText.isEmpty()) {
+                memory.append("[Past events you recall]\n").append(episodicText).append("\n");
             }
         }
         if (knowledge.isEmpty()) {
@@ -328,6 +359,22 @@ public class CharacterChatHelper {
             knowledge.append("\n");
         }
         return Pair.of(memory.toString(), knowledge.toString());
+    }
+
+    /**
+     * P0-3：按行边界截断到 maxChars 以内——绝不截半行，避免给模型喂半句话。
+     * 已在预算内原样返回；截断后一个完整行都放不下则返回空串。
+     */
+    static String truncateAtLine(String text, int maxChars) {
+        if (maxChars <= 0 || text.isEmpty()) {
+            return "";
+        }
+        if (text.length() <= maxChars) {
+            return text;
+        }
+        String cut = text.substring(0, maxChars);
+        int lastNewline = cut.lastIndexOf('\n');
+        return lastNewline > 0 ? cut.substring(0, lastNewline + 1) : "";
     }
 
     /**
@@ -348,6 +395,22 @@ public class CharacterChatHelper {
                                                                 User user, AbstractLLMService llmService,
                                                                 boolean enableMcp, boolean enableWebSearch,
                                                                 List<String> imageUrls) {
+        //业务编排 Harness M1：旧签名委托新重载（sceneUuid/questionUuid 为 null = 普通聊天，不注入工作流工具）
+        return buildChatRequestParams(character, userPrompt, user, llmService, enableMcp, enableWebSearch, imageUrls, null, null);
+    }
+
+    /**
+     * 业务编排 Harness M1（2026-10-30）重载：携带场景 uuid 与 questionUuid。
+     * sceneUuid 非空且灰度开关开启时，按 adi_scene_workflow 绑定生成 launch_workflow
+     * 工具包（manifest 追加 system prompt，工具规格注入 ChatRequest）。
+     * questionUuid 落 runtime.message_uuid 用于消息关联（随 ChatModelRequest 显式传递，
+     * 工具回调线程 ThreadContext 不可达）。
+     */
+    public static ChatModelRequest buildChatRequestParams(Character character, String userPrompt,
+                                                                User user, AbstractLLMService llmService,
+                                                                boolean enableMcp, boolean enableWebSearch,
+                                                                List<String> imageUrls,
+                                                                String sceneUuid, String questionUuid) {
         ChatModelRequest.ChatModelRequestBuilder builder = ChatModelRequest.builder();
 
         //System message
@@ -409,6 +472,25 @@ public class CharacterChatHelper {
             }
         }
 
+        //业务编排 Harness M1（2026-10-30）：场景绑定工作流工具——sceneUuid 非空且灰度开关开启时，
+        //按 adi_scene_workflow 绑定生成 launch_workflow 工具包；场景无绑定/开关关闭/服务缺失时
+        //安全跳过（行为与上线前完全一致）
+        String workflowManifest = "";
+        if (StringUtils.isNotBlank(sceneUuid) && null != workflowToolService && workflowToolService.isEnabled()) {
+            try {
+                WorkflowToolSpi.ToolBundle workflowBundle = workflowToolService.prepare(sceneUuid);
+                if (null != workflowBundle && !workflowBundle.toolSpecifications().isEmpty()) {
+                    workflowManifest = workflowBundle.manifest();
+                    builder.workflowToolBundle(workflowBundle);
+                    builder.sceneUuid(sceneUuid);
+                    builder.questionUuid(questionUuid);
+                }
+            } catch (Exception e) {
+                //工具包生成失败不影响对话主流程：跳过注入，仅记日志
+                log.warn("build workflow tool bundle failed, sceneUuid:{}", sceneUuid, e);
+            }
+        }
+
         //Thinking
         AiModel aiModel = llmService.getAiModel();
         Boolean returnThinking = checkIfReturnThinking(aiModel, character);
@@ -434,6 +516,13 @@ public class CharacterChatHelper {
         if (StringUtils.isNotBlank(bizManifest)) {
             String base = builder.build().getSystemMessage();
             builder.systemMessage(StringUtils.isBlank(base) ? bizManifest : base + "\n\n" + bizManifest);
+        }
+
+        //业务编排 Harness M1：业务工作流清单+使用规则追加到 system prompt（在最末尾护栏之前——
+        //注意护栏 append 已在最开头做过，这里追加的内容位于护栏之后，符合"业务指令+护栏兜底"顺序）
+        if (StringUtils.isNotBlank(workflowManifest)) {
+            String base = builder.build().getSystemMessage();
+            builder.systemMessage(StringUtils.isBlank(base) ? workflowManifest : base + "\n\n" + workflowManifest);
         }
 
         return builder.build();

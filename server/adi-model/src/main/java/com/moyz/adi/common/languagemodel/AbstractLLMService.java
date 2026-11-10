@@ -21,6 +21,7 @@ import com.moyz.adi.common.memory.shortterm.ChatMemoryStores;
 import com.moyz.adi.common.interfaces.DelegateAgentSpi;
 import com.moyz.adi.common.interfaces.BizToolSpi;
 import com.moyz.adi.common.interfaces.SkillToolSpi;
+import com.moyz.adi.common.interfaces.WorkflowToolSpi;
 import com.moyz.adi.common.multiagent.AgentCallChain;
 import com.moyz.adi.common.rag.TokenEstimatorFactory;
 import com.moyz.adi.common.rag.TokenEstimatorThreadLocal;
@@ -117,6 +118,9 @@ public abstract class AbstractLLMService extends CommonModelService {
     /** T9-M2（2026-10-28）：业务工具插件（拔插式业务能力，如商城导购） */
     private static volatile BizToolSpi staticBizToolService;
 
+    /** 业务编排 Harness M1（2026-10-30）：场景绑定工作流触发工具（launch_workflow 家族） */
+    private static volatile WorkflowToolSpi staticWorkflowToolService;
+
     /** ModelStaticConfigInitializer 启动期调用 */
     public static void initDependencies(StringRedisTemplate stringRedisTemplate,
                                         ModelHealthService modelHealthService,
@@ -131,6 +135,11 @@ public abstract class AbstractLLMService extends CommonModelService {
     /** T9-M2：BizToolSpi 单独推送（避免改老签名波及调用方） */
     public static void initBizToolService(BizToolSpi bizToolService) {
         staticBizToolService = bizToolService;
+    }
+
+    /** 业务编排 Harness M1：WorkflowToolSpi 单独推送（同 initBizToolService 模式） */
+    public static void initWorkflowToolService(WorkflowToolSpi workflowToolService) {
+        staticWorkflowToolService = workflowToolService;
     }
 
     //User#uuid => ttsJobInfo
@@ -274,6 +283,10 @@ public abstract class AbstractLLMService extends CommonModelService {
                 .mcpClients(httpRequestParams.getMcpClients())
                 .skillBundle(httpRequestParams.getSkillBundle())
                 .bizToolBundle(httpRequestParams.getBizToolBundle())
+                // 业务编排 Harness M1：工作流工具上下文透传给工具回调线程
+                .workflowToolBundle(httpRequestParams.getWorkflowToolBundle())
+                .sceneUuid(httpRequestParams.getSceneUuid())
+                .questionUuid(httpRequestParams.getQuestionUuid())
                 .characterUuid(httpRequestParams.getCharacterUuid())
                 // T7-02：透传调用链给工具回调线程（delegate_agent 深度限制/防环）
                 .agentCallChain(httpRequestParams.getAgentCallChain())
@@ -343,7 +356,8 @@ public abstract class AbstractLLMService extends CommonModelService {
             return;
         }
         Map<ToolSpecification, ToolExecutor> toolExecutorMap = getRequestTools(params.getMcpClients(), params.getSkillBundle(),
-                params.getBizToolBundle(),
+                params.getBizToolBundle(), params.getWorkflowToolBundle(),
+                params.getSceneUuid(), params.getQuestionUuid(),
                 null == params.getUser() ? null : params.getUser().getId(), params.getCharacterUuid(), params.getAgentCallChain());
         dispatchStreamingChat(params, toolExecutorMap);
     }
@@ -580,7 +594,8 @@ public abstract class AbstractLLMService extends CommonModelService {
             AiMessage responseAiMessage = chatResponse.aiMessage();
             if (responseAiMessage.hasToolExecutionRequests()) {
                 Map<ToolSpecification, ToolExecutor> toolExecutorMap = getRequestTools(chatModelRequest.getMcpClients(), chatModelRequest.getSkillBundle(),
-                        chatModelRequest.getBizToolBundle(),
+                        chatModelRequest.getBizToolBundle(), chatModelRequest.getWorkflowToolBundle(),
+                        chatModelRequest.getSceneUuid(), chatModelRequest.getQuestionUuid(),
                         chatModelRequest.getChatUserId(), chatModelRequest.getCharacterUuid(), chatModelRequest.getAgentCallChain());
                 List<ToolExecutionResultMessage> toolExecutionMessages = createToolExecutionMessages(responseAiMessage, toolExecutorMap, null);
 
@@ -762,6 +777,8 @@ public abstract class AbstractLLMService extends CommonModelService {
      */
     private Map<ToolSpecification, ToolExecutor> getRequestTools(List<McpClient> mcpClients, SkillToolSpi.SkillBundle skillBundle,
                                                                  BizToolSpi.ToolBundle bizToolBundle,
+                                                                 WorkflowToolSpi.ToolBundle workflowToolBundle,
+                                                                 String sceneUuid, String questionUuid,
                                                                  Long chatUserId, String characterUuid, AgentCallChain agentCallChain) {
         Map<ToolSpecification, ToolExecutor> tools = new HashMap<>();
         if (!CollectionUtils.isEmpty(mcpClients)) {
@@ -796,6 +813,16 @@ public abstract class AbstractLLMService extends CommonModelService {
                 tools.put(toolSpecification, (req, memoryId) ->
                         null == bizToolService ? "ERROR: biz tool service unavailable"
                                 : bizToolService.execute(req.name(), req.arguments(), chatUserId, characterUuid));
+            }
+        }
+        // 业务编排 Harness M1（2026-10-30）：场景绑定工作流工具（每工作流一工具，name=wf_* 前缀
+        // 路由到 WorkflowToolSpi）。灰度开关关闭时装配层不会放入 workflowToolBundle，此处自然跳过。
+        if (null != workflowToolBundle && !CollectionUtils.isEmpty(workflowToolBundle.toolSpecifications())) {
+            WorkflowToolSpi workflowToolService = staticWorkflowToolService;
+            for (ToolSpecification toolSpecification : workflowToolBundle.toolSpecifications()) {
+                tools.put(toolSpecification, (req, memoryId) ->
+                        null == workflowToolService ? "ERROR: workflow tool service unavailable"
+                                : workflowToolService.execute(req.name(), req.arguments(), chatUserId, characterUuid, sceneUuid, questionUuid));
             }
         }
         return tools;
@@ -845,6 +872,12 @@ public abstract class AbstractLLMService extends CommonModelService {
         if (null != httpRequestParams.getBizToolBundle()
                 && !CollectionUtils.isEmpty(httpRequestParams.getBizToolBundle().toolSpecifications())) {
             toolSpecifications.addAll(httpRequestParams.getBizToolBundle().toolSpecifications());
+        }
+        // 业务编排 Harness M1（2026-10-30）：场景绑定工作流工具清单注入（与执行侧 wf_* 前缀路由互通；
+        // 灰度开关关闭时 workflowToolBundle 为 null，模型看不到工具，行为与上线前一致）
+        if (null != httpRequestParams.getWorkflowToolBundle()
+                && !CollectionUtils.isEmpty(httpRequestParams.getWorkflowToolBundle().toolSpecifications())) {
+            toolSpecifications.addAll(httpRequestParams.getWorkflowToolBundle().toolSpecifications());
         }
 
         DefaultChatRequestParameters.Builder<?> builder = ChatRequestParameters.builder();

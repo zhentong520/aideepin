@@ -31,6 +31,11 @@ public class InnerStreamChatParam {
     private SkillToolSpi.SkillBundle skillBundle;
     //T9-M2（2026-10-28）：业务工具插件上下文（manifest+工具集），未启用插件时为 null
     private BizToolSpi.ToolBundle bizToolBundle;
+    //业务编排 Harness M1（2026-10-30）：场景绑定工作流工具上下文，非场景对话/灰度关闭时为 null
+    private com.moyz.adi.common.interfaces.WorkflowToolSpi.ToolBundle workflowToolBundle;
+    //业务编排 Harness M1：发起时所在场景 uuid / 发起提问 uuid（工具回调线程显式传递，ThreadContext 不可达）
+    private String sceneUuid;
+    private String questionUuid;
     /**
      * 二开新增（2026-09-21）：当前对话角色 uuid，供 create_skill 工具绑定新技能。
      */

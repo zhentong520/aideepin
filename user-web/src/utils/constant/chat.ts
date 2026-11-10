@@ -7,6 +7,7 @@ export const TOKEN_ESTIMATOR = [
 export const SPLIT_STRATEGY = [
   { label: '递归分段', value: 'recursive' },
   { label: '中文分句', value: 'sentence_cn' },
+  { label: 'Markdown 标题', value: 'markdown' },
   { label: '按段落', value: 'paragraph' },
   { label: '按行', value: 'line' },
   { label: '按句', value: 'sentence' },

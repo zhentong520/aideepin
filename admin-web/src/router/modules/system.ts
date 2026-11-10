@@ -67,6 +67,14 @@ const routes: Array<RouteRecordRaw> = [
         },
         component: () => import('@/views/system/ratelimit/index.vue'),
       },
+      {
+        path: 'config',
+        name: 'SysConfig',
+        meta: {
+          title: 'route.sysConfig',
+        },
+        component: () => import('@/views/system/config/index.vue'),
+      },
     ],
   },
 ]

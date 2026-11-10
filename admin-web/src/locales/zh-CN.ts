@@ -333,6 +333,7 @@ export default {  common: {
     sourceUrlAddress: '网页地址',
     sourceUrlRequired: '请输入网页地址',
     splitStrategySentenceCn: '中文按句切分',
+    splitStrategyMarkdown: 'Markdown 标题切分',
     strictModeDescShort: "严格模式：严格匹配知识库，知识库中如无搜索结果，直接返回无答案；",
     supportedFileFormats: '支持的文件格式',
     tiny: '过小',
@@ -749,6 +750,17 @@ export default {  common: {
     ttsExplanation2:
       '2. 服务端：表示使用服务端的语音合成功能，实际上就是使用大语言模型如cosyvoice-v2，FunAudioLLM/CosyVoice2-0.5B等进行合成，通常需付费使用',
     synthesizerSide: '合成器位置',
+  },
+  sysConfig: {
+    editTip:
+      '系统参数键值表（灰度开关、全局配置等）。编辑保存后立即生效（无需重启后端）。修改前请确认参数含义，误改可能导致功能异常。',
+    name: '参数名',
+    value: '参数值',
+    keyword: '关键词',
+    keywordPlaceholder: '按参数名模糊搜索，如 wf_',
+    edit: '编辑',
+    editSuccess: '保存成功，已即时生效',
+    valuePlaceholder: '请输入参数值',
   },
   dashboard: {
     title: '主控台',
@@ -1220,6 +1232,7 @@ export default {  common: {
     ttsConfig: 'TTS语音合成配置',
     quotaConfig: '额度配置',
     rateLimit: '限流策略',
+    sysConfig: '系统参数',
     workflow: '流程编排',
     workflowComponent: '基础组件',
     workflowList: '流程列表',
@@ -1624,6 +1637,8 @@ export default {  common: {
   scene: {
     bindAgents: '绑定智能体',
     bindTip: '绑定后该场景仅对所选智能体生效',
+    bindWorkflows: '绑定工作流',
+    bindWorkflowTip: '用户在该场景下对话时，可触发已绑定的工作流（业务编排），勾选顺序即优先级',
     createScene: '新建场景',
     deleteConfirm: '确认删除场景「{name}」？',
     deleteScene: '删除场景',
@@ -1634,6 +1649,7 @@ export default {  common: {
     loadFailed: '加载失败',
     nameRequired: '请输入场景名称',
     noAgent: '未绑定智能体',
+    noWorkflow: '暂无可用工作流',
     remark: '备注',
     remarkPlaceholder: '请输入备注',
     saveFailed: '保存失败',

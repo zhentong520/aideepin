@@ -3,12 +3,16 @@ package com.moyz.adi.chat.controller;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.moyz.adi.common.entity.Agent;
 import com.moyz.adi.common.entity.Scene;
+import com.moyz.adi.common.entity.SceneWorkflow;
+import com.moyz.adi.common.entity.Workflow;
 import com.moyz.adi.common.service.SceneService;
+import com.moyz.adi.common.service.WorkflowService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -31,6 +35,9 @@ public class SceneController {
     @Resource
     private SceneService sceneService;
 
+    @Resource
+    private WorkflowService workflowService;
+
     @Operation(summary = "场景列表（全部用户共用） | Scene list shared by all users")
     @GetMapping("/list")
     public List<Scene> list() {
@@ -41,5 +48,18 @@ public class SceneController {
     @GetMapping("/agents")
     public List<Agent> agents(@RequestParam String sceneUuid) {
         return sceneService.listAgents(sceneUuid);
+    }
+
+    @Operation(summary = "场景绑定的业务工作流（仅启用） | Enabled workflows bound to the scene")
+    @GetMapping("/workflows")
+    public List<Workflow> workflows(@RequestParam String sceneUuid) {
+        List<Workflow> result = new ArrayList<>();
+        for (SceneWorkflow bind : sceneService.listWorkflows(sceneUuid)) {
+            Workflow workflow = workflowService.getByUuid(bind.getWorkflowUuid());
+            if (null != workflow && !Boolean.FALSE.equals(workflow.getIsEnable())) {
+                result.add(workflow);
+            }
+        }
+        return result;
     }
 }

@@ -12,5 +12,6 @@ import UxState from './UxState.vue'
 import MessageBubble from './MessageBubble.vue'
 import AppSider from './AppSider.vue'
 import PageHeaderBar from './PageHeaderBar.vue'
+import RefSegmentContent from './RefSegmentContent.vue'
 
-export { AppSider, PageHeaderBar, MessageBubble, HoverButton, NaiveProvider, SvgIcon, UserAvatar, Setting, PromptStore, LLMSelector, ImageModelSelector, ApiKeyModal, ApiDocPanel, UxState }
+export { AppSider, PageHeaderBar, MessageBubble, HoverButton, NaiveProvider, SvgIcon, UserAvatar, Setting, PromptStore, LLMSelector, ImageModelSelector, ApiKeyModal, ApiDocPanel, UxState, RefSegmentContent }

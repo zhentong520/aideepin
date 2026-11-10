@@ -145,7 +145,9 @@ public class SysConfigService extends ServiceImpl<SysConfigMapper, SysConfig> {
     public Page<SysConfigDto> search(SysConfigSearchReq searchReq, Integer currentPage, Integer pageSize) {
         LambdaQueryWrapper<SysConfig> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.isNotBlank(searchReq.getKeyword())) {
-            wrapper.like(SysConfig::getName, searchReq.getKeyword());
+            //转义 LIKE 通配符：管理端参数名是精确字面量匹配场景，% _ 让用户输入「意外通配」
+            //（如查 quota_ 开头会误中任何含 % 的行）。PostgreSQL/MySQL 默认转义符均为反斜杠
+            wrapper.like(SysConfig::getName, escapeLike(searchReq.getKeyword()));
         }
         if (CollectionUtils.isNotEmpty(searchReq.getNames())) {
             wrapper.in(SysConfig::getName, searchReq.getNames());
@@ -154,6 +156,14 @@ public class SysConfigService extends ServiceImpl<SysConfigMapper, SysConfig> {
         Page<SysConfig> page = baseMapper.selectPage(new Page<>(currentPage, pageSize), wrapper);
         Page<SysConfigDto> result = new Page<>();
         return MPPageUtil.convertToPage(page, result, SysConfigDto.class);
+    }
+
+    /** 转义 LIKE 通配符（\ % _），使关键字按字面量匹配 */
+    static String escapeLike(String keyword) {
+        return keyword
+                .replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_");
     }
 
 }

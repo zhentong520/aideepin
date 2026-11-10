@@ -4,10 +4,13 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.moyz.adi.common.annotation.AdminOnly;
 import com.moyz.adi.common.entity.Agent;
 import com.moyz.adi.common.entity.Scene;
+import com.moyz.adi.common.entity.SceneWorkflow;
 import com.moyz.adi.common.service.SceneService;
+import com.moyz.adi.common.service.WorkflowService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -28,6 +31,9 @@ public class AdminSceneController {
 
     @Resource
     private SceneService sceneService;
+
+    @Resource
+    private WorkflowService workflowService;
 
     @Operation(summary = "场景列表 | List scenes")
     @GetMapping("/list")
@@ -67,6 +73,28 @@ public class AdminSceneController {
     public Boolean bindAgents(@RequestParam String sceneUuid,
                               @RequestBody @JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY) List<String> agentUuids) {
         sceneService.bindAgents(sceneUuid, agentUuids);
+        return true;
+    }
+
+    @Operation(summary = "场景绑定的业务工作流 | Workflows bound to the scene")
+    @GetMapping("/workflows")
+    public List<SceneWorkflow> workflows(@RequestParam String sceneUuid) {
+        return sceneService.listWorkflows(sceneUuid);
+    }
+
+    @Operation(summary = "绑定业务工作流（全量覆盖，顺序即 sort） | Bind workflows (full replace; order = sort)")
+    @PostMapping("/bindWorkflows")
+    public Boolean bindWorkflows(@RequestParam String sceneUuid,
+                                 @RequestBody @JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY) List<String> workflowUuids) {
+        //存在性校验：未存在的工作流 uuid 直接拒绝（SceneService 在 adi-chat-core 不依赖 adi-workflow，校验在此做）
+        if (null != workflowUuids) {
+            for (String workflowUuid : workflowUuids) {
+                if (!StringUtils.isBlank(workflowUuid)) {
+                    workflowService.getOrThrow(workflowUuid);
+                }
+            }
+        }
+        sceneService.bindWorkflows(sceneUuid, workflowUuids);
         return true;
     }
 }
