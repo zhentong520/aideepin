@@ -65,4 +65,45 @@ public class Memory {
      * behaviour as a rollback position.
      */
     private String store = "mapdb";
+
+    /**
+     * 二开新增（P0-1，2026-11-03）：结构化用户画像开关（adi.memory.profile-enabled，默认 true）。
+     * <p>
+     * 打开时：长期记忆抽取轮追加一次 LLM 合并调用，把新事实合并进
+     * {@code adi_user_profile.profile}（JSON 维度对象）并追加事件时间线
+     * {@code adi_user_profile_event}；聊天注入时纯 SQL 读画像（零 embedding）。
+     * 关闭时：不建画像、不注入（热回滚位，向量记忆链路不受影响）。
+     * <p>
+     * Structured user profile switch. When on, each extraction round merges new
+     * facts into the per-user JSON profile + event timeline via one extra LLM call;
+     * profile is injected into prompts with a pure-SQL read (no embedding).
+     */
+    private boolean profileEnabled = true;
+
+    /**
+     * 二开新增（P0-2，2026-11-03）：语义记忆 bi-temporal 软关闭开关
+     * （adi.memory.bitemporal-enabled，默认 true）。
+     * <p>
+     * 打开时：UPDATE/DELETE 不物理删除向量行——旧行改打
+     * {@code memory_valid="false"} + {@code invalid_at}（同 id 同向量重写，
+     * 不重跑 embedding），保留原始事实供审计与时序分析；检索与合并候选一律
+     * 排除 memory_valid="false" 的行。关闭时：物理删除（历史行为，回滚位）。
+     * <p>
+     * Bi-temporal soft-close switch. When on, UPDATE/DELETE soft-closes the old
+     * vector row (same id/vector rewrite with validity markers, no re-embedding);
+     * when off, physical removal (legacy behaviour).
+     */
+    private boolean bitemporalEnabled = true;
+
+    /**
+     * 二开新增（P0-3，2026-11-03）：记忆注入 token 预算的字符近似上限
+     * （adi.memory.inject-budget-chars，默认 1200 ≈ 400~600 token）。
+     * <p>
+     * 语义记忆与情景记忆两个通道合并进 prompt 的总字符数上限（中文 1 token≈2~3 字符）：
+     * 预算内优先保语义记忆，剩余给情景记忆；超出截断。0 或负数 = 不限（历史行为）。
+     * <p>
+     * Injection budget: max total chars of semantic+episodic memory injected into
+     * the prompt (semantic first, episodic gets the remainder). Non-positive = unlimited.
+     */
+    private int injectBudgetChars = 1200;
 }

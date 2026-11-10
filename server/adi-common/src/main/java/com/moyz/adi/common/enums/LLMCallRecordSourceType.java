@@ -19,7 +19,10 @@ public enum LLMCallRecordSourceType implements BaseEnum {
     // Each value maps 1:1 to a single LLM request within the long-term memory flow,
     // mirroring how KNOWLEDGE_BASE_QA / _INGEST split the knowledge base flow.
     LONG_TERM_MEMORY_EXTRACTION(6, "long_term_memory_extraction"),
-    LONG_TERM_MEMORY_ANALYSIS(7, "long_term_memory_analysis");
+    LONG_TERM_MEMORY_ANALYSIS(7, "long_term_memory_analysis"),
+    // P0-1（2026-11-03）：用户画像合并调用——长期记忆流程内的第三次 LLM 请求，
+    // 把新事实合并进结构化画像 JSON（同频结算，走 recordLlmCall 成对落库）。
+    LONG_TERM_MEMORY_PROFILE(8, "long_term_memory_profile");
 
     private final Integer value;
     private final String desc;

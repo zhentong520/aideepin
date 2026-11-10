@@ -4,6 +4,7 @@ import com.moyz.adi.common.constant.AdiConstant;
 import com.moyz.adi.common.config.AdiProperties;
 import com.moyz.adi.common.entity.LLMCallRecord;
 import com.moyz.adi.common.entity.User;
+import com.moyz.adi.common.entity.UserProfile;
 import com.moyz.adi.common.enums.LLMCallRecordSourceType;
 import com.moyz.adi.common.enums.MemoryType;
 import com.moyz.adi.common.helper.LLMContext;
@@ -12,6 +13,7 @@ import com.moyz.adi.common.memory.vo.ExtractedEpisodicEvent;
 import com.moyz.adi.common.memory.vo.ExtractedFact;
 import com.moyz.adi.common.memory.vo.ExtractedMemories;
 import com.moyz.adi.common.memory.vo.MemoryAddParam;
+import com.moyz.adi.common.memory.vo.ProfileMergeResult;
 import com.moyz.adi.common.languagemodel.AbstractLLMService;
 import com.moyz.adi.common.service.LLMCallRecordService;
 import com.moyz.adi.common.service.UserDayCostService;
@@ -64,6 +66,8 @@ public class LongTermMemoryService {
     private EpisodicMemoryService episodicMemoryService;
     @Resource
     private MemoryPendingService memoryPendingService;
+    @Resource
+    private UserProfileService userProfileService;
 
     @Async
     public void asyncAdd(MemoryAddParam request) {
@@ -168,6 +172,77 @@ public class LongTermMemoryService {
 
         // ===== Stage 4: apply semantic actions (no LLM) =====
         semanticMemoryService.applyActions(batchActions, request.getCharacterId(), userId, candidates);
+
+        // ===== Stage 5: structured user profile merge (P0-1, optional) =====
+        // 把本轮（已过敏感分流的）新事实合并进用户画像 JSON 并追加事件时间线。
+        // 敏感事实在上面的分流里已从 facts 移除，因此绝不进画像——PII 只能走
+        // pending → 用户确认后进向量库，同样不会经过这里（confirm 链路不调本方法）。
+        // 任何失败都不允许影响向量记忆主链路，方法内整体 try/catch。
+        boolean profileEnabled = adiProperties.getMemory() != null
+                && adiProperties.getMemory().isProfileEnabled();
+        if (profileEnabled && CollectionUtils.isNotEmpty(facts)) {
+            applyProfileMerge(request, llmService, facts);
+        }
+    }
+
+    /**
+     * P0-1（2026-11-03）：画像合并轮。1 次 LLM 调用：现有画像 JSON + 新事实
+     * → 全量合并画像 + 新事件 + 被取代旧事件原文。与抽取/分析轮一样走
+     * recordLlmCall 同频结算（LLMCallRecordSourceType.LONG_TERM_MEMORY_PROFILE）。
+     * 整个方法 try/catch——画像是增强通道，失败只降级不阻断。
+     * <p>
+     * Profile merge round. One LLM call merges new facts into the user's JSON
+     * profile + event timeline; same paired cost accounting as the other stages.
+     * Fully guarded: profile is an enhancement channel, failure only degrades.
+     */
+    private void applyProfileMerge(MemoryAddParam request, AbstractLLMService llmService, List<String> facts) {
+        try {
+            Long userId = request.getUser().getId();
+            UserProfile current = userProfileService.getByUserId(userId);
+            String existingProfile = (current != null && current.getProfile() != null)
+                    ? current.getProfile().toString() : "{}";
+            StringBuilder factLines = new StringBuilder();
+            for (String fact : facts) {
+                if (StringUtils.isNotBlank(fact)) {
+                    factLines.append("- ").append(fact.trim()).append("\n");
+                }
+            }
+            String mergeInput = """
+                    Existing profile:
+                    %s
+
+                    New facts:
+                    %s
+                    """.formatted(existingProfile, factLines);
+
+            SseAskParam param = new SseAskParam();
+            param.setUuid(UuidUtil.createShort());
+            param.setHttpRequestParams(
+                    ChatModelRequest.builder()
+                            .systemMessage(UserProfilePrompt.PROFILE_MERGE_PROMPT)
+                            .userMessage(mergeInput)
+                            .responseFormat(RESPONSE_FORMAT_TYPE_JSON_OBJECT)
+                            .build()
+            );
+            param.setModelName(request.getModelName());
+            param.setUser(request.getUser());
+
+            long start = System.currentTimeMillis();
+            ChatResponse response = llmService.chat(param);
+            recordLlmCall(request, response, LLMCallRecordSourceType.LONG_TERM_MEMORY_PROFILE,
+                    System.currentTimeMillis() - start);
+
+            String text = AdiStringUtil.removeCodeBlock(response.aiMessage().text());
+            ProfileMergeResult result = JsonUtil.fromJson(text, ProfileMergeResult.class);
+            if (result == null || result.getProfile() == null) {
+                log.warn("Profile merge returned no profile, skip, userId:{}", userId);
+                return;
+            }
+            userProfileService.applyMergeResult(userId, result.getProfile(),
+                    result.getEvents(), result.getOutdatedEvents(), request.getSourceMsgId());
+        } catch (Exception e) {
+            log.error("Profile merge failed (non-fatal), userId:{}", request.getUser().getId(), e);
+        }
     }
 
     private SseAskParam buildExtractionRequest(MemoryAddParam request, String inputMessage) {

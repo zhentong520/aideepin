@@ -18,6 +18,7 @@ import dev.langchain4j.store.embedding.EmbeddingSearchResult;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.filter.Filter;
 import dev.langchain4j.store.embedding.filter.comparison.IsEqualTo;
+import dev.langchain4j.store.embedding.filter.comparison.IsNotEqualTo;
 import dev.langchain4j.store.embedding.filter.logical.And;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -32,7 +33,12 @@ import java.util.List;
 import java.util.Map;
 
 import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.CHARACTER_ID;
+import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.MEMORY_INVALID_AT;
+import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.MEMORY_VALID;
 import static com.moyz.adi.common.constant.MetadataConstant.MetadataKey.USER_ID;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 /**
  * Semantic memory service: deduplicating merge candidates retrieval and
@@ -73,7 +79,7 @@ public class SemanticMemoryService {
                 ? adiProperties.getMemory().getMinScore()
                 : AdiConstant.LONG_TERM_MEMORY_MIN_SCORE_DEFAULT;
         boolean userDim = adiProperties.getMemory() != null && adiProperties.getMemory().isUserDimensionEnabled();
-        Filter mergeFilter = memoryFilter(characterId, userId, userDim);
+        Filter mergeFilter = activeMemoryFilter(memoryFilter(characterId, userId, userDim));
 
         for (String fact : facts) {
             if (StringUtils.isBlank(fact)) {
@@ -124,6 +130,11 @@ public class SemanticMemoryService {
      * <p>
      * 二开（T7-07）：userId 用于 ADD/UPDATE 写入 metadata 的 {@code user_id} 键
      * （userDimensionEnabled 时），同一用户跨 Agent 跨会话共享、他人不可见。
+     * <p>
+     * 二开（P0-2，2026-11-03）：bi-temporal 软关闭。UPDATE/DELETE 不再物理删除旧
+     * 向量行，而是同 id 同向量重写 metadata（memory_valid="false" + invalid_at）——
+     * 不重跑 embedding、保留原始事实供审计与时序分析；检索与合并候选一律排除
+     * 已关闭行（见 {@link #activeMemoryFilter}）。开关关闭时回退物理删除（历史行为）。
      */
     public void applyActions(BatchActionMemories batchActions, Long characterId, Long userId, MergeCandidates candidates) {
         if (batchActions == null || batchActions.getActions() == null) {
@@ -182,10 +193,23 @@ public class SemanticMemoryService {
         Map<String, Object> meta = new HashMap<>();
         meta.put(CHARACTER_ID, characterId);
         meta.put(AdiConstant.MetadataKey.MEMORY_TYPE, MemoryType.SEMANTIC.getDesc());
+        // P0-2：新写入行显式标记生效（与 activeMemoryFilter 的缺键=生效语义兼容，
+        // 但显式化后 V27 迁移的存量回填不再是过滤语义的唯一依据）。
+        meta.put(MEMORY_VALID, "true");
         if (null != userId) {
             meta.put(USER_ID, String.valueOf(userId));
         }
         return new Metadata(meta);
+    }
+
+    /**
+     * P0-2：软关闭元数据——同 id 同向量重写时使用（memory_valid="false" + invalid_at）。
+     * 不重跑 embedding，原始事实保留在表内供审计与时序分析。
+     */
+    private static Metadata softClosedMetadata(Metadata original) {
+        original.put(MEMORY_VALID, "false");
+        original.put(MEMORY_INVALID_AT, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+        return original;
     }
 
     /**
@@ -202,6 +226,22 @@ public class SemanticMemoryService {
             return characterEq;
         }
         return new And(characterEq, new IsEqualTo(USER_ID, String.valueOf(userId)));
+    }
+
+    /**
+     * P0-2（2026-11-03）：bi-temporal 活跃行过滤。在任意记忆过滤条件上叠加
+     * {@code memory_valid != "false"}——pgvector 的 IsNotEqualTo 在键缺失时返回 true
+     * （与 T7-07 memory_type 的处理同源），因此：
+     * <ul>
+     *   <li>存量行（无该键，V27 迁移前写入）→ true，照常参与检索；</li>
+     *   <li>活跃行（memory_valid="true"）→ true；</li>
+     *   <li>软关闭行（memory_valid="false"）→ false，被排除。</li>
+     * </ul>
+     * 检索召回（CharacterChatHelper）与合并候选（本类）共用此组装，确保「已关闭的
+     * 旧事实」既不会进 prompt 也不会被再次归并。
+     */
+    public static Filter activeMemoryFilter(Filter base) {
+        return new And(base, new IsNotEqualTo(MEMORY_VALID, "false"));
     }
 
     private void applyAction(BatchActionMemories.BatchActionMemory action,
@@ -248,7 +288,12 @@ public class SemanticMemoryService {
         }
 
         if (AdiConstant.MemoryEvent.DELETE.equalsIgnoreCase(event)) {
-            semanticEmbeddingStore.remove(embeddingId);
+            // P0-2：bi-temporal 软关闭取代物理删除（开关关闭时回退历史行为）。
+            if (isBitemporalEnabled()) {
+                softClose(embeddingId, embeddingIdToMatch.get(embeddingId));
+            } else {
+                semanticEmbeddingStore.remove(embeddingId);
+            }
             return;
         }
 
@@ -262,13 +307,40 @@ public class SemanticMemoryService {
                 log.warn("UPDATE action embeddingId not found in match map, skip");
                 return;
             }
-            semanticEmbeddingStore.remove(embeddingId);
-            TextSegment newSegment = TextSegment.from(action.getText(), memoryMetadata(characterId, userId));
-            semanticEmbeddingStore.addAll(List.of(embeddingId), List.of(match.embedding()), List.of(newSegment));
+            // P0-2：旧事实软关闭（保留），新事实作为新向量行入库——旧版本可审计，
+            // 时序问题（「你以前做什么」）仍有据可查。
+            if (isBitemporalEnabled()) {
+                softClose(embeddingId, match);
+            } else {
+                semanticEmbeddingStore.remove(embeddingId);
+            }
+            ingestSemantic(characterId, userId, action.getText());
             return;
         }
 
         log.warn("Unknown memory event: {}, action={}", event, action);
+    }
+
+    /**
+     * P0-2：软关闭一条记忆——remove 后以【同 id、同向量】重写，仅 metadata 换成
+     * 关闭态（memory_valid="false" + invalid_at）。向量不重算，文本保留。
+     * match 缺失（理论上不应发生）时退化为物理删除，保证幂等安全。
+     */
+    private void softClose(String embeddingId, EmbeddingMatch<TextSegment> match) {
+        if (match == null || match.embedding() == null || match.embedded() == null) {
+            log.warn("softClose missing match/embedding, fallback to physical remove, embeddingId:{}", embeddingId);
+            semanticEmbeddingStore.remove(embeddingId);
+            return;
+        }
+        Metadata closedMeta = softClosedMetadata(match.embedded().metadata());
+        TextSegment closedSegment = TextSegment.from(match.embedded().text(), closedMeta);
+        semanticEmbeddingStore.remove(embeddingId);
+        semanticEmbeddingStore.addAll(List.of(embeddingId), List.of(match.embedding()), List.of(closedSegment));
+        log.info("Memory soft-closed (bi-temporal), embeddingId:{}", embeddingId);
+    }
+
+    private boolean isBitemporalEnabled() {
+        return adiProperties.getMemory() != null && adiProperties.getMemory().isBitemporalEnabled();
     }
 
     /**

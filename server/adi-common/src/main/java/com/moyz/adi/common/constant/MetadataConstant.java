@@ -127,6 +127,29 @@ public interface MetadataConstant {
          */
         public static final String USER_ID_UNKNOWN = "__unknown__";
 
+        // ===== 二开新增（P0-2，2026-11-03）：语义记忆 bi-temporal 软关闭 =====
+        // Zep 风格：UPDATE/DELETE 不物理改写旧事实，打标记关闭——归并出错可审计回滚，
+        // 历史事实保留（LLM 持续归并会让记忆质量先升后降，保留原始条目是唯一防线）。
+
+        /**
+         * 记忆有效性标记（"true"=生效 / "false"=已被软关闭）。
+         * 缺键视为生效（历史行为兼容：存量行没有该键时 {@code IsNotEqualTo("false")}
+         * 返回 true，照常参与检索与合并）。
+         * <p>
+         * Memory validity marker. Missing key = active (legacy rows pass the
+         * {@code IsNotEqualTo("false")} filter unchanged).
+         */
+        public static final String MEMORY_VALID = "memory_valid";
+
+        /**
+         * 软关闭时间（{@code yyyy-MM-dd HH:mm:ss}）：该记忆被 UPDATE/DELETE 关闭的时刻。
+         * 与 {@link #MEMORY_VALID} 成对写入；检索过滤只看 memory_valid，本键供审计与时序分析。
+         * <p>
+         * Soft-close timestamp, written together with {@link #MEMORY_VALID};
+         * retrieval filters on memory_valid only — this key is for audit/temporal analysis.
+         */
+        public static final String MEMORY_INVALID_AT = "invalid_at";
+
         public static final String TEXT = "text";
     }
 
