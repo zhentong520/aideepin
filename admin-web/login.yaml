@@ -1,0 +1,16 @@
+- generic [ref=e5]:
+  - generic [ref=e6]:
+    - img "AISelf Admin" [ref=e8]
+    - generic [ref=e9]: AISelf Admin
+  - generic [ref=e11]:
+    - generic [ref=e21]:
+      - textbox "请输入邮箱" [ref=e22]
+      - generic: 请输入邮箱
+    - generic [ref=e27]:
+      - generic [ref=e33]:
+        - textbox "请输入密码" [ref=e34]
+        - generic: 请输入密码
+      - generic [ref=e36] [cursor=pointer]
+    - button "登录" [ref=e47] [cursor=pointer]
+    - link "去aideepin" [ref=e53] [cursor=pointer]:
+      - /url: http://localhost:1002

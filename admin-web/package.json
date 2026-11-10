@@ -28,6 +28,7 @@
     "lint:lint-staged": "lint-staged -c ./.husky/lintstagedrc.js",
     "lint:pretty": "pretty-quick --staged",
     "test": "vitest run",
+    "e2e": "playwright test",
     "common:prepare": "husky install",
     "postinstall": "patch-package"
   },
@@ -76,6 +77,7 @@
     "@antfu/eslint-config": "^0.35.3",
     "@commitlint/cli": "^17.8.1",
     "@commitlint/config-conventional": "^17.8.1",
+    "@playwright/test": "^1.65.0",
     "@types/chalk": "^2.2.0",
     "@types/fs-extra": "^11.0.4",
     "@types/lodash": "^4.17.0",
