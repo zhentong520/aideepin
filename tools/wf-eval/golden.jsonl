@@ -1,0 +1,30 @@
+{"id":"w01","scene":"expense","utterance":"帮我提交一张 3800 元的差旅报销单，我是市场部的","expect":"launch","workflow":"travel_expense","args":{"amount":3800,"department":"市场部"}}
+{"id":"w02","scene":"expense","utterance":"走一下报销流程，金额 1520，部门研发部","expect":"launch","workflow":"travel_expense","args":{"amount":1520,"department":"研发部"}}
+{"id":"w03","scene":"expense","utterance":"我要报上个月去上海出差的费用，2999 元，市场部","expect":"launch","workflow":"travel_expense","args":{"amount":2999,"department":"市场部","trip_city":"上海"}}
+{"id":"w04","scene":"expense","utterance":"帮我发起差旅报销，金额是 800，隶属财务部","expect":"launch","workflow":"travel_expense","args":{"amount":800,"department":"财务部"}}
+{"id":"w05","scene":"expense","utterance":"用报销助手提交 260 元的交通费报销，我在人事部","expect":"launch","workflow":"travel_expense","args":{"amount":260,"department":"人事部"}}
+{"id":"w06","scene":"expense","utterance":"报销 4500 元差旅费，部门是行政部","expect":"launch","workflow":"travel_expense","args":{"amount":4500,"department":"行政部"}}
+{"id":"w07","scene":"expense","utterance":"帮我生成本周周报，周期就写本周","expect":"launch","workflow":"weekly_report","args":{"period":"本周"}}
+{"id":"w08","scene":"expense","utterance":"整理一下这周的周报，亮点是把检索 ACL 修好了","expect":"launch","workflow":"weekly_report","args":{"period":"本周"}}
+{"id":"w09","scene":"expense","utterance":"生成 2024 年第 42 周的周报","expect":"launch","workflow":"weekly_report","args":{"period":"2024 年第 42 周"}}
+{"id":"w10","scene":"expense","utterance":"帮我写周报，周期是上周，亮点是上线了运行控制","expect":"launch","workflow":"weekly_report","args":{"period":"上周"}}
+{"id":"w11","scene":"expense","utterance":"查一下合同 HT-2024-088 的审批进度","expect":"launch","workflow":"contract_query","args":{"contract_no":"HT-2024-088"}}
+{"id":"w12","scene":"expense","utterance":"HT-2024-088 这个合同走到哪一步了？","expect":"launch","workflow":"contract_query","args":{"contract_no":"HT-2024-088"}}
+{"id":"w13","scene":"expense","utterance":"合同编号 CN-771 的审批情况帮我查一下","expect":"launch","workflow":"contract_query","args":{"contract_no":"CN-771"}}
+{"id":"w14","scene":"expense","utterance":"查询合同审批进度，合同号 HT-2024-001","expect":"launch","workflow":"contract_query","args":{"contract_no":"HT-2024-001"}}
+{"id":"w15","scene":"expense","utterance":"帮我提交一张差旅报销单","expect":"ask"}
+{"id":"w16","scene":"expense","utterance":"走一下报销流程","expect":"ask"}
+{"id":"w17","scene":"expense","utterance":"帮我写一份周报","expect":"ask"}
+{"id":"w18","scene":"expense","utterance":"查一下合同审批进度","expect":"ask"}
+{"id":"w19","scene":"expense","utterance":"报销 500 元","expect":"ask"}
+{"id":"w20","scene":"expense","utterance":"我想报销差旅费用","expect":"ask"}
+{"id":"w21","scene":"expense","utterance":"帮我把周报汇总一下","expect":"ask"}
+{"id":"w22","scene":"expense","utterance":"合同走到哪一步了？","expect":"ask"}
+{"id":"w23","scene":"expense","utterance":"算了，RT-1001 这个报销流程不用跑了，取消吧","expect":"cancel","runtime_uuid":"RT-1001","context":"刚才为你启动了工作流「差旅报销提交」（runtime_uuid=RT-1001），当前正在执行中。"}
+{"id":"w24","scene":"expense","utterance":"帮我把刚才启动的周报流程取消掉，参数写错了","expect":"cancel","runtime_uuid":"RT-1002","context":"刚才为你启动了工作流「周报生成」（runtime_uuid=RT-1002），当前正在执行中。"}
+{"id":"w25","scene":"expense","utterance":"RT-1003 已经停在等输入了，直接取消掉，不跑了","expect":"cancel","runtime_uuid":"RT-1003","context":"工作流「合同审批查询」（runtime_uuid=RT-1003）正在等待你的输入。"}
+{"id":"w26","scene":"expense","utterance":"把 RT-1004 取消了，那个流程选错了","expect":"cancel","runtime_uuid":"RT-1004","context":"系统历史记录：工作流「差旅报销提交」（runtime_uuid=RT-1004）。"}
+{"id":"w27","scene":"expense","utterance":"先暂停一下，我一会儿再继续","expect":"pause","runtime_uuid":"RT-2001","context":"刚才为你启动了工作流「差旅报销提交」（runtime_uuid=RT-2001），当前正在执行中。"}
+{"id":"w28","scene":"expense","utterance":"把周报流程暂停，等我把数据补齐再跑","expect":"pause","runtime_uuid":"RT-2002","context":"刚才为你启动了工作流「周报生成」（runtime_uuid=RT-2002），当前正在执行中。"}
+{"id":"w29","scene":"expense","utterance":"今天天气怎么样？适合出门吗？","expect":"none"}
+{"id":"w30","scene":"expense","utterance":"咱们公司的报销制度和出差补贴标准是什么？","expect":"none"}

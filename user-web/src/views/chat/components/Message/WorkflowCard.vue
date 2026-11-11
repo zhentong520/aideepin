@@ -24,11 +24,15 @@ interface Props {
 const ms = useMessage()
 
 // 对齐后端 WfConstant.WorkflowProcessStatus：1=READY 2=DOING 3=SUCCESS 4=FAIL 5=WAITING_INPUT
+// M2-T1/T3（2026-11-11）：+6=CANCELLING 7=CANCELED 8=PAUSED
 const STATUS_READY = 1
 const STATUS_DOING = 2
 const STATUS_SUCCESS = 3
 const STATUS_FAIL = 4
 const STATUS_WAITING_INPUT = 5
+const STATUS_CANCELLING = 6
+const STATUS_CANCELED = 7
+const STATUS_PAUSED = 8
 
 const runtimeUuid = computed(() => (props.runtimeUuids || '').split(',')[0]?.trim() || '')
 
@@ -36,13 +40,14 @@ const runtime = ref<Workflow.WfRuntimeInfo | null>(null)
 const loading = ref(false)
 const resuming = ref(false)
 const cancelling = ref(false)
+const pausing = ref(false)
 const feedbackContent = ref('')
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
 const isTerminal = computed(() => {
   const status = runtime.value?.status
-  return status === STATUS_SUCCESS || status === STATUS_FAIL
+  return status === STATUS_SUCCESS || status === STATUS_FAIL || status === STATUS_CANCELED
 })
 
 const statusText = computed(() => {
@@ -57,6 +62,12 @@ const statusText = computed(() => {
       return t('workflow.wfStatusFail')
     case STATUS_WAITING_INPUT:
       return t('workflow.wfStatusWaiting')
+    case STATUS_CANCELLING:
+      return t('workflow.wfStatusCancelling')
+    case STATUS_CANCELED:
+      return t('workflow.wfStatusCanceled')
+    case STATUS_PAUSED:
+      return t('workflow.wfStatusPaused')
     default:
       return ''
   }
@@ -138,6 +149,46 @@ async function handleResume() {
   }
 }
 
+/** M2-T3：从 PAUSED 态继续（无 HumanFeedback 输入，feedbackContent 传空） */
+async function handleContinue() {
+  if (!runtimeUuid.value || resuming.value)
+    return
+  resuming.value = true
+  try {
+    await api.workflowRuntimeResume<boolean>({ runtimeUuid: runtimeUuid.value, feedbackContent: '' })
+    ms.success(t('workflow.wfResumeSuccess'))
+    await refresh()
+    startPolling()
+  }
+  catch (e) {
+    console.error('WorkflowCard continue error', e)
+  }
+  finally {
+    resuming.value = false
+  }
+}
+
+/** M2-T3：DOING 态主动暂停（节点边界生效） */
+async function handlePause() {
+  if (!runtimeUuid.value || pausing.value)
+    return
+  pausing.value = true
+  try {
+    const resp = await api.workflowRuntimePause<boolean>(runtimeUuid.value)
+    if (resp.success && resp.data)
+      ms.success(t('workflow.wfPauseSuccess'))
+    else
+      ms.warning(t('workflow.wfPauseFailed'))
+    await refresh()
+  }
+  catch (e) {
+    ms.error(t('workflow.wfPauseFailed'))
+  }
+  finally {
+    pausing.value = false
+  }
+}
+
 onMounted(startPolling)
 onBeforeUnmount(stopPolling)
 </script>
@@ -153,7 +204,7 @@ onBeforeUnmount(stopPolling)
     </div>
 
     <div v-if="runtime">
-      <div v-if="runtime.status === STATUS_FAIL && runtime.statusRemark" class="wf-card-error">
+      <div v-if="(runtime.status === STATUS_FAIL || runtime.status === STATUS_CANCELED) && runtime.statusRemark" class="wf-card-error">
         {{ runtime.statusRemark }}
       </div>
 
@@ -163,6 +214,18 @@ onBeforeUnmount(stopPolling)
       </div>
 
       <div v-if="runtime.status === STATUS_DOING || runtime.status === STATUS_READY" class="wf-card-actions">
+        <NButton size="tiny" :loading="pausing" @click="handlePause">
+          {{ t('workflow.wfPause') }}
+        </NButton>
+        <NButton size="tiny" :loading="cancelling" @click="handleCancel">
+          {{ t('workflow.wfCancel') }}
+        </NButton>
+      </div>
+
+      <div v-if="runtime.status === STATUS_PAUSED" class="wf-card-actions">
+        <NButton size="tiny" type="primary" :loading="resuming" @click="handleContinue">
+          {{ t('workflow.wfContinue') }}
+        </NButton>
         <NButton size="tiny" :loading="cancelling" @click="handleCancel">
           {{ t('workflow.wfCancel') }}
         </NButton>
@@ -232,6 +295,22 @@ onBeforeUnmount(stopPolling)
   color: #f0a020;
 }
 
+/* M2-T1：6=CANCELLING 过渡态（灰橙）7=CANCELED 中性灰 8=PAUSED 橙 */
+.wf-card-status-6 {
+  background: rgba(240, 160, 32, 0.12);
+  color: rgba(240, 160, 32, 0.8);
+}
+
+.wf-card-status-7 {
+  background: rgba(128, 128, 128, 0.18);
+  color: rgba(128, 128, 128, 0.9);
+}
+
+.wf-card-status-8 {
+  background: rgba(240, 160, 32, 0.18);
+  color: #f0a020;
+}
+
 .wf-card-error {
   margin-top: 6px;
   color: #d0304f;
@@ -264,6 +343,7 @@ onBeforeUnmount(stopPolling)
   margin-top: 8px;
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
 }
 
 .wf-card-resume {

@@ -9,6 +9,8 @@ import com.moyz.adi.common.exception.BaseException;
 import com.moyz.adi.common.helper.SseManager;
 import com.moyz.adi.common.util.SpringUtil;
 import com.moyz.adi.common.service.*;
+import com.moyz.adi.common.entity.WfRuntimeCheckpoint;
+import com.moyz.adi.common.util.JsonUtil;
 import com.moyz.adi.common.workflow.data.NodeIOData;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -20,11 +22,14 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.RejectedExecutionException;
 
 import static com.moyz.adi.common.constant.SseConstant.SSE_TIMEOUT;
 import static com.moyz.adi.common.enums.ErrorEnum.*;
+import static com.moyz.adi.common.workflow.WfConstant.WORKFLOW_PROCESS_STATUS_PAUSED;
+import static com.moyz.adi.common.workflow.WfConstant.WORKFLOW_PROCESS_STATUS_WAITING_INPUT;
 
 @Slf4j
 @Component
@@ -48,6 +53,10 @@ public class WorkflowStarter {
 
     @Resource
     private WorkflowRuntimeService workflowRuntimeService;
+
+    /** M2-T4：L2 重建恢复按 checkpoint 找停驻节点。 */
+    @Resource
+    private WfRuntimeCheckpointService checkpointService;
 
     @Resource
     private WorkflowRuntimeNodeService workflowRuntimeNodeService;
@@ -115,6 +124,7 @@ public class WorkflowStarter {
                     nodes,
                     edges,
                     workflowRuntimeService,
+                    checkpointService,
                     workflowRuntimeNodeService,
                     nodeProvider);
             workflowEngine.run(user, userInputs, sseUuid);
@@ -159,6 +169,7 @@ public class WorkflowStarter {
                 nodes,
                 edges,
                 workflowRuntimeService,
+                checkpointService,
                 workflowRuntimeNodeService,
                 nodeProvider);
         workflowEngine.setTriggerSource(triggerSource);
@@ -166,16 +177,103 @@ public class WorkflowStarter {
     }
 
     @Async("workflowExecutor")
-    public void resumeFlow(String runtimeUuid, String userInput) {
+    public void resumeFlow(String runtimeUuid, String userInput, User user) {
+        //M2-T2/T3：优先命中 WAITING_INPUT 注册表；未命中且为 PAUSED（暂停停驻）则走
+        //resumeFromPause 续跑。两类停驻共用 /resume 端点（前端「继续」按钮统一入口）。
         WorkflowEngine workflowEngine = InterruptedFlow.get(runtimeUuid);
         if (null == workflowEngine) {
-            log.error("Workflow resume execution failed, runtime:{}", runtimeUuid);
-            throw new BaseException(A_WF_RESUME_FAIL);
+            workflowEngine = PausedFlow.get(runtimeUuid);
+            if (null == workflowEngine) {
+                //M2-T4（L2 重建）：进程重启后注册表为空——按 checkpoint 从停驻节点重建恢复
+                resumeFromCheckpoint(runtimeUuid, userInput, user);
+                return;
+            }
+            log.info("resumeFlow: PAUSED runtime found in PausedFlow, resuming without user input, runtime:{}", runtimeUuid);
+            try {
+                workflowEngine.resumeFromPause();
+            } catch (Throwable e) {
+                log.error("resumeFlow (from pause) execution exception, runtimeUuid:{}", runtimeUuid, e);
+            }
+            return;
         }
         try {
             workflowEngine.resume(userInput);
         } catch (Throwable e) {
             log.error("resumeFlow execution exception, runtimeUuid:{}", runtimeUuid, e);
+        }
+    }
+
+    /**
+     * 业务编排 Harness M2-T4（L2 重建恢复，2026-11-11）：进程重启后的停驻实例恢复。
+     * 进程内注册表（InterruptedFlow/PausedFlow）丢失后，按 checkpoint 行重建引擎：
+     * <ol>
+     *   <li>校验 runtime 仍处停驻态（WAITING_INPUT/PAUSED）且有 checkpoint 行；</li>
+     *   <li>按 workflow_uuid 重载节点/边/组件并 new WorkflowEngine（与 asyncRunFromChat 同款）；</li>
+     *   <li>setExternalRuntime 复用原 runtime（不新建记录）+ skipInputUpdate 保留原输入；</li>
+     *   <li>loadRuntimeContext 回放本次运行已完成节点的输出（T3-10 指定节点执行机制）；</li>
+     *   <li>run(user, ..., startNodeUuid=pausedNodeUuid) 从断点节点起跑。</li>
+     * </ol>
+     * 无 checkpoint 的旧数据（047 之前）明确报恢复失败，不静默。
+     */
+    private void resumeFromCheckpoint(String runtimeUuid, String userInput, User user) {
+        WorkflowRuntime runtime = workflowRuntimeService.getByUuid(runtimeUuid);
+        if (null == runtime) {
+            throw new BaseException(A_WF_RESUME_FAIL);
+        }
+        int status = null == runtime.getStatus() ? 0 : runtime.getStatus();
+        if (status != WORKFLOW_PROCESS_STATUS_WAITING_INPUT && status != WORKFLOW_PROCESS_STATUS_PAUSED) {
+            log.error("resumeFromCheckpoint: runtime not parked, runtime:{}, status:{}", runtimeUuid, status);
+            throw new BaseException(A_WF_RESUME_FAIL);
+        }
+        WfRuntimeCheckpoint checkpoint = checkpointService.getByRuntimeUuid(runtimeUuid);
+        if (null == checkpoint || StringUtils.isBlank(checkpoint.getPausedNodeUuid())) {
+            log.error("resumeFromCheckpoint: no checkpoint row (pre-047 legacy or save failed), runtime:{}", runtimeUuid);
+            throw new BaseException(A_WF_RESUME_FAIL);
+        }
+        log.info("resumeFromCheckpoint: rebuilding engine, runtime:{}, workflow:{}, pausedNode:{}",
+                runtimeUuid, checkpoint.getWorkflowUuid(), checkpoint.getPausedNodeUuid());
+        Workflow workflow = workflowService.getByUuid(checkpoint.getWorkflowUuid());
+        if (null == workflow) {
+            throw new BaseException(A_WF_NOT_FOUND);
+        }
+        //WAITING_INPUT 恢复必须带上用户反馈（HumanFeedbackNode 从 state 读 human_feedback）；
+        //PAUSED 恢复无需反馈
+        if (status == WORKFLOW_PROCESS_STATUS_WAITING_INPUT && StringUtils.isBlank(userInput)) {
+            log.error("resumeFromCheckpoint: WAITING_INPUT resume requires user feedback, runtime:{}", runtimeUuid);
+            throw new BaseException(A_WF_RESUME_FAIL);
+        }
+        try {
+            List<WorkflowComponent> components = workflowComponentService.getAllEnable();
+            List<WorkflowNode> nodes = workflowNodeService.lambdaQuery()
+                    .eq(WorkflowNode::getWorkflowId, workflow.getId())
+                    .eq(WorkflowNode::getIsDeleted, false)
+                    .list();
+            List<WorkflowEdge> edges = workflowEdgeService.lambdaQuery()
+                    .eq(WorkflowEdge::getWorkflowId, workflow.getId())
+                    .eq(WorkflowEdge::getIsDeleted, false)
+                    .list();
+            WorkflowEngine workflowEngine = new WorkflowEngine(workflow,
+                    sseManager,
+                    components,
+                    nodes,
+                    edges,
+                    workflowRuntimeService,
+                    checkpointService,
+                    workflowRuntimeNodeService,
+                    nodeProvider);
+            workflowEngine.setExternalRuntime(workflowRuntimeService.getRespByUuid(runtimeUuid));
+            workflowEngine.setSkipInputUpdate(true);
+            //M2-T4：WAITING_INPUT 反馈经图初始输入注入（重建后 langgraph checkpoint 已丢失）
+            workflowEngine.setResumeFeedback(userInput);
+            //回放本次运行已完成节点的输出（给断点节点的 refInput 补齐上游变量）
+            Map<String, List<NodeIOData>> upstreamContext = workflowRuntimeService.loadRuntimeContext(runtime.getId());
+            //重启恢复不走 SSE 订阅：dummy emitter 兜底（与 asyncRunFromChat 同款）
+            String dummySseUuid = "recovery-" + com.moyz.adi.common.util.UuidUtil.createShort();
+            SseEmitter dummyEmitter = new SseEmitter(SSE_TIMEOUT);
+            sseManager.register(dummySseUuid, dummyEmitter);
+            workflowEngine.run(user, List.of(), dummySseUuid, checkpoint.getPausedNodeUuid(), upstreamContext, false);
+        } catch (Throwable e) {
+            log.error("resumeFromCheckpoint execution exception, runtimeUuid:{}", runtimeUuid, e);
         }
     }
 
@@ -239,6 +337,7 @@ public class WorkflowStarter {
                     nodes,
                     edges,
                     workflowRuntimeService,
+                    checkpointService,
                     workflowRuntimeNodeService,
                     nodeProvider);
             workflowEngine.setExternalRuntime(runtime);
@@ -348,6 +447,7 @@ public class WorkflowStarter {
                     nodes,
                     edges,
                     workflowRuntimeService,
+                    checkpointService,
                     workflowRuntimeNodeService,
                     nodeProvider);
             workflowEngine.run(user, userInputs, sseUuid, startNodeUuid, upstreamContext, true);

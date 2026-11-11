@@ -24,6 +24,12 @@ public final class WfConstant {
     public static final int WORKFLOW_PROCESS_STATUS_SUCCESS = 3;
     public static final int WORKFLOW_PROCESS_STATUS_FAIL = 4;
     public static final int WORKFLOW_PROCESS_STATUS_WAITING_INPUT = 5;
+    /** M2-T1（2026-11-11）：协作式中止过渡态——控制信号已登记，等待当前节点跑完到边界 */
+    public static final int WORKFLOW_PROCESS_STATUS_CANCELLING = 6;
+    /** M2-T1：用户主动中止终态（区别于 FAIL，统计口径分离） */
+    public static final int WORKFLOW_PROCESS_STATUS_CANCELED = 7;
+    /** M2-T1：主动暂停（节点边界停下，落 checkpoint 后可 resume） */
+    public static final int WORKFLOW_PROCESS_STATUS_PAUSED = 8;
 
     public static final int WORKFLOW_NODE_PROCESS_TYPE_NORMAL = 1;
     public static final int WORKFLOW_NODE_PROCESS_TYPE_CONDITIONAL = 2;

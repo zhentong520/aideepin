@@ -99,6 +99,70 @@ function handleDelete(instUuid: string) {
   })
 }
 
+// M2-T6（2026-11-11）：admin 端运行控制。状态对齐后端 WfConstant.WorkflowProcessStatus：
+// 1=READY 2=DOING 5=WAITING_INPUT 6=CANCELLING 8=PAUSED。admin 全量权限，可中止/暂停任意人的运行。
+const STATUS_READY = 1
+const STATUS_DOING = 2
+const STATUS_WAITING_INPUT = 5
+const STATUS_PAUSED = 8
+
+const controllingUuid = ref<string>('')
+const cancellingUuid = ref<string>('')
+
+function canPause(status?: number) {
+  return status === STATUS_DOING
+}
+
+function canCancel(status?: number) {
+  return status === STATUS_READY || status === STATUS_DOING
+    || status === STATUS_WAITING_INPUT || status === STATUS_PAUSED
+}
+
+function isBusy(instUuid: string) {
+  return controllingUuid.value === instUuid || cancellingUuid.value === instUuid
+}
+
+async function handleCancel(instUuid: string) {
+  if (!instUuid || isBusy(instUuid))
+    return
+  cancellingUuid.value = instUuid
+  try {
+    const resp = await api.workflowRuntimeCancel<boolean>(instUuid)
+    if (resp.data)
+      ms.success(t('workflow.wfCancelSuccess'))
+    else
+      ms.warning(t('workflow.wfCancelFailed'))
+    //状态以服务端为准：执行态→CANCELLING 由 SSE/刷新更新，停驻态→CANCELED 同理
+  }
+  catch (e) {
+    ms.error(t('workflow.wfCancelFailed'))
+    console.error('handleCancel error', e)
+  }
+  finally {
+    cancellingUuid.value = ''
+  }
+}
+
+async function handlePause(instUuid: string) {
+  if (!instUuid || isBusy(instUuid))
+    return
+  controllingUuid.value = instUuid
+  try {
+    const resp = await api.workflowRuntimePause<boolean>(instUuid)
+    if (resp.data)
+      ms.success(t('workflow.wfPauseSuccess'))
+    else
+      ms.warning(t('workflow.wfPauseFailed'))
+  }
+  catch (e) {
+    ms.error(t('workflow.wfPauseFailed'))
+    console.error('handlePause error', e)
+  }
+  finally {
+    controllingUuid.value = ''
+  }
+}
+
 const wfRuntimes = computed(() => {
   return designerStore.getWfRuntimes(currWfUuid)
 })
@@ -162,7 +226,7 @@ async function onShowRuntimeDetail(instUuid: string) {
     const runtime = designerStore.getWfRuntime(instUuid)
     if (runtime) {
       detailNodes.value = runtime.nodes || []
-      detailErrorMsg.value = runtime.status === 4 ? runtime.statusRemark : ''
+      detailErrorMsg.value = (runtime.status === 4 || runtime.status === 7) ? runtime.statusRemark : ''
     }
   }
 }
@@ -207,6 +271,20 @@ onActivated(async () => {
               :input-tokens="wfRuntime.inputTokens" :output-tokens="wfRuntime.outputTokens"
               :duration="wfRuntime.duration"
             >
+              <template v-if="canPause(wfRuntime.status) || canCancel(wfRuntime.status)">
+                <NButton
+                  v-if="canPause(wfRuntime.status)" size="tiny" text :disabled="isBusy(wfRuntime.uuid)"
+                  @click="handlePause(wfRuntime.uuid)"
+                >
+                  {{ t('workflow.wfPause') }}
+                </NButton>
+                <NButton
+                  v-if="canCancel(wfRuntime.status)" size="tiny" text :disabled="isBusy(wfRuntime.uuid)"
+                  @click="handleCancel(wfRuntime.uuid)"
+                >
+                  {{ t('workflow.wfCancel') }}
+                </NButton>
+              </template>
               <NButton v-if="!wfRuntime.loading" size="tiny" text @click="onShowRuntimeDetail(wfRuntime.uuid)">
                 {{ t('workflow.runDetail') }}
               </NButton>

@@ -1,0 +1,5 @@
+{"id": "w01", "expect": "launch", "ok": true, "reason": "ok", "got": {"tool": "wf_travel_expense", "args": {"input": {"amount": 3800, "department": "市场部"}}}}
+{"id": "w15", "expect": "ask", "ok": true, "reason": "ok", "got": null}
+{"id": "w23", "expect": "cancel", "ok": true, "reason": "ok", "got": {"tool": "cancel_workflow", "args": {"runtime_uuid": "RT-1001"}}}
+{"id": "w27", "expect": "pause", "ok": true, "reason": "ok", "got": {"tool": "pause_workflow", "args": {"runtime_uuid": "RT-2001"}}}
+{"id": "w29", "expect": "none", "ok": true, "reason": "ok", "got": null}

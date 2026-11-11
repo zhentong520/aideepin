@@ -16,6 +16,9 @@ import com.moyz.adi.common.workflow.NodeExecutionMetrics;
 import com.moyz.adi.common.workflow.WfFeatureGate;
 import com.moyz.adi.common.workflow.WfNodeIODataUtil;
 import com.moyz.adi.common.workflow.data.NodeIOData;
+import com.moyz.adi.common.workflow.control.WorkflowControlHub;
+import com.moyz.adi.common.workflow.control.WorkflowControlHub.ControlException;
+import com.moyz.adi.common.service.WfRuntimeCheckpointService;
 import com.moyz.adi.common.workflow.def.WfNodeIO;
 import com.moyz.adi.common.workflow.metrics.LLMMetrics;
 import com.moyz.adi.common.workflow.node.AbstractWfNode;
@@ -53,6 +56,8 @@ public class WorkflowEngine {
     private final List<WorkflowEdge> wfEdges;
     private final SseManager sseManager;
     private final WorkflowRuntimeService workflowRuntimeService;
+    /** M2-T4：checkpoint 停驻/清理。可选依赖，测试场景可传 null（Safely 方法自行跳过）。 */
+    private final WfRuntimeCheckpointService checkpointService;
     private final WorkflowRuntimeNodeService workflowRuntimeNodeService;
     /** 节点创建入口（S1-02）：负责实例化并注入容器依赖，替代直接的静态工厂调用 */
     private final WfNodeProvider nodeProvider;
@@ -76,6 +81,31 @@ public class WorkflowEngine {
      * T9-01：触发来源 manual/schedule/webhook/api，落运行记录 trigger_source 列。
      */
     private String triggerSource = "manual";
+
+    /**
+     * M2-T2：协作式控制中枢（静态单例）。引擎不感知调用方，只在节点边界通过
+     * controlHub.check(runtimeUuid) 感知 cancel/pause 信号；信号在终态落库后 clear。
+     */
+    private final WorkflowControlHub controlHub = WorkflowControlHub.getInstance();
+
+    /**
+     * M2-T4：门闩最近一次拦截时的节点 uuid（即将执行而被拦下的节点）。
+     * PAUSED 落 checkpoint 时作为 paused_node_uuid，L2 重建恢复从该节点起跑。
+     */
+    private volatile String boundaryNodeUuid;
+
+    /**
+     * M2-T4：重建恢复（resumeFromCheckpoint）复用 run() 时置 true——跳过 updateInput，
+     * 保留运行记录里用户的原始输入不被空输入覆盖。
+     */
+    private boolean skipInputUpdate;
+
+    /**
+     * M2-T4：重建恢复 WAITING_INPUT 时的用户反馈文本。经 exe 的图初始输入注入
+     * （HUMAN_FEEDBACK_KEY），HumanFeedbackNode.process 据此读取（与 resume 的
+     * updateState 同语义；重建后 langgraph checkpoint 已丢失，只能走图初始输入）。
+     */
+    private String resumeFeedback;
     /**
      * Wall-clock start of this run (epoch millis), captured once on entry. Used to compute total
      * runtime duration at terminal status — sum-of-node durations would inflate when parallel
@@ -90,6 +120,7 @@ public class WorkflowEngine {
             List<WorkflowNode> nodes,
             List<WorkflowEdge> wfEdges,
             WorkflowRuntimeService workflowRuntimeService,
+            WfRuntimeCheckpointService checkpointService,
             WorkflowRuntimeNodeService workflowRuntimeNodeService,
             WfNodeProvider nodeProvider) {
         this.workflow = workflow;
@@ -98,6 +129,7 @@ public class WorkflowEngine {
         this.wfNodes = nodes;
         this.wfEdges = wfEdges;
         this.workflowRuntimeService = workflowRuntimeService;
+        this.checkpointService = checkpointService;
         this.workflowRuntimeNodeService = workflowRuntimeNodeService;
         this.nodeProvider = nodeProvider;
     }
@@ -120,6 +152,16 @@ public class WorkflowEngine {
 
     public void setExternalRuntime(WfRuntimeResp externalRuntime) {
         this.externalRuntime = externalRuntime;
+    }
+
+    /** M2-T4：重建恢复时置 true，run() 跳过 updateInput（保留原输入记录）。 */
+    public void setSkipInputUpdate(boolean skipInputUpdate) {
+        this.skipInputUpdate = skipInputUpdate;
+    }
+
+    /** M2-T4：重建恢复 WAITING_INPUT 时的用户反馈（图初始输入注入 HUMAN_FEEDBACK_KEY）。 */
+    public void setResumeFeedback(String resumeFeedback) {
+        this.resumeFeedback = resumeFeedback;
     }
 
     public void run(User user, List<ObjectNode> userInputs, String sseUuid) {
@@ -192,9 +234,11 @@ public class WorkflowEngine {
             this.wfState = new WfState(user, wfInputs, runtimeUuid);
             //T3-10：回放最近一次成功执行的上游输出，让 refInput/模板引用可以命中历史变量
             seedUpstreamContext(upstreamContext);
-            workflowRuntimeService.updateInput(this.wfRuntimeResp.getId(), wfState);
-            CompileNode rootCompileNode = new CompileNode();
-            rootCompileNode.setId(startNode.getUuid());
+            //M2-T4：重建恢复（skipInputUpdate）跳过输入覆写，保留运行记录的原始用户输入
+            if (!skipInputUpdate) {
+                workflowRuntimeService.updateInput(this.wfRuntimeResp.getId(), wfState);
+            }
+            CompileNode rootCompileNode = new CompileNode();            rootCompileNode.setId(startNode.getUuid());
 
             //构建整棵树（检测节点重复访问防止无限循环）
             Map<String, Integer> nodeVisitCount = new HashMap<>();
@@ -206,6 +250,13 @@ public class WorkflowEngine {
             this.wfState.addEdge(START, startNode.getUuid());
             //构建包括所有节点的状态图
             buildStateGraph(null, mainStateGraph, rootCompileNode);
+
+            //M2-T4：重建恢复（skipInputUpdate）时，若起跑节点本身是人机交互节点，
+            //必须移除其 interrupt 标记——否则 interruptBefore 会在 START→起跑节点边
+            //立即再次中断，形成"永远等输入"的死循环；反馈已经图初始输入注入。
+            if (skipInputUpdate) {
+                wfState.getInterruptNodes().remove(startNode.getUuid());
+            }
 
             MemorySaver saver = new MemorySaver();
             CompileConfig compileConfig = CompileConfig.builder()
@@ -248,7 +299,20 @@ public class WorkflowEngine {
     private void exe(RunnableConfig invokeConfig, boolean resume) {
 //Do not use langgraph4j state update methods, no need to pass input
         //不使用langgraph4j state的update相关方法，无需传入input
-        AsyncGenerator<NodeOutput<WfNodeState>> outputs = app.stream(resume ? null : Map.of(), invokeConfig);
+        //M2-T4：重建恢复 WAITING_INPUT 时经图初始输入注入用户反馈（checkpoint 已丢失，
+        //无法走 resume 的 updateState 路径）
+        //⚠️ langgraph4j 1.8.15 语义：stream(null, config) = resume 请求（无 checkpoint 即抛
+        //IllegalStateException）。fresh run 必须传非 null Map（无反馈时传空 Map.of()），
+        //否则含 interruptBefore 节点的图在首次启动就会炸——E2E cancel-test 抓到的回归。
+        Map<String, Object> graphInput;
+        if (resume) {
+            graphInput = null;
+        } else {
+            graphInput = StringUtils.isNotBlank(resumeFeedback)
+                    ? Map.of(HUMAN_FEEDBACK_KEY, (Object) resumeFeedback)
+                    : Map.of();
+        }
+        AsyncGenerator<NodeOutput<WfNodeState>> outputs = app.stream(graphInput, invokeConfig);
         streamingResult(wfState, outputs, sseUuid);
 
         StateSnapshot<WfNodeState> stateSnapshot = app.getState(invokeConfig);
@@ -262,7 +326,13 @@ public class WorkflowEngine {
             wfState.setProcessStatus(WORKFLOW_PROCESS_STATUS_WAITING_INPUT);
             WorkflowRuntime interruptedRuntime = workflowRuntimeService.updateOutput(wfRuntimeResp.getId(), wfState, runStartedMillis, computeTokenSummary());
             pushRuntimeMetrics(interruptedRuntime);
+            //M2-T4（决策点①）：WAITING_INPUT 停驻落 checkpoint，进程重启后 L2 重建可恢复
+            saveCheckpointSafely(WORKFLOW_PROCESS_STATUS_WAITING_INPUT, nextNode);
         } else {
+            //Bugfix（M2-T7 E2E 发现）：WfState.processStatus 默认 READY(1) 且无人显式置 SUCCESS，
+            //updateOutput 会把默认值原样写库，导致所有正常完成（含 rebuild resume）的 runtime
+            //终态停在 READY 而非 SUCCESS。此处先落 SUCCESS 再持久化。
+            wfState.setProcessStatus(WORKFLOW_PROCESS_STATUS_SUCCESS);
             WorkflowRuntime updatedRuntime = workflowRuntimeService.updateOutput(wfRuntimeResp.getId(), wfState, runStartedMillis, computeTokenSummary());
             // Push the terminal metrics snapshot before completing the stream
             pushRuntimeMetrics(updatedRuntime);
@@ -271,6 +341,10 @@ public class WorkflowEngine {
             ObjectNode output = updatedRuntime != null ? updatedRuntime.getOutput() : null;
             sseManager.sendComplete(user.getId(), sseUuid, JsonUtil.toJson(output != null ? output : JsonUtil.createObjectNode()));
             InterruptedFlow.remove(wfState.getUuid());
+            //M2-T2：正常完成必须清掉控制信号，防止残留信号影响同 runtimeUuid 的后续运行
+            controlHub.clear(wfState.getUuid());
+            //M2-T4：终态（SUCCESS）即删 checkpoint
+            deleteCheckpointSafely();
         }
     }
 
@@ -370,6 +444,15 @@ public class WorkflowEngine {
             }
             return data;
         } catch (Throwable e) {
+            //M2-T2：同步调用同样接受协作式控制——ControlException 不是错误，按信号语义落终态
+            ControlException controlEx = WorkflowControlHub.findIn(e);
+            if (null != controlEx) {
+                finishWithControl(controlEx);
+                Map<String, Object> controlResult = new LinkedHashMap<>();
+                controlResult.put("task_id", runtimeUuid);
+                controlResult.put("status", WorkflowControlHub.Signal.PAUSE == controlEx.getSignal() ? "paused" : "cancelled");
+                return controlResult;
+            }
             log.error("blockingRun execution exception, workflowUuid:{}", workflow.getUuid(), e);
             String errorMsg = e.getMessage();
             workflowRuntimeService.updateStatus(wfRuntimeResp.getId(), WORKFLOW_PROCESS_STATUS_FAIL, errorMsg, runStartedMillis, computeTokenSummary());
@@ -381,6 +464,13 @@ public class WorkflowEngine {
     }
 
     private void errorWhenExe(Exception e) {
+        //M2-T2：控制信号（cancel/pause）不是错误——穿透明因链识别 ControlException，
+        //按信号语义落终态（CANCELED/PAUSED）后正常收尾 SSE，不走 FAIL 路径。
+        ControlException controlEx = WorkflowControlHub.findIn(e);
+        if (null != controlEx) {
+            finishWithControl(controlEx);
+            return;
+        }
         log.error("error", e);
         String errorMsg = e.getMessage();
         if (errorMsg.contains("parallel node doesn't support conditional branch")) {
@@ -394,7 +484,108 @@ public class WorkflowEngine {
         } catch (Throwable persistenceEx) {
             log.error("Failed to persist runtime failure status, sending SSE error anyway", persistenceEx);
         }
+        //M2-T4：终态（FAIL）即删 checkpoint
+        deleteCheckpointSafely();
         sseManager.sendErrorAndComplete(user.getId(), sseUuid, errorMsg);
+    }
+
+    /**
+     * M2-T2：控制信号确认后的终态落库与收尾。节点边界门闩抛出的 ControlException 经
+     * AsyncGenerator → exe → run()/resume() 的 catch(Throwable) 浮到这里。
+     * <ul>
+     *   <li>PAUSE：置 PAUSED，引擎实例存入 PausedFlow（进程内 30 分钟可 resume），SSE 正常 complete；</li>
+     *   <li>CANCEL：置 CANCELED，清理 InterruptedFlow/PausedFlow 注册表，SSE 正常 complete。</li>
+     * </ul>
+     * 用户主动中止 ≠ FAIL，统计口径分离（M2-T1 状态机扩展）。
+     */
+    private void finishWithControl(ControlException controlEx) {
+        String runtimeUuid = null == wfState ? null : wfState.getUuid();
+        log.info("Workflow control signal confirmed, signal:{}, runtimeUuid:{}", controlEx.getSignal(), runtimeUuid);
+        WorkflowRuntime updatedRuntime = null;
+        try {
+            if (WorkflowControlHub.Signal.PAUSE == controlEx.getSignal()) {
+                updatedRuntime = workflowRuntimeService.updateStatus(wfRuntimeResp.getId(), WORKFLOW_PROCESS_STATUS_PAUSED,
+                        "paused at node boundary", runStartedMillis, computeTokenSummary());
+                pushRuntimeMetrics(updatedRuntime);
+                if (null != runtimeUuid) {
+                    PausedFlow.put(runtimeUuid, this);
+                }
+                //M2-T4（决策点①）：PAUSED 停驻落 checkpoint，进程重启后 L2 重建可恢复
+                saveCheckpointSafely(WORKFLOW_PROCESS_STATUS_PAUSED, boundaryNodeUuid);
+            } else {
+                updatedRuntime = workflowRuntimeService.updateStatus(wfRuntimeResp.getId(), WORKFLOW_PROCESS_STATUS_CANCELED,
+                        "cancelled by user", runStartedMillis, computeTokenSummary());
+                pushRuntimeMetrics(updatedRuntime);
+                if (null != runtimeUuid) {
+                    InterruptedFlow.remove(runtimeUuid);
+                    PausedFlow.remove(runtimeUuid);
+                }
+                //M2-T4：终态（CANCELED）即删 checkpoint
+                deleteCheckpointSafely();
+            }
+        } finally {
+            if (null != runtimeUuid) {
+                controlHub.clear(runtimeUuid);
+            }
+        }
+        //SSE 必须送达客户端（与 errorWhenExe 同样的尽力而为原则）。updateStatus 返回 null
+        //（行被并发删除）时回退空输出，保证前端收到 complete 事件以结束本次订阅。
+        try {
+            ObjectNode output = null != updatedRuntime && null != updatedRuntime.getOutput()
+                    ? updatedRuntime.getOutput() : JsonUtil.createObjectNode();
+            sseManager.sendComplete(user.getId(), sseUuid, JsonUtil.toJson(output != null ? output : JsonUtil.createObjectNode()));
+        } catch (Throwable sseEx) {
+            log.warn("finishWithControl: failed to send SSE complete, runtimeUuid:{}", runtimeUuid, sseEx);
+        }
+    }
+
+    /**
+     * M2-T2：从 PAUSED 恢复执行。langgraph MemorySaver checkpoint 仍在引擎实例内，
+     * 直接以 resume 模式续跑（不注入 HUMAN_FEEDBACK，PAUSED 与 WAITING_INPUT 语义不同）。
+     * 调用方（WorkflowStarter.resumeFlow）需先校验用户身份。
+     */
+    public void resumeFromPause() {
+        String runtimeUuid = wfState.getUuid();
+        log.info("resumeFromPause, runtimeUuid:{}", runtimeUuid);
+        RunnableConfig invokeConfig = RunnableConfig.builder().build();
+        try {
+            exe(invokeConfig, true);
+        } catch (Throwable e) {
+            errorWhenExe(e instanceof Exception ? (Exception) e : new RuntimeException(e));
+        } finally {
+            //恢复后无论终态如何都清掉 PausedFlow 注册（终态落库已完成）
+            PausedFlow.remove(runtimeUuid);
+        }
+    }
+
+    /**
+     * M2-T4：停驻时保存 checkpoint（尽力而为）。失败只告警不中断——checkpoint 是恢复
+     * 能力增强，不阻塞主流程；丢失时 L2 重建降级为报错（用户可重新发起运行）。
+     */
+    private void saveCheckpointSafely(int processStatus, String pausedNodeUuid) {
+        if (null == checkpointService) {
+            return; // 可选依赖：测试/无 checkpoint 环境跳过
+        }
+        try {
+            ObjectNode snapshot = JsonUtil.createObjectNode();
+            snapshot.set("completedNodeUuids", JsonUtil.classToJsonNode(wfState.getCompletedNodes().stream()
+                    .map(node -> node.getNode().getUuid()).toList()));
+            checkpointService.saveParked(wfState.getUuid(), workflow.getUuid(), processStatus, pausedNodeUuid, snapshot);
+        } catch (Throwable ex) {
+            log.error("saveCheckpointSafely failed, runtimeUuid:{}, pausedNode:{}", wfState.getUuid(), pausedNodeUuid, ex);
+        }
+    }
+
+    /** M2-T4：终态即删 checkpoint（尽力而为，失败只告警）。 */
+    private void deleteCheckpointSafely() {
+        if (null == checkpointService) {
+            return; // 可选依赖：测试/无 checkpoint 环境跳过
+        }
+        try {
+            checkpointService.deleteByRuntimeUuid(wfState.getUuid());
+        } catch (Throwable ex) {
+            log.error("deleteCheckpointSafely failed, runtimeUuid:{}", wfState.getUuid(), ex);
+        }
     }
 
     /**
@@ -903,7 +1094,19 @@ public class WorkflowEngine {
         }
         log.info("addNodeToStateGraph,node uuid:{}", stateGraphNodeUuid);
         WorkflowNode wfNode = getNodeByUuid(stateGraphNodeUuid);
-        stateGraph.addNode(stateGraphNodeUuid, node_async((state) -> runNode(wfNode, state)));
+        //M2-T2：节点边界门闩——check 必须抛在 runNode 的 try/catch 之外（包装层），否则
+        //ControlException 会被 runNode 的 onError 分支接管成普通节点失败。主图/子图/并行分支
+        //的节点动作唯一注册点都在这里，一处包装全覆盖。
+        //M2-T4：抛出前记住停驻节点 uuid，供 PAUSED 落 checkpoint（L2 重建恢复用）。
+        stateGraph.addNode(stateGraphNodeUuid, node_async((state) -> {
+            try {
+                controlHub.check(null == wfState ? null : wfState.getUuid());
+            } catch (ControlException ce) {
+                this.boundaryNodeUuid = stateGraphNodeUuid;
+                throw ce;
+            }
+            return runNode(wfNode, state);
+        }));
         stateGraphList.add(stateGraph);
 
         //记录人机交互节点

@@ -64,10 +64,17 @@ function workflowRuntimeResume<T>(params: {
   })
 }
 
-// M1 业务编排：对话触发的运行在执行中可被当前用户中止（仅 READY/DOING/WAITING_INPUT 可迁到 FAIL）
+// M1 业务编排：对话触发的运行在执行中可被当前用户中止（READY/DOING/WAITING_INPUT/PAUSED → CANCELLING，M2-T1 起语义修正）
 function workflowRuntimeCancel<T>(runtimeUuid: string) {
   return post<T>({
     url: `/workflow/runtime/cancel/${runtimeUuid}`,
+  })
+}
+
+// M2-T3（2026-11-11）：DOING 态主动暂停（节点边界生效，落 PAUSED 后可 resume）
+function workflowRuntimePause<T>(runtimeUuid: string) {
+  return post<T>({
+    url: `/workflow/runtime/pause/${runtimeUuid}`,
   })
 }
 
@@ -233,6 +240,7 @@ export default {
   workflowRuntimeDelete,
   workflowRuntimeResume,
   workflowRuntimeCancel,
+  workflowRuntimePause,
   workflowRuntimeInfo,
   workflowAvailableVars,
   workflowValidateTemplate,

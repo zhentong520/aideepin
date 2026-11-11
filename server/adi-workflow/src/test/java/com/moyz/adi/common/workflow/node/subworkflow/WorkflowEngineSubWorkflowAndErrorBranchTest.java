@@ -162,7 +162,7 @@ class WorkflowEngineSubWorkflowAndErrorBranchTest {
                 List.of(component(1L, "Start"), component(2L, "Template"), component(3L, "End")),
                 List.of(start, template, end),
                 List.of(edge("start", "tpl"), edge("tpl", "end")),
-                runtimeService, runtimeNodeService,
+                runtimeService, null, runtimeNodeService,
                 new WfNodeProvider(WfNodeDeps.empty()));
 
         Map<String, Object> result = engine.blockingRun(user(), userInput());
@@ -189,7 +189,7 @@ class WorkflowEngineSubWorkflowAndErrorBranchTest {
                         edge("failing", "skipped"),
                         edge("failing", "error-tpl", WorkflowEngine.ON_ERROR_HANDLE),
                         edge("error-tpl", "end")),
-                runtimeService, runtimeNodeService,
+                runtimeService, null, runtimeNodeService,
                 new WfNodeProvider(WfNodeDeps.empty()));
 
         Map<String, Object> result = engine.blockingRun(user(), userInput());
@@ -220,7 +220,7 @@ class WorkflowEngineSubWorkflowAndErrorBranchTest {
                         edge("failing-node", "error-tpl"),
                         edge("failing-node", "error-tpl", WorkflowEngine.ON_ERROR_HANDLE),
                         edge("error-tpl", "end")),
-                runtimeService, runtimeNodeService,
+                runtimeService, null, runtimeNodeService,
                 new WfNodeProvider(WfNodeDeps.empty()));
 
         engine.blockingRun(user(), userInput());
@@ -260,7 +260,7 @@ class WorkflowEngineSubWorkflowAndErrorBranchTest {
                         edge("failing", "error-tpl"),
                         edge("failing", "error-tpl", WorkflowEngine.ON_ERROR_HANDLE),
                         edge("error-tpl", "end")),
-                runtimeService, runtimeNodeService,
+                runtimeService, null, runtimeNodeService,
                 new WfNodeProvider(WfNodeDeps.empty()));
 
         Map<String, Object> result = engine.blockingRun(user(), userInput());

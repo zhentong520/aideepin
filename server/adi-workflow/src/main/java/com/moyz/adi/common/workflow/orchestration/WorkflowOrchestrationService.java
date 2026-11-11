@@ -80,6 +80,9 @@ public class WorkflowOrchestrationService implements WorkflowToolSpi {
     private LaunchWorkflowTool launchWorkflowTool;
 
     @Resource
+    private WorkflowControlTool workflowControlTool;
+
+    @Resource
     private WorkflowRunMapper workflowRunMapper;
 
     @Resource
@@ -111,6 +114,9 @@ public class WorkflowOrchestrationService implements WorkflowToolSpi {
             }
             listText.append('\n');
         }
+        //M2-T5：固定名控制工具（cancel_workflow / pause_workflow），用户想中止/暂停运行中的工作流时使用
+        specifications.add(workflowControlTool.buildCancelSpecification());
+        specifications.add(workflowControlTool.buildPauseSpecification());
         return new ToolBundle(buildManifest(listText.toString()), specifications);
     }
 
@@ -119,6 +125,13 @@ public class WorkflowOrchestrationService implements WorkflowToolSpi {
                           String sceneUuid, String questionUuid) {
         if (StringUtils.isBlank(sceneUuid)) {
             return "ERROR: no scene context, workflow launch is only available inside a scene";
+        }
+        //M2-T5：固定名控制工具优先路由（cancel/pause 不绑定具体工作流，归属校验在 service 层）
+        if (WorkflowControlTool.CANCEL_TOOL_NAME.equals(toolName)) {
+            return workflowControlTool.invokeCancel(argsJson, userId);
+        }
+        if (WorkflowControlTool.PAUSE_TOOL_NAME.equals(toolName)) {
+            return workflowControlTool.invokePause(argsJson, userId);
         }
         //工具名必须在场景绑定集内匹配——未绑定的工作流不可对话触发（天然防越权）
         for (Workflow workflow : listEnabledBoundWorkflows(sceneUuid)) {
@@ -297,6 +310,7 @@ public class WorkflowOrchestrationService implements WorkflowToolSpi {
                 2. 工具是异步的：调用后立即返回 runtime_uuid 即视为成功，请向用户简述"已启动"与用途，不要编造或等待执行结果。
                 3. 工具的必填入参缺失或含糊时，先向用户追问补齐，禁止编造参数值。
                 4. 同一工作流被重复触发前，先确认用户意图（避免误启动重复流程）。
+                5. 用户想取消/终止某个工作流时调用 cancel_workflow，想暂停时调用 pause_workflow；两者的 runtime_uuid 必须来自本对话中已出现的工作流，禁止编造。
 
                 ## 当前场景可用的工作流
                 """ + workflowList;

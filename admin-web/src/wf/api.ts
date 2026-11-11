@@ -112,6 +112,15 @@ function workflowRuntimeResume<T = any>(params: { runtimeUuid: string; feedbackC
   })
 }
 
+// M2-T6（2026-11-11）：admin 端工作流运行控制（admin 全量权限，可中止/暂停任意运行）
+function workflowRuntimeCancel<T = any>(runtimeUuid: string) {
+  return post<T>({ url: `/workflow/runtime/cancel/${runtimeUuid}` })
+}
+
+function workflowRuntimePause<T = any>(runtimeUuid: string) {
+  return post<T>({ url: `/workflow/runtime/pause/${runtimeUuid}` })
+}
+
 function workflowComponents<T = any>() {
   return get<T>({ url: '/workflow/public/component/list' })
 }
@@ -233,6 +242,8 @@ export default {
   workflowBaseInfoUpdate,
   workflowRun,
   workflowRuntimeResume,
+  workflowRuntimeCancel,
+  workflowRuntimePause,
   workflowComponents,
   workflowSearchMine,
   workflowSearchPublic,

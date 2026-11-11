@@ -162,7 +162,7 @@ class WorkflowNodeLayoutTest {
         WorkflowEngine engine = new WorkflowEngine(workflow, sseManager,
                 List.of(startComp, tplComp, endComp), List.of(start, tpl, end),
                 List.of(edge("start", "tpl"), edge("tpl", "end")),
-                runtimeService, runtimeNodeService,
+                runtimeService, null, runtimeNodeService,
                 new WfNodeProvider(WfNodeDeps.empty()));
 
         ObjectNode userInput = JsonUtil.createObjectNode();

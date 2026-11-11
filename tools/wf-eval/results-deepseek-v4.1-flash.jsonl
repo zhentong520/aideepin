@@ -1,0 +1,30 @@
+{"id": "w01", "expect": "launch", "ok": true, "reason": "ok", "got": {"tool": "wf_travel_expense", "args": {"input": {"amount": 3800, "department": "市场部"}}}}
+{"id": "w02", "expect": "launch", "ok": true, "reason": "ok", "got": {"tool": "wf_travel_expense", "args": {"input": {"amount": 1520, "department": "研发部"}}}}
+{"id": "w03", "expect": "launch", "ok": true, "reason": "ok", "got": {"tool": "wf_travel_expense", "args": {"input": {"amount": 2999, "department": "市场部", "trip_city": "上海"}}}}
+{"id": "w04", "expect": "launch", "ok": true, "reason": "ok", "got": {"tool": "wf_travel_expense", "args": {"input": {"amount": 800, "department": "财务部"}}}}
+{"id": "w05", "expect": "launch", "ok": true, "reason": "ok", "got": {"tool": "wf_travel_expense", "args": {"input": {"amount": 260, "department": "人事部"}}}}
+{"id": "w06", "expect": "launch", "ok": true, "reason": "ok", "got": {"tool": "wf_travel_expense", "args": {"input": {"amount": 4500, "department": "行政部"}}}}
+{"id": "w07", "expect": "launch", "ok": true, "reason": "ok", "got": {"tool": "wf_weekly_report", "args": {"input": {"period": "本周"}}}}
+{"id": "w08", "expect": "launch", "ok": false, "reason": "expect tool wf_weekly_report, got None", "got": null}
+{"id": "w09", "expect": "launch", "ok": true, "reason": "ok", "got": {"tool": "wf_weekly_report", "args": {"input": {"period": "2024年第42周"}}}}
+{"id": "w10", "expect": "launch", "ok": true, "reason": "ok", "got": {"tool": "wf_weekly_report", "args": {"input": {"period": "上周", "highlights": "上线了运行控制"}}}}
+{"id": "w11", "expect": "launch", "ok": true, "reason": "ok", "got": {"tool": "wf_contract_query", "args": {"input": {"contract_no": "HT-2024-088"}}}}
+{"id": "w12", "expect": "launch", "ok": true, "reason": "ok", "got": {"tool": "wf_contract_query", "args": {"input": {"contract_no": "HT-2024-088"}}}}
+{"id": "w13", "expect": "launch", "ok": true, "reason": "ok", "got": {"tool": "wf_contract_query", "args": {"input": {"contract_no": "CN-771"}}}}
+{"id": "w14", "expect": "launch", "ok": true, "reason": "ok", "got": {"tool": "wf_contract_query", "args": {"input": {"contract_no": "HT-2024-001"}}}}
+{"id": "w15", "expect": "ask", "ok": true, "reason": "ok", "got": null}
+{"id": "w16", "expect": "ask", "ok": true, "reason": "ok", "got": null}
+{"id": "w17", "expect": "ask", "ok": true, "reason": "ok", "got": null}
+{"id": "w18", "expect": "ask", "ok": true, "reason": "ok", "got": null}
+{"id": "w19", "expect": "ask", "ok": true, "reason": "ok", "got": null}
+{"id": "w20", "expect": "ask", "ok": true, "reason": "ok", "got": null}
+{"id": "w21", "expect": "ask", "ok": true, "reason": "ok", "got": null}
+{"id": "w22", "expect": "ask", "ok": true, "reason": "ok", "got": null}
+{"id": "w23", "expect": "cancel", "ok": true, "reason": "ok", "got": {"tool": "cancel_workflow", "args": {"runtime_uuid": "RT-1001"}}}
+{"id": "w24", "expect": "cancel", "ok": true, "reason": "ok", "got": {"tool": "cancel_workflow", "args": {"runtime_uuid": "RT-1002"}}}
+{"id": "w25", "expect": "cancel", "ok": true, "reason": "ok", "got": {"tool": "cancel_workflow", "args": {"runtime_uuid": "RT-1003"}}}
+{"id": "w26", "expect": "cancel", "ok": true, "reason": "ok", "got": {"tool": "cancel_workflow", "args": {"runtime_uuid": "RT-1004"}}}
+{"id": "w27", "expect": "pause", "ok": true, "reason": "ok", "got": {"tool": "pause_workflow", "args": {"runtime_uuid": "RT-2001"}}}
+{"id": "w28", "expect": "pause", "ok": true, "reason": "ok", "got": {"tool": "pause_workflow", "args": {"runtime_uuid": "RT-2002"}}}
+{"id": "w29", "expect": "none", "ok": true, "reason": "ok", "got": null}
+{"id": "w30", "expect": "none", "ok": true, "reason": "ok", "got": null}

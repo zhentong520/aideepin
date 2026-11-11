@@ -121,7 +121,7 @@ declare namespace Workflow {
     workflowUuid?: string
     input: any
     output: any
-    // 1=READY 2=DOING 3=SUCCESS 4=FAIL 5=WAITING_INPUT（对齐后端 WfConstant.WorkflowProcessStatus）
+    // 1=READY 2=DOING 3=SUCCESS 4=FAIL 5=WAITING_INPUT 6=CANCELLING 7=CANCELED 8=PAUSED（对齐后端 WfConstant.WorkflowProcessStatus，M2-T1 扩展）
     status: number
     statusRemark: string
     createTime: string

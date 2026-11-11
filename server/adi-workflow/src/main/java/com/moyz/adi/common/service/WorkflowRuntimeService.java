@@ -3,6 +3,7 @@ package com.moyz.adi.common.service;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.baomidou.mybatisplus.extension.toolkit.ChainWrappers;
+import com.moyz.adi.common.entity.WfRuntimeCheckpoint;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.moyz.adi.common.base.ThreadContext;
@@ -22,6 +23,10 @@ import com.moyz.adi.common.util.PrivilegeUtil;
 import com.moyz.adi.common.util.UuidUtil;
 import com.moyz.adi.common.workflow.WfNodeIODataUtil;
 import com.moyz.adi.common.workflow.WfState;
+import com.moyz.adi.common.workflow.InterruptedFlow;
+import com.moyz.adi.common.workflow.PausedFlow;
+import com.moyz.adi.common.workflow.control.WorkflowControlHub;
+import jakarta.annotation.Resource;
 import com.moyz.adi.common.workflow.data.NodeIOData;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -39,9 +44,12 @@ import java.util.stream.Collectors;
 
 import static com.moyz.adi.common.workflow.WfConstant.WORKFLOW_PROCESS_STATUS_DOING;
 import static com.moyz.adi.common.workflow.WfConstant.WORKFLOW_PROCESS_STATUS_FAIL;
+import static com.moyz.adi.common.workflow.WfConstant.WORKFLOW_PROCESS_STATUS_PAUSED;
 import static com.moyz.adi.common.workflow.WfConstant.WORKFLOW_PROCESS_STATUS_READY;
 import static com.moyz.adi.common.workflow.WfConstant.WORKFLOW_PROCESS_STATUS_SUCCESS;
 import static com.moyz.adi.common.workflow.WfConstant.WORKFLOW_PROCESS_STATUS_WAITING_INPUT;
+import static com.moyz.adi.common.workflow.WfConstant.WORKFLOW_PROCESS_STATUS_CANCELLING;
+import static com.moyz.adi.common.workflow.WfConstant.WORKFLOW_PROCESS_STATUS_CANCELED;
 
 @Slf4j
 @Service
@@ -55,6 +63,9 @@ public class WorkflowRuntimeService extends ServiceImpl<WorkflowRunMapper, Workf
 
     @Resource
     private WorkflowNodeService workflowNodeService;
+
+    @Resource
+    private WfRuntimeCheckpointService checkpointService;
 
     public WfRuntimeResp create(User user, Long workflowId) {
         return create(user, workflowId, false);
@@ -229,11 +240,19 @@ public class WorkflowRuntimeService extends ServiceImpl<WorkflowRunMapper, Workf
     public boolean deleteAll(String wfUuid) {
         Workflow workflow = workflowService.getOrThrow(wfUuid);
         User user = ThreadContext.getCurrentUser();
-        return ChainWrappers.lambdaUpdateChain(baseMapper)
+        boolean updated = ChainWrappers.lambdaUpdateChain(baseMapper)
                 .eq(WorkflowRuntime::getWorkflowId, workflow.getId())
                 .eq(!user.getIsAdmin(), WorkflowRuntime::getUserId, user.getId())
                 .set(WorkflowRuntime::getIsDeleted, true)
                 .update();
+        //运行记录清理后，对应停驻 checkpoint 一并软删，防孤儿行阻塞 L2 恢复扫描
+        if (updated) {
+            ChainWrappers.lambdaUpdateChain(checkpointService.getBaseMapper())
+                    .eq(WfRuntimeCheckpoint::getWorkflowUuid, workflow.getUuid())
+                    .set(WfRuntimeCheckpoint::getIsDeleted, true)
+                    .update();
+        }
+        return updated;
     }
 
     private WfRuntimeResp changeToDTO(WorkflowRuntime runtime) {
@@ -275,32 +294,131 @@ public class WorkflowRuntimeService extends ServiceImpl<WorkflowRunMapper, Workf
 
     public boolean softDelete(String uuid) {
         WorkflowRuntime workflowRuntime = PrivilegeUtil.checkAndGetByUuid(uuid, this.query(), ErrorEnum.A_WF_NOT_FOUND);
-        return ChainWrappers.lambdaUpdateChain(baseMapper)
+        boolean updated = ChainWrappers.lambdaUpdateChain(baseMapper)
                 .eq(WorkflowRuntime::getId, workflowRuntime.getId())
                 .set(WorkflowRuntime::getIsDeleted, true)
                 .update();
+        //运行记录删除后，对应停驻 checkpoint 一并软删（终态即删原则的删除入口覆盖）
+        if (updated) {
+            checkpointService.deleteByRuntimeUuid(uuid);
+        }
+        return updated;
     }
 
     /**
-     * 业务编排 Harness M1（2026-10-30）：对话端中止一次运行（WorkflowCard「中止」按钮后端入口）。
-     * 仅当前用户自己的 runtime 可中止；READY/DOING/WAITING_INPUT 状态标记 FAIL + 备注，
-     * 引擎异步线程里的后续节点以状态非 DOING 为准自然不再推进（M1 最小实现，不做线程强杀）。
-     * Returns true if the runtime was transitioned to a cancelled state.
+     * 业务编排 Harness M2-T1/T3（2026-11-11）：对话端中止一次运行（WorkflowCard「中止」按钮后端入口）。
+     * 仅当前用户自己的 runtime 可中止；按状态拆两条路径：
+     * <ul>
+     *   <li>READY/DOING（引擎在跑）：置 CANCELLING 过渡态 + 登记 WorkflowControlHub CANCEL 信号，
+     *       由引擎节点边界门闩（M2-T2）在下一个节点边界确认并落 CANCELED 终态；</li>
+     *   <li>WAITING_INPUT/PAUSED（引擎停驻，无边界可拦截）：直接落 CANCELED 终态并清理
+     *       InterruptedFlow/PausedFlow 注册表——否则会永久卡在 CANCELLING（T1 版设计缺陷，T3 修正）。</li>
+     * </ul>
+     * M1 旧实现直接置 FAIL——用户主动中止 ≠ 失败，统计口径自本版起分离。
+     * Returns true if the runtime was transitioned (to CANCELLING or CANCELED).
      */
     public boolean cancelFromChat(String runtimeUuid) {
         WorkflowRuntime runtime = PrivilegeUtil.checkAndGetByUuid(runtimeUuid, this.query(), ErrorEnum.A_WF_NOT_FOUND);
+        return doCancel(runtime);
+    }
+
+    /**
+     * 业务编排 Harness M2-T5：LLM 工具回调线程入口（ThreadContext 不可达）——
+     * 归属校验改显式 userId（仅属主可操作；管理员入口走 cancelFromChat 的 PrivilegeUtil 路径）。
+     */
+    public boolean cancelForUser(String runtimeUuid, Long userId) {
+        WorkflowRuntime runtime = getByUuid(runtimeUuid);
+        if (null == runtime || Boolean.TRUE.equals(runtime.getIsDeleted())) {
+            return false;
+        }
+        if (null == userId || !userId.equals(runtime.getUserId())) {
+            log.warn("cancelForUser denied: runtime:{} not owned by user:{}", runtimeUuid, userId);
+            return false;
+        }
+        return doCancel(runtime);
+    }
+
+    /**
+     * M2-T1/T3 中止核心（chat 与 tool 两入口共用）：按状态拆两条路径。
+     */
+    private boolean doCancel(WorkflowRuntime runtime) {
+        String runtimeUuid = runtime.getUuid();
         int status = null == runtime.getStatus() ? 0 : runtime.getStatus();
         if (status != WORKFLOW_PROCESS_STATUS_READY
                 && status != WORKFLOW_PROCESS_STATUS_DOING
-                && status != WORKFLOW_PROCESS_STATUS_WAITING_INPUT) {
+                && status != WORKFLOW_PROCESS_STATUS_WAITING_INPUT
+                && status != WORKFLOW_PROCESS_STATUS_PAUSED) {
             return false;
         }
-        return ChainWrappers.lambdaUpdateChain(baseMapper)
+        if (status == WORKFLOW_PROCESS_STATUS_WAITING_INPUT || status == WORKFLOW_PROCESS_STATUS_PAUSED) {
+            //停驻态：引擎不执行、无节点边界可确认信号，直接落终态并清注册表
+            boolean updated = ChainWrappers.lambdaUpdateChain(baseMapper)
+                    .eq(WorkflowRuntime::getId, runtime.getId())
+                    .eq(WorkflowRuntime::getStatus, status)
+                    .set(WorkflowRuntime::getStatus, WORKFLOW_PROCESS_STATUS_CANCELED)
+                    .set(WorkflowRuntime::getStatusRemark, "用户中止（停驻态直接终止）")
+                    .update();
+            if (updated) {
+                InterruptedFlow.remove(runtimeUuid);
+                PausedFlow.remove(runtimeUuid);
+                WorkflowControlHub.getInstance().clear(runtimeUuid);
+                //M2-T4（决策点①）：终态（CANCELED）即删 checkpoint——E2E cancel-test 抓到的漏删
+                checkpointService.deleteByRuntimeUuid(runtimeUuid);
+            }
+            return updated;
+        }
+        //执行态：置 CANCELLING + 登记信号，等待引擎节点边界确认
+        boolean requested = WorkflowControlHub.getInstance().requestCancel(runtimeUuid);
+        boolean updated = ChainWrappers.lambdaUpdateChain(baseMapper)
                 .eq(WorkflowRuntime::getId, runtime.getId())
                 .eq(WorkflowRuntime::getStatus, status)
-                .set(WorkflowRuntime::getStatus, WORKFLOW_PROCESS_STATUS_FAIL)
-                .set(WorkflowRuntime::getStatusRemark, "用户中止（对话触发取消）")
+                .set(WorkflowRuntime::getStatus, WORKFLOW_PROCESS_STATUS_CANCELLING)
+                .set(WorkflowRuntime::getStatusRemark, "用户中止（等待当前节点结束后终止）")
                 .update();
+        if (!updated) {
+            //状态已被并发改变（如刚好跑完）——撤回信号，避免泄漏到后续运行
+            WorkflowControlHub.getInstance().clear(runtimeUuid);
+        }
+        return requested || updated;
+    }
+
+    /**
+     * 业务编排 Harness M2-T3：对话端暂停一次运行（WorkflowCard「暂停」按钮后端入口）。
+     * 仅 DOING（引擎在跑）可暂停：只登记 WorkflowControlHub PAUSE 信号、不动 DB——
+     * 避免与引擎边界 finishWithControl 落 PAUSED 产生 racing；引擎在下一个节点边界
+     * 确认信号后落 PAUSED 并把引擎实例存入 PausedFlow（进程内 30 分钟可 resume）。
+     * READY（尚未起跑）暂不支持暂停；WAITING_INPUT/PAUSED 本就停驻无需暂停。
+     * Returns true if the pause signal was registered.
+     */
+    public boolean pauseFromChat(String runtimeUuid) {
+        WorkflowRuntime runtime = PrivilegeUtil.checkAndGetByUuid(runtimeUuid, this.query(), ErrorEnum.A_WF_NOT_FOUND);
+        return doPause(runtime);
+    }
+
+    /**
+     * 业务编排 Harness M2-T5：LLM 工具回调线程入口（显式 userId 归属校验，仅属主可操作）。
+     */
+    public boolean pauseForUser(String runtimeUuid, Long userId) {
+        WorkflowRuntime runtime = getByUuid(runtimeUuid);
+        if (null == runtime || Boolean.TRUE.equals(runtime.getIsDeleted())) {
+            return false;
+        }
+        if (null == userId || !userId.equals(runtime.getUserId())) {
+            log.warn("pauseForUser denied: runtime:{} not owned by user:{}", runtimeUuid, userId);
+            return false;
+        }
+        return doPause(runtime);
+    }
+
+    /**
+     * M2-T3 暂停核心（chat 与 tool 两入口共用）：仅 DOING 登记信号，不动 DB。
+     */
+    private boolean doPause(WorkflowRuntime runtime) {
+        int status = null == runtime.getStatus() ? 0 : runtime.getStatus();
+        if (status != WORKFLOW_PROCESS_STATUS_DOING) {
+            return false;
+        }
+        return WorkflowControlHub.getInstance().requestPause(runtime.getUuid());
     }
 
     /**
@@ -368,5 +486,73 @@ public class WorkflowRuntimeService extends ServiceImpl<WorkflowRunMapper, Workf
             }
         }
         return result;
+    }
+
+    /**
+     * 业务编排 Harness M2-T4（L2 重建）：加载指定运行实例自身的「节点输出上下文」：
+     * nodeUuid -> 该节点输出参数。进程重启后从 checkpoint 的停驻节点起跑时，
+     * 用它给下游 refInput 补齐上游变量（与 loadLastSuccessContext 同构，只是数据源
+     * 从"最近成功运行"换成"本次停驻运行"）。
+     */
+    public Map<String, List<NodeIOData>> loadRuntimeContext(Long runtimeId) {
+        List<WfRuntimeNodeDto> runtimeNodes = workflowRuntimeNodeService.listByWfRuntimeId(runtimeId);
+        if (CollectionUtils.isEmpty(runtimeNodes)) {
+            return Map.of();
+        }
+        Map<Long, WorkflowNode> nodeById = workflowNodeService.listByWorkflowId(
+                baseMapper.selectById(runtimeId).getWorkflowId()).stream()
+                .collect(Collectors.toMap(WorkflowNode::getId, n -> n, (a, b) -> a));
+        Map<String, List<NodeIOData>> result = new LinkedHashMap<>();
+        for (WfRuntimeNodeDto dto : runtimeNodes) {
+            WorkflowNode node = nodeById.get(dto.getNodeId());
+            if (null == node || null == dto.getOutput()) {
+                continue;
+            }
+            List<NodeIOData> outputs = new ArrayList<>();
+            Iterator<Map.Entry<String, JsonNode>> iterator = dto.getOutput().fields();
+            while (iterator.hasNext()) {
+                Map.Entry<String, JsonNode> entry = iterator.next();
+                NodeIOData data = WfNodeIODataUtil.createNodeIODataFromRuntimeEntry(entry.getKey(), entry.getValue());
+                if (null != data) {
+                    outputs.add(data);
+                }
+            }
+            if (!outputs.isEmpty()) {
+                result.put(node.getUuid(), outputs);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 业务编排 Harness M2-T4（L1 启动扫描）：进程重启后，内存注册表（InterruptedFlow/
+     * PausedFlow）必然为空——所有停驻实例（WAITING_INPUT/PAUSED）都成了"孤儿"。
+     * 扫描并把它们标记为可恢复（statusRemark 注明），不改状态：用户点「继续」即触发
+     * L2 重建恢复。有 checkpoint 行的可重建；无 checkpoint 的旧数据（V31 之前）点继续
+     * 会收到明确的恢复失败提示。
+     * Returns the number of orphaned parked runtimes marked.
+     */
+    public int markOrphanedParkedAfterRestart() {
+        List<WorkflowRuntime> parked = ChainWrappers.lambdaQueryChain(baseMapper)
+                .in(WorkflowRuntime::getStatus, WORKFLOW_PROCESS_STATUS_WAITING_INPUT, WORKFLOW_PROCESS_STATUS_PAUSED)
+                .eq(WorkflowRuntime::getIsDeleted, false)
+                .list();
+        int marked = 0;
+        for (WorkflowRuntime runtime : parked) {
+            boolean hasCheckpoint = null != checkpointService.getByRuntimeUuid(runtime.getUuid());
+            boolean updated = ChainWrappers.lambdaUpdateChain(baseMapper)
+                    .eq(WorkflowRuntime::getId, runtime.getId())
+                    .eq(WorkflowRuntime::getStatus, runtime.getStatus())
+                    .set(WorkflowRuntime::getStatusRemark, hasCheckpoint
+                            ? "服务重启，点「继续」可从停驻节点恢复（M2-T4）"
+                            : "服务重启，无检查点数据，无法恢复，请重新发起运行（M2-T4）")
+                    .update();
+            if (updated) {
+                marked++;
+            }
+            log.info("restart recovery scan: runtime:{} status:{} checkpoint:{}",
+                    runtime.getUuid(), runtime.getStatus(), hasCheckpoint);
+        }
+        return marked;
     }
 }

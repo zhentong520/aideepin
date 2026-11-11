@@ -1,6 +1,7 @@
 package com.moyz.adi.chat.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.moyz.adi.common.base.ThreadContext;
 import com.moyz.adi.common.dto.workflow.WfRuntimeNodeDto;
 import com.moyz.adi.common.dto.workflow.WfRuntimeResp;
 import com.moyz.adi.common.dto.workflow.WorkflowResumeReq;
@@ -29,13 +30,20 @@ public class WorkflowRuntimeController {
     @Operation(summary = "接收用户输入以继续执行剩余流程 | Receive User Input to Resume Workflow")
     @PostMapping(value = "/resume/{runtimeUuid}")
     public void resume(@PathVariable String runtimeUuid, @RequestBody WorkflowResumeReq resumeReq) {
-        workflowStarter.resumeFlow(runtimeUuid, resumeReq.getFeedbackContent());
+        //M2-T4：用户须在 Controller 线程（ThreadContext 可达）取出，@Async 方法内不可达
+        workflowStarter.resumeFlow(runtimeUuid, resumeReq.getFeedbackContent(), ThreadContext.getCurrentUser());
     }
 
     @Operation(summary = "中止运行（业务编排 Harness M1：对话触发的工作流卡片「中止」） | Cancel a running workflow")
     @PostMapping(value = "/cancel/{runtimeUuid}")
     public boolean cancel(@PathVariable String runtimeUuid) {
         return workflowRuntimeService.cancelFromChat(runtimeUuid);
+    }
+
+    @Operation(summary = "暂停运行（业务编排 Harness M2-T3：对话工作流卡片「暂停」，节点边界停下后可继续） | Pause a running workflow")
+    @PostMapping(value = "/pause/{runtimeUuid}")
+    public boolean pause(@PathVariable String runtimeUuid) {
+        return workflowRuntimeService.pauseFromChat(runtimeUuid);
     }
 
     @GetMapping("/page")

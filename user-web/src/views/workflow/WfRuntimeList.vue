@@ -161,7 +161,7 @@ async function onShowRuntimeDetail(instUuid: string) {
     const runtime = wfStore.getWfRuntime(instUuid)
     if (runtime) {
       detailNodes.value = runtime.nodes || []
-      detailErrorMsg.value = runtime.status === 4 ? runtime.statusRemark : ''
+      detailErrorMsg.value = (runtime.status === 4 || runtime.status === 7) ? runtime.statusRemark : ''
     }
   }
 }
