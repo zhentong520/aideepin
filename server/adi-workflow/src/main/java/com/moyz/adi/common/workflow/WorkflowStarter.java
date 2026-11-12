@@ -178,6 +178,24 @@ public class WorkflowStarter {
 
     @Async("workflowExecutor")
     public void resumeFlow(String runtimeUuid, String userInput, User user) {
+        //M2-T4 深查补丁（2026-11-12）：并发幂等守卫——CAS 把停驻态(5/8)原子转为 DOING。
+        //CAS 失败说明状态已变（另一线程正在恢复 / 已取消 / 已终态），直接放弃本次恢复，
+        //防止连点「继续」或多端同时触发导致同一 runtime 被双引擎并发执行。
+        //同时前置 WAITING_INPUT 反馈校验：必须在 CAS 之前做，避免 CAS 成功后校验失败还要回滚。
+        WorkflowRuntime runtime = workflowRuntimeService.getByUuid(runtimeUuid);
+        int parkedStatus = (null == runtime || null == runtime.getStatus()) ? 0 : runtime.getStatus();
+        if (parkedStatus != WORKFLOW_PROCESS_STATUS_WAITING_INPUT && parkedStatus != WORKFLOW_PROCESS_STATUS_PAUSED) {
+            log.error("resumeFlow: runtime not parked (pre-check), runtime:{}, status:{}", runtimeUuid, parkedStatus);
+            return;
+        }
+        if (parkedStatus == WORKFLOW_PROCESS_STATUS_WAITING_INPUT && StringUtils.isBlank(userInput)) {
+            log.error("resumeFlow: WAITING_INPUT resume requires user feedback, runtime:{}", runtimeUuid);
+            return;
+        }
+        if (!workflowRuntimeService.casResumeToDoing(runtimeUuid)) {
+            log.error("resumeFlow: CAS parked->DOING lost the race (resumed by another thread or status changed), runtime:{}", runtimeUuid);
+            return;
+        }
         //M2-T2/T3：优先命中 WAITING_INPUT 注册表；未命中且为 PAUSED（暂停停驻）则走
         //resumeFromPause 续跑。两类停驻共用 /resume 端点（前端「继续」按钮统一入口）。
         WorkflowEngine workflowEngine = InterruptedFlow.get(runtimeUuid);
@@ -185,7 +203,7 @@ public class WorkflowStarter {
             workflowEngine = PausedFlow.get(runtimeUuid);
             if (null == workflowEngine) {
                 //M2-T4（L2 重建）：进程重启后注册表为空——按 checkpoint 从停驻节点重建恢复
-                resumeFromCheckpoint(runtimeUuid, userInput, user);
+                resumeFromCheckpoint(runtimeUuid, parkedStatus, userInput, user);
                 return;
             }
             log.info("resumeFlow: PAUSED runtime found in PausedFlow, resuming without user input, runtime:{}", runtimeUuid);
@@ -214,33 +232,29 @@ public class WorkflowStarter {
      *   <li>run(user, ..., startNodeUuid=pausedNodeUuid) 从断点节点起跑。</li>
      * </ol>
      * 无 checkpoint 的旧数据（047 之前）明确报恢复失败，不静默。
+     * <p>
+     * M2-T4 深查补丁（2026-11-12）：停驻态校验与 WAITING_INPUT 反馈校验已由 resumeFlow
+     * 入口的 CAS 前置完成（parkedStatus 为 CAS 前快照）；本方法内任何失败路径都必须
+     * rollbackResumingToParked 回滚 DOING，否则 runtime 永久卡死在 DOING。
      */
-    private void resumeFromCheckpoint(String runtimeUuid, String userInput, User user) {
+    private void resumeFromCheckpoint(String runtimeUuid, int parkedStatus, String userInput, User user) {
         WorkflowRuntime runtime = workflowRuntimeService.getByUuid(runtimeUuid);
         if (null == runtime) {
-            throw new BaseException(A_WF_RESUME_FAIL);
-        }
-        int status = null == runtime.getStatus() ? 0 : runtime.getStatus();
-        if (status != WORKFLOW_PROCESS_STATUS_WAITING_INPUT && status != WORKFLOW_PROCESS_STATUS_PAUSED) {
-            log.error("resumeFromCheckpoint: runtime not parked, runtime:{}, status:{}", runtimeUuid, status);
+            workflowRuntimeService.rollbackResumingToParked(runtimeUuid, parkedStatus);
             throw new BaseException(A_WF_RESUME_FAIL);
         }
         WfRuntimeCheckpoint checkpoint = checkpointService.getByRuntimeUuid(runtimeUuid);
         if (null == checkpoint || StringUtils.isBlank(checkpoint.getPausedNodeUuid())) {
             log.error("resumeFromCheckpoint: no checkpoint row (pre-047 legacy or save failed), runtime:{}", runtimeUuid);
+            workflowRuntimeService.rollbackResumingToParked(runtimeUuid, parkedStatus);
             throw new BaseException(A_WF_RESUME_FAIL);
         }
         log.info("resumeFromCheckpoint: rebuilding engine, runtime:{}, workflow:{}, pausedNode:{}",
                 runtimeUuid, checkpoint.getWorkflowUuid(), checkpoint.getPausedNodeUuid());
         Workflow workflow = workflowService.getByUuid(checkpoint.getWorkflowUuid());
         if (null == workflow) {
+            workflowRuntimeService.rollbackResumingToParked(runtimeUuid, parkedStatus);
             throw new BaseException(A_WF_NOT_FOUND);
-        }
-        //WAITING_INPUT 恢复必须带上用户反馈（HumanFeedbackNode 从 state 读 human_feedback）；
-        //PAUSED 恢复无需反馈
-        if (status == WORKFLOW_PROCESS_STATUS_WAITING_INPUT && StringUtils.isBlank(userInput)) {
-            log.error("resumeFromCheckpoint: WAITING_INPUT resume requires user feedback, runtime:{}", runtimeUuid);
-            throw new BaseException(A_WF_RESUME_FAIL);
         }
         try {
             List<WorkflowComponent> components = workflowComponentService.getAllEnable();
@@ -273,6 +287,9 @@ public class WorkflowStarter {
             sseManager.register(dummySseUuid, dummyEmitter);
             workflowEngine.run(user, List.of(), dummySseUuid, checkpoint.getPausedNodeUuid(), upstreamContext, false);
         } catch (Throwable e) {
+            //rebuild/run 失败回滚 DOING → 原停驻态（条件 eq(status,DOING)：引擎已落终态/重新
+            //停驻时不匹配，不会覆盖）。checkpoint 保留，用户可重试「继续」。
+            workflowRuntimeService.rollbackResumingToParked(runtimeUuid, parkedStatus);
             log.error("resumeFromCheckpoint execution exception, runtimeUuid:{}", runtimeUuid, e);
         }
     }

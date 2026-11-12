@@ -525,6 +525,41 @@ public class WorkflowRuntimeService extends ServiceImpl<WorkflowRunMapper, Workf
     }
 
     /**
+     * M2-T4 深查补丁（2026-11-12）：resume 并发幂等守卫。
+     * 原子地把停驻态（WAITING_INPUT/PAUSED）转为 DOING：CAS 成功才允许恢复，
+     * 失败说明状态已变（另一线程正在恢复 / 已取消 / 已终态），调用方必须放弃本次恢复，
+     * 否则连点「继续」或多端同时触发会让同一 runtime 被双引擎并发执行
+     * （重复节点输出、双倍 LLM token、终态互相覆盖）。
+     * Returns true if this call won the race (parked → DOING).
+     */
+    public boolean casResumeToDoing(String runtimeUuid) {
+        return ChainWrappers.lambdaUpdateChain(baseMapper)
+                .eq(WorkflowRuntime::getUuid, runtimeUuid)
+                .eq(WorkflowRuntime::getIsDeleted, false)
+                .in(WorkflowRuntime::getStatus, WORKFLOW_PROCESS_STATUS_WAITING_INPUT, WORKFLOW_PROCESS_STATUS_PAUSED)
+                .set(WorkflowRuntime::getStatus, WORKFLOW_PROCESS_STATUS_DOING)
+                .set(WorkflowRuntime::getStatusRemark, "resuming from parked node (M2-T4)")
+                .update();
+    }
+
+    /**
+     * M2-T4 深查补丁：恢复（rebuild）阶段失败的回滚——仅当 runtime 仍处 DOING（CAS 赢得
+     * 竞态后、引擎尚未落任何终态/停驻态）时回滚到原停驻态，用户可重试「继续」。
+     * 引擎已落终态（SUCCESS/FAIL/CANCELED）或已重新停驻时条件不匹配，不会覆盖。
+     */
+    public void rollbackResumingToParked(String runtimeUuid, int parkedStatus) {
+        boolean updated = ChainWrappers.lambdaUpdateChain(baseMapper)
+                .eq(WorkflowRuntime::getUuid, runtimeUuid)
+                .eq(WorkflowRuntime::getStatus, WORKFLOW_PROCESS_STATUS_DOING)
+                .set(WorkflowRuntime::getStatus, parkedStatus)
+                .set(WorkflowRuntime::getStatusRemark, "恢复失败，可重试「继续」（M2-T4）")
+                .update();
+        if (updated) {
+            log.info("rollbackResumingToParked: runtime:{} rolled back to parked status:{}", runtimeUuid, parkedStatus);
+        }
+    }
+
+    /**
      * 业务编排 Harness M2-T4（L1 启动扫描）：进程重启后，内存注册表（InterruptedFlow/
      * PausedFlow）必然为空——所有停驻实例（WAITING_INPUT/PAUSED）都成了"孤儿"。
      * 扫描并把它们标记为可恢复（statusRemark 注明），不改状态：用户点「继续」即触发
